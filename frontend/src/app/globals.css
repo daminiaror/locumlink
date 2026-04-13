@@ -1,0 +1,421 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-primary: #3b4fd8;
+  --color-primary-hover: #2f41c4;
+  --color-primary-light: #eef0fb;
+  --color-teal: #2dd4bf;
+  --color-app-bg: #f7f8fa;
+  --color-border: #e2e5ee;
+  --color-input-border: #d0d4e4;
+  --color-text-primary: #0f1523;
+  --color-text-secondary: #5a6478;
+  --color-text-muted: #8892a4;
+  --font-family-display: 'Outfit', sans-serif;
+  --font-family-body: 'DM Sans', sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.18);
+  --animate-fade-in: fadeIn 0.5s ease both;
+  --animate-scale-in: scaleIn 0.25s ease both;
+  --animate-slide-up: slideUp 0.5s ease both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.btn-outline-blue {
+  border: 1px solid #1b31d2 !important;
+  color: #1b31d2 !important;
+  background: #ffffff !important;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.btn-outline-blue:hover {
+  background: #1b31d2 !important;
+  color: #ffffff !important;
+}
+
+.btn-outline-gray {
+  border: 1px solid #d1d5db !important;
+  color: #0b0f1f !important;
+  background: #ffffff !important;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.btn-outline-gray:hover {
+  border-color: #1b31d2 !important;
+  color: #1b31d2 !important;
+}
+
+/* ADD THIS */
+.btn-outline-gray:active {
+  border-color: #1522a6 !important;
+  color: #1522a6 !important;
+  background: rgba(21, 34, 166, 0.03) !important;
+}
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    font-family: var(--font-family-body);
+    color: #0f1523;
+  }
+
+  body {
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    background: #ffffff;
+  }
+
+  body > div#app-root {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+    font-size: inherit;
+  }
+}
+button:disabled {
+  background: #8892a4 !important;
+}
+/* Host profile setup modal inputs (Figma placeholder #D0D5DD) */
+.host-setup-input::placeholder {
+  color: #d0d5dd;
+}
+
+.host-setup-select {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* ── Host profile setup — Step 3 Services (Frame 2043683669) ── */
+.host-setup-step3-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+}
+
+.host-setup-step3-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-height: 602px;
+}
+
+.host-setup-step3-amenity-label {
+  display: block;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 140%;
+  color: rgba(11, 15, 31, 0.8);
+  margin-bottom: 0;
+}
+
+.host-setup-amenity-panel {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.host-setup-amenity-panel__toolbar {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  min-height: 52px;
+  background: #ffffff;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #d0d5dd;
+}
+
+.host-setup-amenity-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  max-width: 370px;
+}
+
+.host-setup-amenity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 40px;
+  background: rgba(115, 177, 251, 0.1);
+  color: #1522a6;
+  font-size: 16px;
+  line-height: 100%;
+  letter-spacing: 0.02em;
+}
+
+.host-setup-amenity-chip__icon {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid #1522a6;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.host-setup-amenity-panel__chevron {
+  font-size: 10px;
+  color: #000000;
+  flex-shrink: 0;
+}
+
+.host-setup-amenity-panel__list {
+  max-height: 396px;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+.host-setup-amenity-panel__row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #d0d5dd;
+  cursor: pointer;
+}
+
+.host-setup-amenity-panel__row:last-of-type {
+  border-bottom: none;
+}
+
+.host-setup-amenity-panel__checkbox {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  accent-color: #0f2aae;
+  cursor: pointer;
+}
+
+.host-setup-amenity-panel__row-text {
+  font-size: 16px;
+  line-height: 140%;
+  color: #4a4a4a;
+}
+
+.host-setup-amenity-panel__add {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: none;
+  border-top: 1px solid #d0d5dd;
+  background: #e6f7f9;
+  border-radius: 0 0 8px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 140%;
+  color: #309bb7;
+}
+
+.host-setup-amenity-panel__add-icon {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #309bb7;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.host-setup-step3-accommodation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 16px;
+  line-height: 140%;
+  color: #4a4a4a;
+  cursor: pointer;
+}
+
+.host-setup-step3-accommodation input[type='checkbox'] {
+  margin-top: 2px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  accent-color: #0f2aae;
+}
+
+/* Locum profile step 1 — Frame 1948760021 placeholder tone */
+.locum-setup-input::placeholder {
+  color: rgba(21, 20, 20, 0.3);
+}
+
+/* Auth (login + OTP): full-viewport brand image, white form card */
+.auth-bg {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-y: auto;
+  background-color: #1a3a7a;
+  background-image: url('/background-image.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: flex-start; /* top-align so top: 184.5px works */
+  justify-content: flex-start; /* left-align so left: 170px works */
+  padding-top: 184.5px;
+  padding-left: 170px;
+  font-family: var(--font-family-body);
+}
+
+@media (min-width: 768px) {
+  .auth-bg {
+    justify-content: flex-start;
+    padding-left: clamp(1.5rem, 8vw, 5rem);
+    padding-right: 1.5rem;
+  }
+}
+/* Shared white panel — dimensions come from --signup / --verify modifiers */
+.auth-bg__card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 32px;
+  box-shadow: var(--shadow-modal);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  position: absolute;
+  left: 170px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Sign up / sign in — more room for role toggle, socials, email form */
+.auth-bg__card--signup {
+  width: min(480px, calc(100vw - 2rem - 170px));
+  min-height: 520px;
+  height: auto;
+}
+
+/* OTP verify — shorter, narrower panel */
+.auth-bg__card--verify {
+  width: min(420px, calc(100vw - 2rem - 170px));
+  min-height: 360px;
+  height: auto;
+}
+/* Sign In */
+.btn-signin {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 140%;
+  color: #0b0f1f;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.btn-signin:hover {
+  color: #1b31d2;
+}
+.btn-signin:active {
+  color: #1522a6;
+}
+
+/* Auth page — "Sign in" link under "Already have an account?" */
+.auth-page-signin-link {
+  color: #636364;
+  transition: color 0.15s ease;
+}
+.auth-page-signin-link:hover {
+  color: #3b4fd8;
+}
+
+/* Sign Up */
+.btn-signup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  width: 92px;
+  height: 44px;
+  background: linear-gradient(270deg, #3a65db 0%, #1b31d2 100%);
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 140%;
+  color: #ffffff;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+.btn-signup:hover {
+  background: linear-gradient(270deg, #5b7ee8 0%, #3547d4 100%);
+}
+.btn-signup:active {
+  background: linear-gradient(270deg, #2a50c0 0%, #1522a6 100%);
+}
+.btn-signin--disabled {
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  opacity: 0.6;
+}

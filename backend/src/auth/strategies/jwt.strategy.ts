@@ -22,6 +22,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<User> {
-    return this.authService.validateJwtPayload(payload);
+    const user = await this.authService.validateJwtPayload(payload);
+    return user;
+    // validateJwtPayload already throws 401 if user not found or suspended
+    // We rely on Supabase OTP — if user got a token, email IS verified
+    // because Supabase only issues tokens after OTP verification
   }
 }

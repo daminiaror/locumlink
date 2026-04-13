@@ -110,6 +110,9 @@ model User {
   emailVerified     Boolean    @default(false)
   emailVerifiedAt   DateTime?
   lastLoginAt       DateTime?
+  hashedRefreshToken String?
+  /** Last in-app path for resume-after-login (server-side). */
+  lastAppPath       String?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
@@ -175,6 +178,20 @@ model HostProfile {
   highlights        String?    @db.Text
   phone             String?
   website           String?
+
+  // Extended fields (host setup + profile UI; also used by Next.js /api/host/profile)
+  contactFirstName     String?
+  contactLastName      String?
+  cpsnsNumber          String?
+  speciality           String?    @db.Text
+  licenseFile          String?
+  address1             String?
+  address2             String?
+  accommodationProvided Boolean   @default(false)
+  practiceType         String?
+  numPhysicians        String?
+  emr                  String?
+  patientVol           String?
 
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt

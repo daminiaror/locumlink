@@ -1,0 +1,51 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ADD THESE MODELS to your existing database/prisma/schema.prisma
+// (keep whatever is already there — just append below)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model HostProfile {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique          // Supabase auth UID
+  clinicName              String
+  contactFirstName        String
+  contactLastName         String   @default("")
+  cpsnsNumber             String   @default("")
+  speciality              String   @default("")
+  address1                String   @default("")
+  address2                String   @default("")
+  postalCode              String   @default("")
+  city                    String   @default("")
+  province                String   @default("")
+  amenities               String[] @default([])
+  accommodationProvided   Boolean  @default(false)
+  practiceType            String   @default("")
+  numPhysicians           String   @default("")
+  emrSystem               String   @default("")
+  patientVolume           String   @default("")
+  clinicDescription       String   @default("")
+  verified                Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("host_profiles")
+}
+
+model LocumProfile {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  firstName             String
+  lastName              String
+  cpsnsNumber           String   @default("")
+  professionalSummary   String   @default("")
+  specialization        String   @default("")
+  address1              String   @default("")
+  address2              String   @default("")
+  postalCode            String   @default("")
+  city                  String   @default("")
+  province              String   @default("")
+  verified              Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("locum_profiles")
+}

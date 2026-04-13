@@ -1,0 +1,46 @@
+import type { HostProfile } from '@/types';
+
+type Fields = Partial<HostProfile> | null | undefined;
+
+/**
+ * Same 4-step completion logic as the host profile page (25% per step).
+ */
+export function hostProfileCompletionPct(fields: Fields): number {
+  if (!fields) return 0;
+
+  const specs =
+    fields.speciality
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) ?? [];
+
+  const step1Complete = !!(
+    fields.clinicName &&
+    fields.contactFirstName &&
+    fields.contactLastName &&
+    fields.cpsnsNumber &&
+    specs.length
+  );
+  const step2Complete = !!(
+    fields.address1 &&
+    fields.postalCode &&
+    fields.city &&
+    fields.province
+  );
+  const step3Complete = !!(
+    fields.practiceType &&
+    fields.numPhysicians &&
+    fields.emr &&
+    fields.patientVol
+  );
+  const step4Complete = (fields.amenities?.length ?? 0) > 0;
+
+  const completedCount = [
+    step1Complete,
+    step2Complete,
+    step3Complete,
+    step4Complete,
+  ].filter(Boolean).length;
+
+  return Math.round((completedCount / 4) * 100);
+}

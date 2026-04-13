@@ -9,6 +9,7 @@ out
 .env
 .env.staging
 .env.production
+frontend/.env.local
 
 # IDE
 .idea

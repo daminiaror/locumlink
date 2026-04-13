@@ -7,7 +7,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Role, User } from '@prisma/client';
+import { createClient } from '@supabase/supabase-js';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'node:crypto';
 import type { StringValue } from 'ms';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -126,6 +128,67 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  /**
+   * Exchange a Supabase access token (after email OTP) for Locum Link JWTs,
+   * or re-issue tokens if the client already sent our own access token.
+   */
+  async syncFromSupabaseToken(
+    authorizationHeader: string | undefined,
+    roleHint: Role,
+  ): Promise<AuthTokens> {
+    const raw = authorizationHeader?.replace(/^Bearer\s+/i, '').trim();
+    if (!raw) {
+      throw new UnauthorizedException('Missing Authorization bearer token');
+    }
+
+    const supabaseUrl = this.config.get<string>('SUPABASE_URL');
+    const serviceKey = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (supabaseUrl && serviceKey) {
+      const sb = createClient(supabaseUrl, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data, error } = await sb.auth.getUser(raw);
+      if (!error && data.user?.email) {
+        const user = await this.findOrCreateUserForSupabase(
+          data.user.email.toLowerCase(),
+          roleHint,
+        );
+        return this.issueTokens(user);
+      }
+    }
+
+    try {
+      const payload = this.jwt.verify<JwtPayload>(raw);
+      const user = await this.validateJwtPayload(payload);
+      return this.issueTokens(user);
+    } catch {
+      throw new UnauthorizedException(
+        'Invalid session. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set for OTP login.',
+      );
+    }
+  }
+
+  private async findOrCreateUserForSupabase(
+    email: string,
+    roleHint: Role,
+  ): Promise<User> {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) return existing;
+
+    const passwordHash = await bcrypt.hash(randomUUID(), BCRYPT_ROUNDS);
+    return this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        role: roleHint,
+        status: 'ACTIVE',
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+      },
+    });
   }
 
   // ── Token issuance ────────────────────────────────────────────────
