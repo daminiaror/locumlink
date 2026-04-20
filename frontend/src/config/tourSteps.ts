@@ -1,34 +1,60 @@
-import { Step } from 'react-joyride';
+import type { DriveStep } from 'driver.js';
 
-export const tourSteps: Step[] = [
+export const tourSteps: DriveStep[] = [
   {
-    target: '#nav-browse-opportunities',
-    content: 'Browse and view available locum opportunities.',
-    disableBeacon: true,
+    element: '#nav-browse-opportunities',
+    popover: {
+      title: 'Browse opportunities',
+      description: 'Browse and view available locum opportunities.',
+      side: 'right',
+    },
   },
   {
-    target: '#nav-my-applications',
-    content: 'Track your applications and their status.',
+    element: '#nav-my-applications',
+    popover: {
+      title: 'My applications',
+      description: 'Track your applications and their status.',
+      side: 'right',
+    },
   },
   {
-    target: '#nav-profile',
-    content: 'Update your profile and required documents.',
+    element: '#nav-profile',
+    popover: {
+      title: 'Profile',
+      description: 'Update your profile and required documents.',
+      side: 'right',
+    },
   },
   {
-    target: '#nav-messages',
-    content: 'Chat with clinics about your applications.',
+    element: '#nav-messages',
+    popover: {
+      title: 'Messages',
+      description: 'Chat with clinics about your applications.',
+      side: 'right',
+    },
   },
   {
-    target: '#nav-resources',
-    content: 'View helpful resources and information.',
+    element: '#nav-resources',
+    popover: {
+      title: 'Resources',
+      description: 'View helpful resources and information.',
+      side: 'right',
+    },
   },
   {
-    target: '#header-notifications',
-    content: 'Check notifications and unread messages here.',
+    element: '#header-notifications',
+    popover: {
+      title: 'Notifications',
+      description: 'Check notifications and unread messages here.',
+      side: 'bottom',
+    },
   },
   {
-    target: '#empty-state-browse-opportunities',
-    content: 'Start here if you haven’t applied yet.',
+    element: '#empty-state-browse-opportunities',
+    popover: {
+      title: 'Get started',
+      description: 'Start here if you haven’t applied yet.',
+      side: 'top',
+    },
   },
 ];
-
