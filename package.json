@@ -36,6 +36,7 @@
     "db:down": "docker compose down"
   },
   "devDependencies": {
+    "@types/pg": "^8.20.0",
     "dotenv": "^16.4.7",
     "prisma": "^6.0.0"
   },
