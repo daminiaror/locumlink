@@ -1,31 +1,25 @@
 'use client';
-import Joyride, { CallBackProps, STATUS } from 'react-joyride';
+import { useEffect } from 'react';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
 import { useFirstVisit } from '@/hooks/useFirstVisit';
 import { tourSteps } from '@/config/tourSteps';
 
 export default function GuidedTour() {
   const { isFirstVisit, markAsSeen } = useFirstVisit();
 
-  const handleCallback = (data: CallBackProps) => {
-    const { status } = data;
-    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      markAsSeen();
-    }
-  };
+  useEffect(() => {
+    if (!isFirstVisit) return;
 
-  return (
-    <Joyride
-      steps={tourSteps}
-      run={isFirstVisit}
-      continuous
-      showSkipButton
-      showProgress
-      callback={handleCallback}
-      styles={{
-        options: {
-          primaryColor: '#4F46E5',
-        },
-      }}
-    />
-  );
+    const driverObj = driver({
+      showProgress: true,
+      allowClose: true,
+      onDestroyed: () => markAsSeen(),
+      steps: tourSteps,
+    });
+
+    driverObj.drive();
+  }, [isFirstVisit]);
+
+  return null;
 }
