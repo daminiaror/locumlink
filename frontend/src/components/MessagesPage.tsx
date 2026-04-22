@@ -177,7 +177,7 @@ function AvatarGlyph({
   const src =
     variant === 'locum' ? '/avatar-locum.png' : '/avatar-clinic.png';
   return (
-    <img
+    <Image
       src={src}
       alt={variant === 'locum' ? 'Locum' : 'Clinic'}
       width={size}
