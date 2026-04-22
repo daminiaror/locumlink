@@ -96,7 +96,13 @@ function VerificationBanner({ status }: { status: VerificationStatus }) {
       background: config.bg, border: `1px solid ${config.border}`,
       borderRadius: 8, padding: '12px 16px', marginBottom: 20,
     }}>
-      <img src={config.img} alt="" style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }} />
+      <Image
+        src={config.img}
+        alt=""
+        width={36}
+        height={36}
+        style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }}
+      />
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: config.titleColor }}>{config.title}</div>
         <div style={{ fontSize: 12, color: config.subColor }}>{config.sub}</div>

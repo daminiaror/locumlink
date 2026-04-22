@@ -282,13 +282,15 @@ export default function LocumDashboard(props: {
                 transform="rotate(-90 26 26)"
               />
             </svg>
-            <img
+            <Image
               src={
                 cpsnsVerified
                   ? '/profile-verified.png'
                   : '/profile-incomplete.png'
               }
               alt=""
+              width={28}
+              height={28}
               style={{
                 position: 'absolute',
                 top: '50%',

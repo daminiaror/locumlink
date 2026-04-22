@@ -417,6 +417,31 @@ export const hostApi = {
     return res.json() as Promise<{ jobs: Job[] }>;
   },
 
+  getJob: async (jobId: string): Promise<{ job: Job }> => {
+    const res = await fetch(`${NEST_BASE}/api/host/jobs/${encodeURIComponent(jobId)}`, {
+      cache: 'no-store',
+      headers: nestHeaders(false),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw nestHttpError(text, res.status, 'Loading job');
+    }
+    return res.json() as Promise<{ job: Job }>;
+  },
+
+  updateJob: async (jobId: string, body: Partial<CreateJobPayload>): Promise<unknown> => {
+    const res = await fetch(`${NEST_BASE}/api/host/jobs/${encodeURIComponent(jobId)}`, {
+      method: 'PATCH',
+      headers: nestHeaders(true),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw nestHttpError(text, res.status, 'Updating job');
+    }
+    return res.json();
+  },
+
   getDashboardStats: async (): Promise<DashboardStats> => {
     const res = await fetch(`${NEST_BASE}/api/host/stats`, {
       cache: 'no-store',

@@ -19,7 +19,7 @@ export default function GuidedTour() {
     });
 
     driverObj.drive();
-  }, [isFirstVisit]);
+  }, [isFirstVisit, markAsSeen]);
 
   return null;
 }
