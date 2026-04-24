@@ -1,19 +1,13 @@
-// prisma/schema.prisma
-// LocumConnect – Full Schema (Section 11.3 + Section 13 PIPEDA)
+
 
 generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ─────────────────────────────────────────────
-// ENUMS
-// ─────────────────────────────────────────────
 
 enum Role {
   HOST
@@ -99,10 +93,6 @@ enum AuditAction {
   STATUS_CHANGE
 }
 
-// ─────────────────────────────────────────────
-// USER
-// ─────────────────────────────────────────────
-
 model User {
   id                String     @id @default(cuid())
   email             String     @unique
@@ -113,12 +103,13 @@ model User {
   emailVerifiedAt   DateTime?
   lastLoginAt       DateTime?
   hashedRefreshToken String?
-  /** Last in-app path for resume-after-login (server-side). */
+  
   lastAppPath       String?
+  
+  avatarStoragePath String?    @map("avatar_storage_path")
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
-  // Relations
   locumProfile      LocumProfile?
   hostProfile       HostProfile?
   sentMessages      Message[]         @relation("SentMessages")
@@ -130,18 +121,13 @@ model User {
   @@map("users")
 }
 
-// ─────────────────────────────────────────────
-// LOCUM PROFILE
-// ─────────────────────────────────────────────
-
 model LocumProfile {
   id                  String             @id @default(cuid())
   userId              String             @unique
   user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Nova Scotia specific identifiers
-  cpsnsId             String             @unique          // College of Physicians and Surgeons of NS
-  msiProviderNumber   String?                             // Medical Services Insurance (struck-through in PRD = optional)
+  cpsnsId             String             @unique
+  msiProviderNumber   String?
 
   specialty           Specialty
   billingType         BillingType        @default(FEE_FOR_SERVICE)
@@ -153,7 +139,6 @@ model LocumProfile {
   firstName           String?            @map("first_name")
   lastName            String?            @map("last_name")
 
-  // Setup / profile UI (free-text; `specialty` enum kept for filters)
   address1            String?
   address2            String?
   postalCode          String?            @map("postal_code")
@@ -167,16 +152,11 @@ model LocumProfile {
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
-  // Relations
   documents           Document[]
   applications        Application[]
 
   @@map("locum_profiles")
 }
-
-// ─────────────────────────────────────────────
-// HOST / CLINIC PROFILE
-// ─────────────────────────────────────────────
 
 model HostProfile {
   id                String     @id @default(cuid())
@@ -188,13 +168,12 @@ model HostProfile {
   city              String
   postalCode        String
   province          String     @default("NS")
-  ruralDesignation  String?    // e.g. "Zone 1", "RCCBC Tier 3"
-  servicesOffered   String[]   // array of service strings
+  ruralDesignation  String?
+  servicesOffered   String[]
   highlights        String?    @db.Text
   phone             String?
   website           String?
 
-  // Extended fields (host setup + profile UI; also used by Next.js /api/host/profile)
   contactFirstName     String?
   contactLastName      String?
   cpsnsNumber          String?
@@ -211,15 +190,10 @@ model HostProfile {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
-  // Relations
   postings          JobPosting[]
 
   @@map("host_profiles")
 }
-
-// ─────────────────────────────────────────────
-// JOB POSTING
-// ─────────────────────────────────────────────
 
 model JobPosting {
   id                String        @id @default(cuid())
@@ -231,12 +205,9 @@ model JobPosting {
   servicesRequired  String[]
   status            PostingStatus @default(DRAFT)
 
-  // Nova Scotia standardised rates (CAD / day)
-  // GP: $1,200 | Specialist: $1,600
   dailyRateGP         Decimal       @default(1200.00) @db.Decimal(10, 2)
   dailyRateSpecialist Decimal       @default(1600.00) @db.Decimal(10, 2)
 
-  // Accommodation & travel
   accommodationProvided Boolean     @default(false)
   travelAllowance       Decimal?    @db.Decimal(10, 2)
 
@@ -260,17 +231,12 @@ model JobPosting {
   scheduleFlexible      Boolean   @default(false) @map("schedule_flexible")
   requiredCredentials   String[]  @default([]) @map("required_credentials")
 
-  // Relations
   shifts                Shift[]
   applications          Application[]
   messages              Message[]
 
   @@map("job_postings")
 }
-
-// ─────────────────────────────────────────────
-// SHIFT (date slots attached to a posting)
-// ─────────────────────────────────────────────
 
 model Shift {
   id            String     @id @default(cuid())
@@ -288,10 +254,6 @@ model Shift {
   @@map("shifts")
 }
 
-// ─────────────────────────────────────────────
-// APPLICATION
-// ─────────────────────────────────────────────
-
 model Application {
   id              String            @id @default(cuid())
   jobPostingId    String
@@ -308,32 +270,24 @@ model Application {
   @@map("applications")
 }
 
-// ─────────────────────────────────────────────
-// DOCUMENT (license uploads via Cloudinary/GCS)
-// ─────────────────────────────────────────────
-
 model Document {
   id                 String             @id @default(cuid())
   locumProfileId     String
   locumProfile       LocumProfile       @relation(fields: [locumProfileId], references: [id], onDelete: Cascade)
 
   documentType       DocumentType
-  storageUrl         String             // GCS signed-path or Cloudinary public_id
+  storageUrl         String
   fileName           String
   mimeType           String
   sizeBytes          Int
   verificationStatus VerificationStatus @default(UNVERIFIED)
-  expiresAt          DateTime?          // license expiry date
+  expiresAt          DateTime?
 
   uploadedAt         DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   @@map("documents")
 }
-
-// ─────────────────────────────────────────────
-// MESSAGE
-// ─────────────────────────────────────────────
 
 model Message {
   id            String     @id @default(cuid())
@@ -348,24 +302,39 @@ model Message {
   readAt        DateTime?
   sentAt        DateTime   @default(now())
   
-  editedAt   DateTime?  @map("edited_at")   // ← ADD
-  deletedAt  DateTime?  @map("deleted_at")  // ← ADD (soft delete)
+  editedAt   DateTime?  @map("edited_at")
+  deletedAt  DateTime?  @map("deleted_at")
+
+  attachments MessageAttachment[]
 
   @@map("messages")
 }
 
-// ─────────────────────────────────────────────
-// NOTIFICATION EVENT
-// ─────────────────────────────────────────────
+model MessageAttachment {
+  id         String   @id @default(cuid())
+  messageId  String
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  
+  storagePath String  @map("storage_path")
+  fileName    String  @map("file_name")
+  mimeType    String  @map("mime_type")
+  size        Int
+
+  createdAt  DateTime @default(now())
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
 
 model NotificationEvent {
   id              String   @id @default(cuid())
   recipientId     String
   recipient       User     @relation(fields: [recipientId], references: [id])
 
-  eventType       String   // e.g. "APPLICATION_RECEIVED", "STATUS_CHANGED"
-  referenceId     String?  // Application or Posting ID
-  referenceType   String?  // "Application" | "JobPosting"
+  eventType       String
+  referenceId     String?
+  referenceType   String?
   payload         Json?
   deliveryStatus  String   @default("PENDING")
   deliveredAt     DateTime?
@@ -374,32 +343,22 @@ model NotificationEvent {
   @@map("notification_events")
 }
 
-// ─────────────────────────────────────────────
-// AUDIT LOG  –  PIPEDA / Section 13 Compliance
-// ─────────────────────────────────────────────
-// Captures every sensitive action for regulatory audit trail.
-// Immutable by design: no updatedAt, no cascade deletes.
-
 model AuditLog {
   id            String      @id @default(cuid())
 
-  // Who performed the action
   actorId       String?
   actor         User?       @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
 
-  // Who / what was affected
   subjectId     String?
   subject       User?       @relation("AuditSubject", fields: [subjectId], references: [id], onDelete: SetNull)
 
   action        AuditAction
-  entity        String      // Table/model name, e.g. "Document", "Application"
-  entityId      String?     // PK of the affected record
+  entity        String
+  entityId      String?
 
-  // Full before/after snapshot for data-change events
   before        Json?
   after         Json?
 
-  // Request metadata (PIPEDA requires IP logging)
   ipAddress     String?
   userAgent     String?
   endpoint      String?

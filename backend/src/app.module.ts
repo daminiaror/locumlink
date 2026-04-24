@@ -13,34 +13,33 @@ import { LocumModule } from './locum/locum.module.js';
 import { MessageModule } from './message/message.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { validate } from './config/env.validation.js';
-
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath:
-        process.env.NODE_ENV === 'production'
-          ? []
-          : [`.env.${process.env.NODE_ENV ?? 'development'}`, '.env'],
-      validate,
-    }),
-    GcsModule,
-    AuditModule,
-    PrismaModule,
-    AuthModule,
-    HealthModule,
-    HostModule,
-    LocumModule,
-    MessageModule,
-    NotificationsModule,
-    UploadModule,
-    GcsModule,
-  ],
-  providers: [
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-  ],
+    imports: [
+        ConfigModule.forRoot({
+            isGlobal: true,
+            envFilePath: process.env.NODE_ENV === 'production'
+                ? []
+                : [`.env.${process.env.NODE_ENV ?? 'development'}`, '.env'],
+            validate,
+        }),
+        GcsModule,
+        AuditModule,
+        PrismaModule,
+        AuthModule,
+        HealthModule,
+        HostModule,
+        LocumModule,
+        MessageModule,
+        NotificationsModule,
+        UploadModule,
+        GcsModule,
+    ],
+    providers: [
+        {
+            provide: APP_GUARD,
+            useClass: JwtAuthGuard,
+        },
+    ],
 })
-export class AppModule {}
+export class AppModule {
+}
