@@ -4,48 +4,40 @@ import './globals.css';
 import { Providers } from './providers';
 import { AuthSync } from '@/components/AuthSync';
 import { PathTracker } from '@/components/PathTracker';
-import GuidedTour from '@/components/GuidedTour';
-
+import GuidedTourGate from '@/components/GuidedTourGate';
+import TopLoadingBar from '@/components/ui/TopLoadingBar';
+import RouteTransitionLoader from '@/components/ui/RouteTransitionLoader';
 const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
+    subsets: ['latin'],
+    variable: '--font-inter',
+    display: 'swap',
 });
-
 const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-display',
-  display: 'swap',
+    subsets: ['latin'],
+    variable: '--font-display',
+    display: 'swap',
 });
-
 export const metadata: Metadata = {
-  title: 'Locum Link - Connect. Cover. Care.',
-  description: 'Find a Locum within 2 days, without agencies or endless calls.',
-  icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
-  },
+    title: 'Locum Link - Connect. Cover. Care.',
+    description: 'Find a Locum within 2 days, without agencies or endless calls.',
+    icons: {
+        icon: '/logo.png',
+        apple: '/logo.png',
+    },
 };
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
+export default function RootLayout({ children, }: {
+    children: React.ReactNode;
 }) {
-  return (
-    <html
-      lang="en"
-      className={`app-html ${inter.variable} ${outfit.variable}`}
-      suppressHydrationWarning
-    >
+    return (<html lang="en" className={`app-html ${inter.variable} ${outfit.variable}`} suppressHydrationWarning>
       <body className="app-body" suppressHydrationWarning>
         <div id="app-root">
+          <TopLoadingBar />
+          <RouteTransitionLoader />
           <AuthSync />
           <PathTracker />
-          <GuidedTour />
+          <GuidedTourGate />
           <Providers>{children}</Providers>
         </div>
       </body>
-    </html>
-  );
+    </html>);
 }

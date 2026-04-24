@@ -1,11 +1,8 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// ADD THESE MODELS to your existing database/prisma/schema.prisma
-// (keep whatever is already there — just append below)
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 model HostProfile {
   id                      String   @id @default(uuid())
-  userId                  String   @unique          // Supabase auth UID
+  userId                  String   @unique
   clinicName              String
   contactFirstName        String
   contactLastName         String   @default("")

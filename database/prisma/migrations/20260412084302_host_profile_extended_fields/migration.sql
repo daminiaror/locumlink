@@ -1,4 +1,4 @@
--- AlterTable
+
 ALTER TABLE "host_profiles" ADD COLUMN     "accommodationProvided" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "address1" TEXT,
 ADD COLUMN     "address2" TEXT,

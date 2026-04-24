@@ -1,4 +1,4 @@
--- Locum profile: persist setup wizard address, specialization text, and document filenames.
+
 
 ALTER TABLE "locum_profiles" ADD COLUMN IF NOT EXISTS "address1" TEXT;
 ALTER TABLE "locum_profiles" ADD COLUMN IF NOT EXISTS "address2" TEXT;

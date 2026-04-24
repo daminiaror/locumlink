@@ -1,4 +1,4 @@
--- CreateTable
+
 CREATE TABLE "otps" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -9,5 +9,4 @@ CREATE TABLE "otps" (
     CONSTRAINT "otps_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE INDEX "otps_email_idx" ON "otps"("email");

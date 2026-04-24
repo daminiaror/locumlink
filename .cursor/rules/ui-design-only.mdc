@@ -1,0 +1,14 @@
+---
+description: Frontend UI edits stay visual-only; do not break API or backend contracts
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# Design vs behavior (frontend)
+
+When adjusting layout, styles, spacing, typography, or dimensions:
+
+- Keep the same React state variable names, `onChange` handlers, and data passed to API clients (`hostApi`, etc.).
+- Keep `HostProfile` / DTO field names and `handleSave` payload shape aligned with backend DTOs.
+- Do not add validation (max length, pattern, stripping characters) unless product and backend explicitly require it. If you add a limit (e.g. postal code max length), use rules that still accept values the backend already stores (e.g. alphanumeric postal codes).
+- Prefer CSS and presentational props only; avoid changing business logic for purely visual tickets.

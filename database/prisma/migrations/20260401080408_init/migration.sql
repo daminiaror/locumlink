@@ -1,34 +1,24 @@
--- CreateEnum
+
 CREATE TYPE "Role" AS ENUM ('HOST', 'LOCUM', 'ADMIN');
 
--- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('PENDING', 'ACTIVE', 'SUSPENDED', 'DEACTIVATED');
 
--- CreateEnum
 CREATE TYPE "VerificationStatus" AS ENUM ('UNVERIFIED', 'PENDING_REVIEW', 'VERIFIED', 'REJECTED');
 
--- CreateEnum
 CREATE TYPE "BillingType" AS ENUM ('FEE_FOR_SERVICE', 'SHADOW_BILLING', 'BLENDED');
 
--- CreateEnum
 CREATE TYPE "Specialty" AS ENUM ('GENERAL_PRACTICE', 'INTERNAL_MEDICINE', 'PEDIATRICS', 'PSYCHIATRY', 'EMERGENCY_MEDICINE', 'SURGERY', 'OBSTETRICS_GYNECOLOGY', 'ANESTHESIOLOGY', 'RADIOLOGY', 'OTHER');
 
--- CreateEnum
 CREATE TYPE "ShiftType" AS ENUM ('FULL_DAY', 'HALF_DAY_AM', 'HALF_DAY_PM', 'OVERNIGHT', 'WEEKEND');
 
--- CreateEnum
 CREATE TYPE "PostingStatus" AS ENUM ('DRAFT', 'ACTIVE', 'FILLED', 'CANCELLED', 'EXPIRED');
 
--- CreateEnum
 CREATE TYPE "ApplicationStatus" AS ENUM ('APPLIED', 'SHORTLISTED', 'CONFIRMED', 'REJECTED', 'WITHDRAWN');
 
--- CreateEnum
 CREATE TYPE "DocumentType" AS ENUM ('CPSNS_LICENSE', 'CMPA_CERTIFICATE', 'DEA_CERTIFICATE', 'CV', 'PHOTO_ID', 'OTHER');
 
--- CreateEnum
 CREATE TYPE "AuditAction" AS ENUM ('CREATE', 'READ', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'EXPORT', 'DOCUMENT_ACCESS', 'STATUS_CHANGE');
 
--- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -44,7 +34,6 @@ CREATE TABLE "users" (
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "locum_profiles" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -65,7 +54,6 @@ CREATE TABLE "locum_profiles" (
     CONSTRAINT "locum_profiles_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "host_profiles" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -85,7 +73,6 @@ CREATE TABLE "host_profiles" (
     CONSTRAINT "host_profiles_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "job_postings" (
     "id" TEXT NOT NULL,
     "hostProfileId" TEXT NOT NULL,
@@ -118,7 +105,6 @@ CREATE TABLE "job_postings" (
     CONSTRAINT "job_postings_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "shifts" (
     "id" TEXT NOT NULL,
     "jobPostingId" TEXT NOT NULL,
@@ -132,7 +118,6 @@ CREATE TABLE "shifts" (
     CONSTRAINT "shifts_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "applications" (
     "id" TEXT NOT NULL,
     "jobPostingId" TEXT NOT NULL,
@@ -145,7 +130,6 @@ CREATE TABLE "applications" (
     CONSTRAINT "applications_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "documents" (
     "id" TEXT NOT NULL,
     "locumProfileId" TEXT NOT NULL,
@@ -162,7 +146,6 @@ CREATE TABLE "documents" (
     CONSTRAINT "documents_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "messages" (
     "id" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
@@ -175,7 +158,6 @@ CREATE TABLE "messages" (
     CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "notification_events" (
     "id" TEXT NOT NULL,
     "recipientId" TEXT NOT NULL,
@@ -190,7 +172,6 @@ CREATE TABLE "notification_events" (
     CONSTRAINT "notification_events_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL,
     "actorId" TEXT,
@@ -208,68 +189,46 @@ CREATE TABLE "audit_logs" (
     CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
--- CreateIndex
 CREATE UNIQUE INDEX "locum_profiles_userId_key" ON "locum_profiles"("userId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "locum_profiles_cpsnsId_key" ON "locum_profiles"("cpsnsId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "host_profiles_userId_key" ON "host_profiles"("userId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "applications_jobPostingId_locumProfileId_key" ON "applications"("jobPostingId", "locumProfileId");
 
--- CreateIndex
 CREATE INDEX "audit_logs_actorId_idx" ON "audit_logs"("actorId");
 
--- CreateIndex
 CREATE INDEX "audit_logs_subjectId_idx" ON "audit_logs"("subjectId");
 
--- CreateIndex
 CREATE INDEX "audit_logs_entity_entityId_idx" ON "audit_logs"("entity", "entityId");
 
--- CreateIndex
 CREATE INDEX "audit_logs_createdAt_idx" ON "audit_logs"("createdAt");
 
--- AddForeignKey
 ALTER TABLE "locum_profiles" ADD CONSTRAINT "locum_profiles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "host_profiles" ADD CONSTRAINT "host_profiles_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "job_postings" ADD CONSTRAINT "job_postings_hostProfileId_fkey" FOREIGN KEY ("hostProfileId") REFERENCES "host_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "shifts" ADD CONSTRAINT "shifts_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "job_postings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "applications" ADD CONSTRAINT "applications_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "job_postings"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "applications" ADD CONSTRAINT "applications_locumProfileId_fkey" FOREIGN KEY ("locumProfileId") REFERENCES "locum_profiles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "documents" ADD CONSTRAINT "documents_locumProfileId_fkey" FOREIGN KEY ("locumProfileId") REFERENCES "locum_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "messages" ADD CONSTRAINT "messages_jobPostingId_fkey" FOREIGN KEY ("jobPostingId") REFERENCES "job_postings"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "notification_events" ADD CONSTRAINT "notification_events_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

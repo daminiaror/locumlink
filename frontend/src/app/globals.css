@@ -83,7 +83,7 @@
   color: #1b31d2 !important;
 }
 
-/* ADD THIS */
+
 .btn-outline-gray:active {
   border-color: #1522a6 !important;
   color: #1522a6 !important;
@@ -127,11 +127,16 @@
     font-family: inherit;
     font-size: inherit;
   }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: #1522a6;
+  }
 }
 button:disabled {
   background: #8892a4 !important;
 }
-/* Host profile setup modal inputs (Figma placeholder #D0D5DD) */
+
 .host-setup-input::placeholder {
   color: #d0d5dd;
 }
@@ -141,7 +146,7 @@ button:disabled {
   -webkit-appearance: none;
 }
 
-/* ── Host profile setup — Step 3 Services (Frame 2043683669) ── */
+
 .host-setup-step3-stack {
   display: flex;
   flex-direction: column;
@@ -301,12 +306,12 @@ button:disabled {
   accent-color: #0f2aae;
 }
 
-/* Locum profile step 1 — Frame 1948760021 placeholder tone */
+
 .locum-setup-input::placeholder {
   color: rgba(21, 20, 20, 0.3);
 }
 
-/* Auth (login + OTP): full-viewport brand image, white form card */
+
 .auth-bg {
   box-sizing: border-box;
   width: 100%;
@@ -319,8 +324,8 @@ button:disabled {
   background-position: center;
   background-repeat: no-repeat;
   display: flex;
-  align-items: flex-start; /* top-align so top: 184.5px works */
-  justify-content: flex-start; /* left-align so left: 170px works */
+  align-items: flex-start; 
+  justify-content: flex-start; 
   padding-top: 184.5px;
   padding-left: 170px;
   font-family: var(--font-family-body);
@@ -333,7 +338,7 @@ button:disabled {
     padding-right: 1.5rem;
   }
 }
-/* Shared white panel — dimensions come from --signup / --verify modifiers */
+
 .auth-bg__card {
   background: #ffffff;
   border-radius: 10px;
@@ -347,20 +352,32 @@ button:disabled {
   transform: translateY(-50%);
 }
 
-/* Sign up / sign in — more room for role toggle, socials, email form */
+
 .auth-bg__card--signup {
   width: min(480px, calc(100vw - 2rem - 170px));
   min-height: 520px;
   height: auto;
 }
 
-/* OTP verify — shorter, narrower panel */
+
 .auth-bg__card--verify {
   width: min(420px, calc(100vw - 2rem - 170px));
   min-height: 360px;
   height: auto;
 }
-/* Sign In */
+
+
+.auth-bg__card button:focus {
+  outline: none;
+}
+.auth-bg__card button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px rgba(59, 79, 216, 0.45);
+}
+
+
 .btn-signin {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
@@ -377,7 +394,7 @@ button:disabled {
   color: #1522a6;
 }
 
-/* Auth page — "Sign in" link under "Already have an account?" */
+
 .auth-page-signin-link {
   color: #636364;
   transition: color 0.15s ease;
@@ -386,7 +403,7 @@ button:disabled {
   color: #3b4fd8;
 }
 
-/* Sign Up */
+
 .btn-signup {
   display: flex;
   align-items: center;
@@ -420,8 +437,7 @@ button:disabled {
   opacity: 0.6;
 }
 
-/* Root layout: keep html/body/#app-root out of inline styles to avoid hydration mismatches
-   (SSR vs client style serialization, browser extensions tweaking body). */
+
 html.app-html {
   height: 100%;
   overflow: hidden;
