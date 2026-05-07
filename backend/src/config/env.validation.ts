@@ -68,15 +68,11 @@ class EnvironmentVariables {
     @IsOptional()
     ALLOWED_ORIGINS: string = 'http://localhost:3001';
 
-    // Admin OAuth (Google) + separate Admin JWT
     @IsString()
     @IsOptional()
-    ADMIN_JWT_SECRET?: string;
+    SESSION_SECRET?: string;
 
-    @IsString()
-    @IsOptional()
-    ADMIN_JWT_EXPIRES_IN: string = '7d';
-
+    // Admin Google OAuth (Nest Passport — separate from main-app Supabase Google)
     @IsString()
     @IsOptional()
     GOOGLE_ADMIN_CLIENT_ID?: string;
@@ -88,6 +84,15 @@ class EnvironmentVariables {
     @IsUrl({ require_tld: false })
     @IsOptional()
     GOOGLE_ADMIN_CALLBACK_URL?: string;
+
+    // Admin JWT cookie (after Google OAuth via Nest)
+    @IsString()
+    @IsOptional()
+    ADMIN_JWT_SECRET?: string;
+
+    @IsString()
+    @IsOptional()
+    ADMIN_JWT_EXPIRES_IN: string = '7d';
 
     @IsUrl({ require_tld: false })
     @IsOptional()

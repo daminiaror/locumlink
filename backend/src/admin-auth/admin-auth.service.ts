@@ -14,13 +14,13 @@ export class AdminAuthService {
   ) {}
 
   async assertEmailIsAllowedAdmin(email?: string | null) {
-    if (!email) throw new UnauthorizedException('Google account email missing');
+    if (!email)
+      throw new UnauthorizedException('Signed-in account has no email');
     const admin = await this.prisma.admin.findUnique({
       where: { email: email.toLowerCase() },
     });
-    if (!admin) {
-      throw new ForbiddenException('This Google account is not allowed as an admin');
-    }
+    if (!admin)
+      throw new ForbiddenException('This account is not allowed as an admin');
     return admin;
   }
 
@@ -29,12 +29,48 @@ export class AdminAuthService {
     return this.jwt.signAsync(payload);
   }
 
+  /** Cookie `maxAge` in ms from ADMIN_JWT_EXPIRES_IN */
+  parseAdminJwtCookieMaxAgeMs(): number {
+    const raw = this.config.get<string>('ADMIN_JWT_EXPIRES_IN', '7d');
+    const match = /^(\d+)([smhd])$/.exec(raw.trim());
+    if (!match)
+      return 7 * 24 * 60 * 60 * 1000;
+    const n = parseInt(match[1], 10);
+    const unit = match[2];
+    const mult =
+      unit === 's'
+        ? 1000
+        : unit === 'm'
+          ? 60 * 1000
+          : unit === 'h'
+            ? 60 * 60 * 1000
+            : 24 * 60 * 60 * 1000;
+    return n * mult;
+  }
+
   getFrontendRedirectUrl() {
     return this.config.get<string>('ADMIN_FRONTEND_REDIRECT_URL', 'http://localhost:3001/admin/dashboard');
+  }
+
+  /** Origin derived from ADMIN_FRONTEND_REDIRECT_URL so login links stay in sync. */
+  getFrontendOrigin(): string {
+    try {
+      return new URL(this.getFrontendRedirectUrl()).origin;
+    }
+    catch {
+      return 'http://localhost:3001';
+    }
+  }
+
+  buildAdminLoginUrl(error: 'oauth' | 'not_allowed', reason: string): string {
+    const u = new URL(`${this.getFrontendOrigin()}/admin/login`);
+    u.searchParams.set('error', error);
+    if (reason)
+      u.searchParams.set('reason', reason);
+    return u.toString();
   }
 
   getCookieName() {
     return ADMIN_AUTH_COOKIE;
   }
 }
-

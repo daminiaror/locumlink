@@ -28,15 +28,18 @@ const emailInput: React.CSSProperties = {
 export default function AuthPage() {
     const router = useRouter();
     const params = useSearchParams();
-    const { sendOtp } = useAuth();
+    const { sendOtp, signInWithOAuth } = useAuth();
     const [mode, setMode] = useState<Mode>(() => params.get('mode') === 'signin' ? 'signin' : 'create');
     const [role, setRole] = useState<Role>(() => params.get('role') === 'clinic' ? 'clinic' : 'locum');
     const [email, setEmail] = useState('');
+    const [error, setError] = useState(() => params.get('error') ?? '');
+    const [busyAction, setBusyAction] = useState<null | 'email' | 'google' | 'azure'>(null);
     useEffect(() => {
         if (params.get('mode') === 'signin')
             setMode('signin');
         if (params.get('role') === 'clinic')
             setRole('clinic');
+        setError(params.get('error') ?? '');
     }, [params]);
     useEffect(() => {
         if (mode === 'signin') {
@@ -45,8 +48,6 @@ export default function AuthPage() {
                 setEmail(saved);
         }
     }, [mode]);
-    const [error, setError] = useState('');
-    const [busy, setBusy] = useState(false);
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!email) {
@@ -54,7 +55,7 @@ export default function AuthPage() {
             return;
         }
         setError('');
-        setBusy(true);
+        setBusyAction('email');
         try {
             const nextParam = params.get('next');
             if (nextParam &&
@@ -64,7 +65,13 @@ export default function AuthPage() {
                 !nextParam.startsWith('/home')) {
                 saveLastPath(nextParam);
             }
-            await sendOtp(email, role);
+            try {
+                await sendOtp(email, role);
+            }
+            catch (err) {
+                // DEV BYPASS — SMTP may fail before Zepto is configured; continue to OTP page.
+                console.warn('[AuthPage] sendOtp failed, continuing to verify page:', err);
+            }
             router.replace(`/auth/verify?role=${encodeURIComponent(role)}`);
         }
         catch (err: unknown) {
@@ -73,7 +80,28 @@ export default function AuthPage() {
                 : 'Something went wrong. Please try again.');
         }
         finally {
-            setBusy(false);
+            setBusyAction(null);
+        }
+    }
+    async function handleOAuth(provider: 'google' | 'azure') {
+        setError('');
+        setBusyAction(provider);
+        try {
+            const nextParam = params.get('next');
+            if (nextParam &&
+                nextParam.startsWith('/') &&
+                !nextParam.startsWith('//') &&
+                !nextParam.startsWith('/auth') &&
+                !nextParam.startsWith('/home')) {
+                saveLastPath(nextParam);
+            }
+            await signInWithOAuth(provider, role);
+        }
+        catch (err: unknown) {
+            setError(err instanceof Error
+                ? err.message
+                : 'Could not start social sign-in. Please try again.');
+            setBusyAction(null);
         }
     }
     const btnStyle: React.CSSProperties = {
@@ -159,22 +187,25 @@ export default function AuthPage() {
         
         <div style={{ display: 'flex', gap: 24, width: '100%' }}>
           {[
-            { src: '/google.png', alt: 'Google', title: 'Google' },
+            { src: '/google.png', alt: 'Google', title: 'Google', provider: 'google' as const },
             {
                 src: '/ms_outlook.png',
                 alt: 'Microsoft Outlook',
                 title: 'Microsoft Outlook',
+                provider: 'azure' as const,
             },
-        ].map(({ src, alt, title }) => (<button key={title} type="button" title={`Continue with ${title}`} suppressHydrationWarning style={{
+        ].map(({ src, alt, title, provider }) => (<button key={title} type="button" title={`Continue with ${title}`} disabled={busyAction === provider} onClick={() => handleOAuth(provider)} suppressHydrationWarning style={{
                 flex: 1,
                 padding: '9px',
-                border: '1px solid #e2e5ee',
+                border: busyAction === provider ? '1px solid #2438B8' : '1px solid #e2e5ee',
                 borderRadius: 6,
-                background: '#fff',
-                cursor: 'pointer',
+                background: busyAction === provider ? '#2438B8' : '#fff',
+                cursor: busyAction === provider ? 'not-allowed' : 'pointer',
+                opacity: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                transition: 'background .15s, border-color .15s',
             }}>
               <Image src={src} alt={alt} width={28} height={28}/>
             </button>))}
@@ -223,20 +254,22 @@ export default function AuthPage() {
         }}>
               E-mail address
             </label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="johndoe@example.com" suppressHydrationWarning style={emailInput} onFocus={(e) => (e.currentTarget.style.borderColor = '#3B4FD8')} onBlur={(e) => (e.currentTarget.style.borderColor = '#d0d4e4')}/>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="example@gmail.com" suppressHydrationWarning style={emailInput} onFocus={(e) => (e.currentTarget.style.borderColor = '#3B4FD8')} onBlur={(e) => (e.currentTarget.style.borderColor = '#d0d4e4')}/>
           </div>
 
           {error && (<p style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>
               {error}
             </p>)}
 
-          <button type="submit" disabled={busy} suppressHydrationWarning style={{
+          <button type="submit" disabled={busyAction === 'email'} suppressHydrationWarning style={{
             ...btnStyle,
-            background: busy ? '#8892a4' : '#3B4FD8',
+            background: busyAction === 'email' ? '#2438B8' : '#3B4FD8',
             color: '#fff',
-            opacity: busy ? 0.8 : 1,
+            opacity: 1,
+            cursor: busyAction === 'email' ? 'not-allowed' : 'pointer',
+            transition: 'background .15s',
         }}>
-            {busy
+            {busyAction === 'email'
             ? 'Sending code…'
             : mode === 'create'
                 ? 'Create account'

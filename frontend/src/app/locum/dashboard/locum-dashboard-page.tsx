@@ -59,6 +59,64 @@ function fmtTime(t: string | null): string {
     const h12 = h % 12 || 12;
     return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
 }
+function applicationStatusPresentation(app: MyApplication): {
+    label: string;
+    bg: string;
+    border: string;
+    color: string;
+} {
+    switch (app.status) {
+        case 'CONFIRMED':
+            if (!app.locumAcceptedAt)
+                return {
+                    label: 'Host confirmed',
+                    bg: '#FFFBEB',
+                    border: '#FDE68A',
+                    color: '#B45309',
+                };
+            return {
+                label: 'Confirmed',
+                bg: '#ECFDF5',
+                border: '#A7F3D0',
+                color: '#047857',
+            };
+        case 'APPLIED':
+            return {
+                label: 'Applied',
+                bg: '#F9FAFB',
+                border: '#BFDBFE',
+                color: '#3B4FD8',
+            };
+        case 'SHORTLISTED':
+            return {
+                label: 'Shortlisted',
+                bg: '#ECFDF5',
+                border: '#A7F3D0',
+                color: '#059669',
+            };
+        case 'REJECTED':
+            return {
+                label: 'Rejected',
+                bg: '#FEF2F2',
+                border: '#FECACA',
+                color: '#DC2626',
+            };
+        case 'WITHDRAWN':
+            return {
+                label: 'Withdrawn',
+                bg: '#F9FAFB',
+                border: '#E5E7EB',
+                color: '#9CA3AF',
+            };
+        default:
+            return {
+                label: app.status,
+                bg: '#F9FAFB',
+                border: '#e2e5ee',
+                color: '#5a6478',
+            };
+    }
+}
 export default function LocumDashboard(props: {
     params?: Promise<Record<string, string | string[] | undefined>>;
     searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -71,6 +129,8 @@ export default function LocumDashboard(props: {
     const [profileError, setProfileError] = useState<string | null>(null);
     const [applications, setApplications] = useState<MyApplication[]>([]);
     const [loading, setLoading] = useState(true);
+    const [respondingAppId, setRespondingAppId] = useState<string | null>(null);
+    const [respondError, setRespondError] = useState<string | null>(null);
     useEffect(() => {
         if (authLoading)
             return;
@@ -136,21 +196,61 @@ export default function LocumDashboard(props: {
         if (tab === 'recent')
             return true;
         if (tab === 'upcoming')
-            return app.status === 'CONFIRMED' && startDate && startDate > today;
+            return app.status === 'CONFIRMED' &&
+                !!app.locumAcceptedAt &&
+                startDate &&
+                startDate > today;
         if (tab === 'completed')
-            return app.status === 'CONFIRMED' && endDate && endDate < today;
+            return app.status === 'CONFIRMED' &&
+                !!app.locumAcceptedAt &&
+                endDate &&
+                endDate < today;
         return false;
     });
-    const completedCount = applications.filter((a) => a.status === 'CONFIRMED').length;
+    const completedCount = applications.filter((a) => {
+        if (a.status !== 'CONFIRMED' || !a.locumAcceptedAt || !a.jobPosting.endDate)
+            return false;
+        return new Date(a.jobPosting.endDate) < today;
+    }).length;
+    async function respondToPlacement(appId: string, response: 'accept' | 'decline') {
+        setRespondError(null);
+        setRespondingAppId(appId);
+        try {
+            await locumApi.respondToConfirmedPlacement(appId, response);
+            const { applications: apps } = await locumApi.getMyApplications();
+            setApplications(apps);
+        }
+        catch (e) {
+            setRespondError(e instanceof Error ? e.message : 'Could not update application.');
+        }
+        finally {
+            setRespondingAppId(null);
+        }
+    }
     return (<DashLayout navItems={NAV} activeHref="/locum/dashboard" topbarFirstName={profile?.firstName} topbarLastName={profile?.lastName}>
       
       <h1 style={{
-            fontSize: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 22,
             fontWeight: 700,
+            lineHeight: '120%',
             color: '#0f1523',
+            margin: 0,
             marginBottom: 3,
+            flexShrink: 0,
+            textTransform: 'capitalize',
         }}>
-        {displayName}
+        <span>{displayName}</span>
+        {profile && cpsnsVerified ? (<span style={{ display: 'inline-flex', alignItems: 'center' }} title="CPSNS verified" aria-label="CPSNS verified">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0, verticalAlign: 'middle' }}>
+              <path d="M12 3.25 19 5.9v5.25c0 4.45-2.82 7.95-7 9.6-4.18-1.65-7-5.15-7-9.6V5.9l7-2.65Z" stroke="#1B31D2" strokeWidth="1.8" strokeLinejoin="round"/>
+              <path d="M8.6 12.1 10.9 14.4 15.7 9.6" stroke="#1B31D2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>) : null}
       </h1>
       <p style={{ fontSize: 12, color: '#8892a4', marginBottom: 18 }}></p>
       {profileError ? (<div style={{ fontSize: 12, color: '#dc2626', marginBottom: 14 }}>
@@ -165,14 +265,15 @@ export default function LocumDashboard(props: {
             overflow: 'hidden',
             marginBottom: 16,
             background: '#fff',
+            flexShrink: 0,
         }}>
-        <div style={{ flex: 1, padding: '18px 18px' }}>
-          <div style={{ fontSize: 12, color: '#5a6478', marginBottom: 4 }}>
+        <div style={{ flex: 1, flexShrink: 0, padding: '18px 18px' }}>
+          <div style={{ fontSize: 'var(--font-small)', color: '#5a6478', marginBottom: 4 }}>
             Completed Jobs
           </div>
           <div style={{
-            fontSize: 26,
-            fontWeight: 700,
+            fontSize: 'var(--font-heading)',
+            fontWeight: 'var(--font-weight-bold)',
             color: '#0f1523',
             lineHeight: 1,
         }}>
@@ -193,6 +294,7 @@ export default function LocumDashboard(props: {
             justifyContent: 'space-between',
             marginBottom: 18,
             boxSizing: 'border-box',
+            flexShrink: 0,
         }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{
@@ -215,14 +317,14 @@ export default function LocumDashboard(props: {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#0f1523' }}>
+            <div style={{ fontSize: 'var(--font-heading)', fontWeight: 'var(--font-weight-bold)', color: '#0f1523' }}>
               {completionPct < 100
             ? 'Set up your profile to start finding opportunities'
             : cpsnsVerified
                 ? 'Your profile is complete'
                 : 'Profile complete — CPSNS verification required to apply'}
             </div>
-            <div style={{ fontSize: 12, color: '#5a6478' }}>
+            <div style={{ fontSize: 'var(--font-small)', color: '#5a6478' }}>
               {completionPct}% Completed
               {completionPct === 100 && cpsnsVerified
             ? ' · CPSNS verified'
@@ -259,6 +361,7 @@ export default function LocumDashboard(props: {
             display: 'flex',
             borderBottom: '1px solid #e2e5ee',
             marginBottom: 16,
+            flexShrink: 0,
         }}>
         {(['recent', 'upcoming', 'completed'] as const).map((t) => (<button key={t} onClick={() => setTab(t)} style={{
                 padding: '8px 14px',
@@ -280,7 +383,20 @@ export default function LocumDashboard(props: {
           </button>))}
       </div>
 
-      
+      {respondError ? (<div style={{
+                fontSize: 12,
+                color: '#DC2626',
+                marginBottom: 12,
+            }}>
+          {respondError}
+        </div>) : null}
+
+      <div style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            paddingRight: 4,
+        }}>
       {loading && (<div style={{
                 textAlign: 'center',
                 padding: '40px',
@@ -331,13 +447,9 @@ export default function LocumDashboard(props: {
       {!loading &&
             tabApps.map((app) => {
                 const jp = app.jobPosting;
-                const statusColor: Record<string, string> = {
-                    APPLIED: '#3B4FD8',
-                    SHORTLISTED: '#059669',
-                    CONFIRMED: '#16a34a',
-                    REJECTED: '#dc2626',
-                    WITHDRAWN: '#9CA3AF',
-                };
+                const st = applicationStatusPresentation(app);
+                const responding = respondingAppId === app.id;
+                const needsLocumResponse = app.status === 'CONFIRMED' && !app.locumAcceptedAt;
                 return (<div key={app.id} style={{
                         background: '#fff',
                         border: '1px solid #e2e5ee',
@@ -355,17 +467,19 @@ export default function LocumDashboard(props: {
                   {jp.title}
                 </div>
                 <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
                         fontSize: 11,
                         fontWeight: 600,
-                        color: statusColor[app.status] ?? '#5a6478',
-                        padding: '2px 8px',
-                        background: '#F9FAFB',
-                        borderRadius: 4,
-                        border: `1px solid ${statusColor[app.status] ?? '#e2e5ee'}`,
+                        color: st.color,
+                        padding: '8px 16px',
+                        background: st.bg,
+                        borderRadius: 8,
+                        border: `1px solid ${st.border}`,
                         flexShrink: 0,
                         marginLeft: 8,
                     }}>
-                  {app.status}
+                  {st.label}
                 </span>
               </div>
               <div style={{
@@ -425,7 +539,46 @@ export default function LocumDashboard(props: {
                   {relativeHoursOrDaysAgo(app.appliedAt)}
                 </span>
               </div>
+              {needsLocumResponse ? (<div style={{
+                        marginTop: 14,
+                        paddingTop: 14,
+                        borderTop: '1px solid #F3F4F6',
+                    }}>
+                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 10 }}>
+                    The host confirmed this placement. Accept to finalize or reject to decline.
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button type="button" disabled={responding} onClick={() => void respondToPlacement(app.id, 'accept')} style={{
+                            padding: '9px 18px',
+                            borderRadius: 8,
+                            border: 'none',
+                            cursor: responding ? 'default' : 'pointer',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            fontFamily: 'inherit',
+                            color: '#fff',
+                            background: responding ? '#94D3AF' : 'linear-gradient(180deg,#22C55E 0%,#16A34A 100%)',
+                            boxShadow: responding ? 'none' : '0 1px 2px rgba(22,163,74,0.35)',
+                        }}>
+                      {responding ? 'Saving…' : 'Accept'}
+                    </button>
+                    <button type="button" disabled={responding} onClick={() => void respondToPlacement(app.id, 'decline')} style={{
+                            padding: '9px 18px',
+                            borderRadius: 8,
+                            border: '1px solid #FCA5A5',
+                            cursor: responding ? 'default' : 'pointer',
+                            fontSize: 13,
+                            fontWeight: 600,
+                            fontFamily: 'inherit',
+                            color: '#B91C1C',
+                            background: '#fff',
+                        }}>
+                      Reject
+                    </button>
+                  </div>
+                </div>) : null}
             </div>);
             })}
+      </div>
     </DashLayout>);
 }

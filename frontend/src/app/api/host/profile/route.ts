@@ -28,6 +28,15 @@ function combinedAddress(a1?: string, a2?: string): string {
     const s = [a1, a2].filter(Boolean).join(', ').trim();
     return s || a1 || 'Address pending';
 }
+const CLINIC_DESCRIPTION_MAX_LEN = 1000;
+function sanitizeClinicDescription(raw: unknown): string | null {
+    if (raw == null || typeof raw !== 'string')
+        return null;
+    const t = raw.trim();
+    if (!t)
+        return null;
+    return t.slice(0, CLINIC_DESCRIPTION_MAX_LEN);
+}
 function rowToApi(row: HostProfileRow): HostProfile {
     return {
         clinicName: row.practiceName,
@@ -47,7 +56,7 @@ function rowToApi(row: HostProfileRow): HostProfile {
         numPhysicians: row.numPhysicians ?? '',
         emr: row.emr ?? '',
         patientVol: row.patientVol ?? '',
-        clinicDesc: row.highlights ?? '',
+        clinicDesc: (row.highlights ?? '').slice(0, CLINIC_DESCRIPTION_MAX_LEN),
     };
 }
 async function getUserId(req: Request): Promise<string | null> {
@@ -88,7 +97,7 @@ export async function POST(req: Request) {
         postalCode: postalCode ?? '',
         province: province ?? 'NS',
         servicesOffered: amenities ?? [],
-        highlights: clinicDesc?.trim() ? clinicDesc : null,
+        highlights: sanitizeClinicDescription(clinicDesc),
         contactFirstName: contactFirstName?.trim() || null,
         contactLastName: contactLastName?.trim() || null,
         cpsnsNumber: cpsnsNumber?.trim() || null,
@@ -135,7 +144,7 @@ export async function PUT(req: Request) {
         ...(body.province !== undefined && { province: body.province }),
         ...(body.amenities !== undefined && { servicesOffered: body.amenities }),
         ...(body.clinicDesc !== undefined && {
-            highlights: body.clinicDesc?.trim() || null,
+            highlights: sanitizeClinicDescription(body.clinicDesc),
         }),
         ...(body.contactFirstName !== undefined && {
             contactFirstName: body.contactFirstName?.trim() || null,

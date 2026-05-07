@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, type KeyboardEvent } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
 import { ProfileStatusGlyph, type ProfileStatusGlyphVariant, } from '@/components/ProfileStatusGlyph';
 import { locumApi, uploadFile } from '@/lib/api';
@@ -9,6 +10,8 @@ import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import type { LocumProfile } from '@/types';
 import { isCpsnsNineDigitsFormat, isCpsnsVerified, sanitizeCpsnsInput, } from '@/lib/cpsnsVerify';
 import { locumProfileCompletionPct } from '@/lib/locumProfileCompletion';
+import { beforeClientNavigation } from '@/lib/topLoader';
+import citiesRaw from '@/data/cities.json';
 const NAV = [
     { label: 'Browse Opportunities', href: '/locum/browse', icon: <NavIcon name="browse"/> },
     { label: 'My Applications', href: '/locum/dashboard', icon: <NavIcon name="postings"/> },
@@ -20,7 +23,35 @@ const SPECIALITY_OPTIONS = [
     'Family Physician', 'Internal medicine', 'Emergency', 'ENT',
     'General Practice', 'Emergency Medicine', 'Anaesthetics', 'Paediatrics',
 ];
+type CityEntry = {
+    name: string;
+    province: string;
+};
+const CITY_ROWS: CityEntry[] = (citiesRaw as [
+    string,
+    string
+][]).map(([name, province]) => ({ name, province }));
 type VerificationStatus = 'pending' | 'under-review' | 'verified';
+const cityHighlight: React.CSSProperties = {
+    background: 'rgba(59, 79, 216, 0.12)',
+    color: '#1B31D2',
+    borderRadius: 3,
+    padding: '0 2px',
+    fontWeight: 600,
+};
+function highlightCityMatch(text: string, query: string): React.ReactNode {
+    const q = query.trim();
+    if (!q)
+        return text;
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    if (idx < 0)
+        return text;
+    return (<>
+      {text.slice(0, idx)}
+      <mark style={cityHighlight}>{text.slice(idx, idx + q.length)}</mark>
+      {text.slice(idx + q.length)}
+    </>);
+}
 const inp: React.CSSProperties = {
     width: '100%',
     padding: '8px 10px',
@@ -43,6 +74,12 @@ const lbl: React.CSSProperties = {
     letterSpacing: 0,
     color: '#374151',
     marginBottom: 5,
+};
+const documentFormatHint: React.CSSProperties = {
+    fontSize: 12,
+    color: '#8892a4',
+    margin: '6px 0 0',
+    lineHeight: 1.4,
 };
 type StepStatus = 'complete' | 'active' | 'incomplete' | 'upcoming';
 function stepBorderColor(s: StepStatus) {
@@ -115,6 +152,7 @@ export default function LocumProfilePage(props: {
     searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
     useNextPageClientProps(props);
+    const router = useRouter();
     const [activeStep, setActiveStep] = useState(1);
     const [visited, setVisited] = useState<Set<number>>(new Set([1]));
     const [saving, setSaving] = useState(false);
@@ -142,6 +180,56 @@ export default function LocumProfilePage(props: {
     const licenseRef = useRef<HTMLInputElement>(null);
     const resumeRef = useRef<HTMLInputElement>(null);
     const extraRef = useRef<HTMLInputElement>(null);
+    const cityInputRef = useRef<HTMLInputElement>(null);
+    const cityDropRef = useRef<HTMLDivElement>(null);
+    const cityBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const stepSectionRefs = useRef<Record<number, HTMLDivElement | null>>({});
+    const [cityResults, setCityResults] = useState<CityEntry[]>([]);
+    const [cityDropOpen, setCityDropOpen] = useState(false);
+    const [cityActiveIdx, setCityActiveIdx] = useState(-1);
+    function searchCities(qRaw: string) {
+        const q = qRaw.trim().toLowerCase();
+        if (q.length < 2) {
+            setCityResults([]);
+            setCityDropOpen(false);
+            setCityActiveIdx(-1);
+            return;
+        }
+        const starts = CITY_ROWS.filter((c) => c.name.toLowerCase().startsWith(q)).slice(0, 8);
+        const seen = new Set(starts.map((c) => `${c.name}|${c.province}`));
+        const contains = starts.length < 8
+            ? CITY_ROWS.filter((c) => !seen.has(`${c.name}|${c.province}`) &&
+                c.name.toLowerCase().includes(q)).slice(0, 8 - starts.length)
+            : [];
+        setCityResults([...starts, ...contains]);
+        setCityActiveIdx(-1);
+        setCityDropOpen(true);
+    }
+    function handleCitySelect(nextCity: CityEntry) {
+        setCity(nextCity.name);
+        setProvince(nextCity.province);
+        setCityResults([]);
+        setCityDropOpen(false);
+        setCityActiveIdx(-1);
+    }
+    function handleCityKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+        if (!cityDropOpen)
+            return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setCityActiveIdx((idx) => Math.min(idx + 1, cityResults.length - 1));
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setCityActiveIdx((idx) => Math.max(idx - 1, 0));
+        }
+        if (e.key === 'Enter' && cityActiveIdx >= 0 && cityResults[cityActiveIdx]) {
+            e.preventDefault();
+            handleCitySelect(cityResults[cityActiveIdx]);
+        }
+        if (e.key === 'Escape')
+            setCityDropOpen(false);
+    }
     useEffect(() => {
         locumApi.getProfile()
             .then((data) => {
@@ -248,6 +336,15 @@ export default function LocumProfilePage(props: {
         setVisited((v) => new Set([...v, n]));
         setActiveStep(n);
     }
+    function handleStepNavClick(n: number) {
+        goToStep(n);
+        requestAnimationFrame(() => {
+            stepSectionRefs.current[n]?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+        });
+    }
     async function handleSave() {
         setSaving(true);
         setSaved(false);
@@ -266,6 +363,10 @@ export default function LocumProfilePage(props: {
                 province,
             }, { licenseFile, resumeFile, extraFile }));
             setSaved(true);
+            window.setTimeout(() => {
+                beforeClientNavigation('/locum/dashboard');
+                router.push('/locum/dashboard');
+            }, 900);
         }
         catch {
             setLoadError('Failed to save. Please try again.');
@@ -320,7 +421,7 @@ export default function LocumProfilePage(props: {
                     flex: '1 1 220px',
                     minWidth: 200,
                     cursor: 'pointer',
-                }} onClick={() => goToStep(s.n)}>
+                }} onClick={() => handleStepNavClick(s.n)}>
                 <div style={{
                     width: 36,
                     height: 36,
@@ -422,7 +523,9 @@ export default function LocumProfilePage(props: {
       
       
       
-      <div onClick={() => goToStep(1)} style={{
+      <div ref={(node) => {
+            stepSectionRefs.current[1] = node;
+        }} onClick={() => goToStep(1)} style={{
             background: '#fff', border: sectionBorder(1),
             borderRadius: 8, padding: 20, marginBottom: 16, cursor: 'pointer',
         }}>
@@ -449,11 +552,11 @@ export default function LocumProfilePage(props: {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
           <div>
             <label style={lbl}>First Name</label>
-            <input style={inp} value={firstName} onChange={(e) => setFirstName(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Enter first name"/>
+            <input style={inp} value={firstName} onChange={(e) => setFirstName(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="First name"/>
           </div>
           <div>
             <label style={lbl}>Last Name</label>
-            <input style={inp} value={lastName} onChange={(e) => setLastName(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Enter last name"/>
+            <input style={inp} value={lastName} onChange={(e) => setLastName(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Last name"/>
           </div>
         </div>
         
@@ -465,7 +568,7 @@ export default function LocumProfilePage(props: {
         }}>
           <div>
             <label style={lbl}>CPSNS Number</label>
-            <input style={inp} inputMode="numeric" autoComplete="off" maxLength={9} value={cpsns} onChange={(e) => setCpsns(sanitizeCpsnsInput(e.target.value))} onClick={(e) => e.stopPropagation()} placeholder="9-digit number"/>
+            <input style={inp} inputMode="numeric" autoComplete="off" maxLength={9} value={cpsns} onChange={(e) => setCpsns(sanitizeCpsnsInput(e.target.value))} onClick={(e) => e.stopPropagation()} placeholder="License number"/>
           </div>
           <div>
             <label style={lbl}>Years of experience</label>
@@ -496,7 +599,7 @@ export default function LocumProfilePage(props: {
             height: 68,
             resize: 'none',
             lineHeight: 1.45,
-        } as React.CSSProperties} value={summary} onChange={(e) => setSummary(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="About you"/>
+        } as React.CSSProperties} value={summary} onChange={(e) => setSummary(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Professional Summary "/>
           </div>
           <div aria-hidden/>
         </div>
@@ -559,7 +662,9 @@ export default function LocumProfilePage(props: {
       
       
       
-      <div onClick={() => goToStep(2)} style={{
+      <div ref={(node) => {
+            stepSectionRefs.current[2] = node;
+        }} onClick={() => goToStep(2)} style={{
             background: '#fff', border: sectionBorder(2),
             borderRadius: 8, padding: 20, marginBottom: 16, cursor: 'pointer',
         }}>
@@ -586,33 +691,91 @@ export default function LocumProfilePage(props: {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
           <div>
             <label style={lbl}>Address Line 1</label>
-            <input style={inp} value={addr1} onChange={(e) => setAddr1(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Location Address Line 1"/>
+            <input style={inp} value={addr1} onChange={(e) => setAddr1(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Address Line 1"/>
           </div>
           <div>
             <label style={lbl}>Address Line 2</label>
-            <input style={inp} value={addr2} onChange={(e) => setAddr2(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Location Address Line 2"/>
+            <input style={inp} value={addr2} onChange={(e) => setAddr2(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Address Line 2"/>
           </div>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <label style={lbl}>Postal Code</label>
-          <input style={{ ...inp, width: '50%' }} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Enter valid 6 digit code"/>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+          <div style={{ position: 'relative' }}>
             <label style={lbl}>City</label>
-            <input style={inp} value={city} onChange={(e) => setCity(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Add City"/>
+            <input ref={cityInputRef} style={inp} value={city} onChange={(e) => {
+            setCity(e.target.value);
+            searchCities(e.target.value);
+        }} onClick={(e) => e.stopPropagation()} onKeyDown={handleCityKeyDown} onFocus={() => {
+            if (cityBlurTimer.current != null)
+                clearTimeout(cityBlurTimer.current);
+            if (cityResults.length)
+                setCityDropOpen(true);
+        }} onBlur={() => {
+            cityBlurTimer.current = setTimeout(() => setCityDropOpen(false), 160);
+        }} placeholder="City" autoComplete="off"/>
+            {cityDropOpen && (<div ref={cityDropRef} style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                zIndex: 30,
+                background: '#fff',
+                border: '1px solid #E4E8F0',
+                borderRadius: 10,
+                boxShadow: '0 8px 24px rgba(15, 23, 42, 0.12)',
+                maxHeight: 220,
+                overflowY: 'auto',
+            }}>
+              {cityResults.length === 0 ? (<div style={{
+                    padding: '12px 14px',
+                    fontSize: 'var(--font-small)',
+                    color: '#8892a4',
+                    textAlign: 'center',
+                }}>
+                  No city found
+                </div>) : (cityResults.map((entry, idx) => (<div key={`${entry.name}-${entry.province}`} role="option" aria-selected={idx === cityActiveIdx} onMouseDown={() => handleCitySelect(entry)} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    background: idx === cityActiveIdx ? 'rgba(59, 79, 216, 0.08)' : 'transparent',
+                    borderBottom: '1px solid rgba(226, 229, 238, 0.7)',
+                }}>
+                  <span style={{ fontSize: 'var(--font-body)', fontWeight: 'var(--font-weight-bold)', color: '#0f1523' }}>
+                    {highlightCityMatch(entry.name, city)}
+                  </span>
+                  <span style={{
+                        fontSize: 'var(--font-small)',
+                        fontWeight: 'var(--font-weight-bold)',
+                        color: '#1B31D2',
+                        background: 'rgba(59, 79, 216, 0.1)',
+                        borderRadius: 20,
+                        padding: '2px 8px',
+                        flexShrink: 0,
+                    }}>
+                    {entry.province}
+                  </span>
+                </div>)))}
+            </div>)}
           </div>
           <div>
             <label style={lbl}>Province</label>
-            <input style={inp} value={province} onChange={(e) => setProvince(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Add Province"/>
+            <input style={inp} value={province} onChange={(e) => setProvince(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Province"/>
           </div>
+        </div>
+        <div>
+          <label style={lbl}>Postal Code</label>
+          <input style={{ ...inp, width: '50%' }} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Postal code"/>
         </div>
       </div>
 
       
       
       
-      <div onClick={() => goToStep(3)} style={{
+      <div ref={(node) => {
+            stepSectionRefs.current[3] = node;
+        }} onClick={() => goToStep(3)} style={{
             background: '#fff', border: sectionBorder(3),
             borderRadius: 8, padding: 20, marginBottom: 16, cursor: 'pointer',
         }}>
@@ -638,10 +801,20 @@ export default function LocumProfilePage(props: {
         </div>
 
         
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 8 }}>Docs</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           
-          <div onClick={(e) => { e.stopPropagation(); licenseRef.current?.click(); }} style={{
+          <div>
+          <label style={lbl}>
+            CPSNS License
+          </label>
+          <div onClick={(e) => {
+            e.stopPropagation();
+            if (licenseFile && licenseViewUrl) {
+                window.open(licenseViewUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
+            licenseRef.current?.click();
+        }} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             border: licenseFile ? '1px solid #3B4FD8' : '1px solid #e2e5ee',
             borderRadius: 6, padding: '9px 12px', cursor: 'pointer',
@@ -655,13 +828,33 @@ export default function LocumProfilePage(props: {
                 ? licenseFile.split('/').pop()
                 : 'CPSNS License'}
               </span>
-              {licenseViewUrl ? (<a href={licenseViewUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 11, color: '#3B4FD8', flexShrink: 0 }}>
-                  View
-                </a>) : null}
+              {licenseFile ? (<button type="button" aria-label="Delete CPSNS License" onClick={(e) => {
+            e.stopPropagation();
+            setLicenseFile('');
+            setLicenseViewUrl(null);
+        }} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 22,
+            height: 22,
+            background: 'transparent',
+            border: 'none',
+            color: '#dc2626',
+            cursor: 'pointer',
+            padding: 0,
+            flexShrink: 0,
+        }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M4 7h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                    <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                    <path d="M6 7l1 14h10l1-14M9 7V4h6v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>) : null}
             </div>
-            <span style={{ color: '#8892a4', fontSize: 14 }}>›</span>
           </div>
-          <input ref={licenseRef} type="file" style={{ display: 'none' }} onChange={async (e) => {
+          <p style={documentFormatHint}>Accepted formats: PDF, DOC, DOCX.</p>
+          <input ref={licenseRef} type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file)
                 return;
@@ -679,9 +872,21 @@ export default function LocumProfilePage(props: {
                 e.target.value = '';
             }
         }}/>
+          </div>
 
           
-          <div onClick={(e) => { e.stopPropagation(); resumeRef.current?.click(); }} style={{
+          <div>
+          <label style={lbl}>
+            Resume
+          </label>
+          <div onClick={(e) => {
+            e.stopPropagation();
+            if (resumeFile && resumeViewUrl) {
+                window.open(resumeViewUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
+            resumeRef.current?.click();
+        }} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             border: resumeFile ? '1px solid #3B4FD8' : '1px solid #e2e5ee',
             borderRadius: 6, padding: '9px 12px', cursor: 'pointer',
@@ -695,13 +900,33 @@ export default function LocumProfilePage(props: {
                 ? resumeFile.split('/').pop()
                 : 'Resume'}
               </span>
-              {resumeViewUrl ? (<a href={resumeViewUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 11, color: '#3B4FD8', flexShrink: 0 }}>
-                  View
-                </a>) : null}
+              {resumeFile ? (<button type="button" aria-label="Delete Resume" onClick={(e) => {
+            e.stopPropagation();
+            setResumeFile('');
+            setResumeViewUrl(null);
+        }} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 22,
+            height: 22,
+            background: 'transparent',
+            border: 'none',
+            color: '#dc2626',
+            cursor: 'pointer',
+            padding: 0,
+            flexShrink: 0,
+        }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M4 7h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                    <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                    <path d="M6 7l1 14h10l1-14M9 7V4h6v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>) : null}
             </div>
-            <span style={{ color: '#8892a4', fontSize: 14 }}>›</span>
           </div>
-          <input ref={resumeRef} type="file" style={{ display: 'none' }} onChange={async (e) => {
+          <p style={documentFormatHint}>Accepted formats: PDF, DOC, DOCX.</p>
+          <input ref={resumeRef} type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file)
                 return;
@@ -719,12 +944,20 @@ export default function LocumProfilePage(props: {
                 e.target.value = '';
             }
         }}/>
+          </div>
         </div>
 
         
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }}>Additional Docs</div>
+        <label style={lbl}>Additional documents</label>
         <p style={{ fontSize: 12, color: '#8892a4', margin: '0 0 8px' }}>-Cover letter, reference letters, etc</p>
-        <div onClick={(e) => { e.stopPropagation(); extraRef.current?.click(); }} style={{
+        <div onClick={(e) => {
+            e.stopPropagation();
+            if (extraFile && extraViewUrl) {
+                window.open(extraViewUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
+            extraRef.current?.click();
+        }} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             border: extraFile ? '1px solid #3B4FD8' : '1px solid #e2e5ee',
             borderRadius: 6, padding: '9px 12px', cursor: 'pointer', width: '48%',
@@ -738,13 +971,33 @@ export default function LocumProfilePage(props: {
                 ? extraFile.split('/').pop()
                 : 'Add'}
             </span>
-            {extraViewUrl ? (<a href={extraViewUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 11, color: '#3B4FD8', flexShrink: 0 }}>
-                View
-              </a>) : null}
+            {extraFile ? (<button type="button" aria-label="Delete additional documents" onClick={(e) => {
+            e.stopPropagation();
+            setExtraFile('');
+            setExtraViewUrl(null);
+        }} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 22,
+            height: 22,
+            background: 'transparent',
+            border: 'none',
+            color: '#dc2626',
+            cursor: 'pointer',
+            padding: 0,
+            flexShrink: 0,
+        }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M4 7h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                <path d="M6 7l1 14h10l1-14M9 7V4h6v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>) : null}
           </div>
-          <span style={{ color: '#8892a4', fontSize: 14 }}>›</span>
         </div>
-        <input ref={extraRef} type="file" style={{ display: 'none' }} onChange={async (e) => {
+        <p style={documentFormatHint}>Accepted formats: PDF, DOC, DOCX.</p>
+        <input ref={extraRef} type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file)
                 return;

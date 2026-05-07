@@ -1,9 +1,8 @@
 'use client';
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, } from 'react';
-import Image from 'next/image';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
 import { ProfileStatusGlyph, type ProfileStatusGlyphVariant, } from '@/components/ProfileStatusGlyph';
-import { uploadFile } from '@/lib/api';
+import { authApi, uploadFile } from '@/lib/api';
 import { useHostProfile } from '@/hooks/useHostProfile';
 import type { HostProfile } from '@/types';
 import { hostProfileCompletionPct } from '@/lib/hostProfileCompletion';
@@ -31,7 +30,7 @@ const NAV = [
 const inp: React.CSSProperties = {
     width: '100%',
     padding: '8px 10px',
-    border: '1px solid #d0d4e4',
+    border: '1px solid #D0D5DD',
     borderRadius: 6,
     fontSize: 13,
     color: '#0f1523',
@@ -42,10 +41,59 @@ const inp: React.CSSProperties = {
 };
 const lbl: React.CSSProperties = {
     display: 'block',
-    fontSize: 12,
-    fontWeight: 500,
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: 400,
+    fontSize: 16,
+    lineHeight: '140%',
+    letterSpacing: 0,
     color: '#374151',
     marginBottom: 5,
+};
+const pageTitle: React.CSSProperties = {
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: 700,
+    fontSize: 22,
+    lineHeight: '120%',
+    color: '#0f1523',
+    margin: 0,
+};
+const cardHeaderTitle: React.CSSProperties = {
+    fontFamily: 'Inter, sans-serif',
+    fontSize: 15,
+    fontWeight: 600,
+    lineHeight: 1,
+    color: '#0f1523',
+};
+const subsectionHeading: React.CSSProperties = {
+    fontFamily: 'Inter, sans-serif',
+    fontSize: 15,
+    fontWeight: 600,
+    lineHeight: '140%',
+    color: '#0f1523',
+    margin: '0 0 12px',
+};
+const fieldInput: React.CSSProperties = {
+    ...inp,
+    fontFamily: 'Inter, sans-serif',
+    minHeight: 37,
+};
+const selectField: React.CSSProperties = {
+    ...fieldInput,
+    padding: '8px 36px 8px 10px',
+    appearance: 'none',
+};
+const textareaField: React.CSSProperties = {
+    ...fieldInput,
+    minHeight: 68,
+    resize: 'vertical',
+    lineHeight: 1.45,
+};
+const stepNavLabel: React.CSSProperties = {
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: 500,
+    fontSize: 20,
+    lineHeight: '124%',
+    color: '#0B0F1F',
 };
 const AMENITY_OPTIONS = [
     'On-site Parking',
@@ -173,6 +221,7 @@ export default function HostProfilePage(props: {
     const [amenities, setAmenities] = useState<string[]>([]);
     const [accommodation, setAccommodation] = useState(false);
     const [customAmenity, setCustomAmenity] = useState('');
+    const [avatarPhotoUrl, setAvatarPhotoUrl] = useState<string | null>(null);
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [activeStep, setActiveStep] = useState(1);
@@ -251,10 +300,25 @@ export default function HostProfilePage(props: {
         setNumPhysicians(profile.numPhysicians ?? '');
         setEmr(profile.emr ?? '');
         setPatientVol(profile.patientVol ?? '');
-        setClinicDesc(profile.clinicDesc ?? '');
+        setClinicDesc((profile.clinicDesc ?? '').slice(0, 1000));
         setAmenities(profile.amenities ?? []);
         setAccommodation(profile.accommodationProvided ?? false);
     }, [profile]);
+    useEffect(() => {
+        let cancelled = false;
+        void (async () => {
+            try {
+                const me = await authApi.getMe();
+                if (!cancelled)
+                    setAvatarPhotoUrl(me.avatarUrl);
+            }
+            catch {
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
     useEffect(() => {
         const onDocMouseDown = (e: MouseEvent) => {
             const t = e.target as Node;
@@ -332,14 +396,21 @@ export default function HostProfilePage(props: {
         setVisited((v) => new Set([...v, n]));
         setActiveStep(n);
         const idx = n - 1;
-        const run = () => {
-            stepSectionRefs.current[idx]?.scrollIntoView({
+        const scrollToSection = () => {
+            const el = stepSectionRefs.current[idx]
+                ?? (typeof document !== 'undefined'
+                    ? document.getElementById(`host-profile-step-${n}`)
+                    : null);
+            el?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start',
+                inline: 'nearest',
             });
         };
         if (typeof window !== 'undefined') {
-            window.requestAnimationFrame(run);
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(scrollToSection);
+            });
         }
     }
     const steps = [
@@ -368,7 +439,7 @@ export default function HostProfilePage(props: {
             numPhysicians,
             emr,
             patientVol,
-            clinicDesc,
+            clinicDesc: clinicDesc.slice(0, 1000),
         };
         try {
             await saveProfile(data);
@@ -400,50 +471,23 @@ export default function HostProfilePage(props: {
             position: 'relative',
         }}>
         
-        <div style={{
-            width: 850,
-            height: 56,
-            position: 'relative',
-            marginBottom: 16,
-        }}>
-          <div style={{
-            position: 'absolute',
-            left: 0,
-            top: -8,
-            height: 43,
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{
+            ...pageTitle,
+            textTransform: 'capitalize',
             display: 'flex',
             alignItems: 'center',
-            fontFamily: 'Inter, sans-serif',
-            fontStyle: 'normal',
-            fontWeight: 700,
-            fontSize: 36,
-            lineHeight: '120%',
-            textTransform: 'capitalize',
-            color: '#0B0F1F',
+            gap: 10,
+            flexWrap: 'wrap',
         }}>
-            Welcome{welcomeDoctorLabel ? ` ${welcomeDoctorLabel}` : ''}
-          </div>
-          <div style={{
-            position: 'absolute',
-            left: 0,
-            top: 37,
-            height: 24,
-            display: 'flex',
-            alignItems: 'center',
-            fontFamily: 'Inter, sans-serif',
-            fontStyle: 'normal',
-            fontWeight: 400,
-            fontSize: 16,
-            lineHeight: '150%',
-            textTransform: 'capitalize',
-            color: '#6B7280',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            width: '100%',
-        }}>
-            
-          </div>
+            <span>Welcome{welcomeDoctorLabel ? ` ${welcomeDoctorLabel}` : ''}</span>
+            {verified ? (<span style={{ display: 'inline-flex', alignItems: 'center' }} title="CPSNS verified" aria-label="CPSNS verified">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0, verticalAlign: 'middle' }}>
+                <path d="M12 3.25 19 5.9v5.25c0 4.45-2.82 7.95-7 9.6-4.18-1.65-7-5.15-7-9.6V5.9l7-2.65Z" stroke="#1B31D2" strokeWidth="1.8" strokeLinejoin="round"/>
+                <path d="M8.6 12.1 10.9 14.4 15.7 9.6" stroke="#1B31D2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>) : null}
+          </h1>
         </div>
 
         
@@ -475,11 +519,10 @@ export default function HostProfilePage(props: {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                 <div style={{
             fontFamily: 'Inter, sans-serif',
-            fontStyle: 'normal',
-            fontWeight: 500,
-            fontSize: 22,
+            fontWeight: 600,
+            fontSize: 15,
             lineHeight: '124%',
-            color: 'rgba(21, 20, 20, 0.7)',
+            color: '#0f1523',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -489,11 +532,10 @@ export default function HostProfilePage(props: {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
             fontFamily: 'Inter, sans-serif',
-            fontStyle: 'normal',
             fontWeight: 400,
-            fontSize: 18,
-            lineHeight: '100%',
-            color: '#606061',
+            fontSize: 13,
+            lineHeight: '140%',
+            color: '#6B7280',
         }}>
                     {completionSubtitle}
                   </div>
@@ -510,41 +552,21 @@ export default function HostProfilePage(props: {
         {allDone && !verified && (<div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 10,
+                gap: 12,
                 background: '#FFFBEB',
                 border: '1px solid #FDE68A',
                 borderRadius: 8,
                 padding: '12px 16px',
                 marginBottom: 20,
             }}>
-            <span style={{ fontSize: 20 }}>🛡️</span>
+            <ProfileStatusGlyph variant="pendingStaff" size={36}/>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#92400E' }}>
                 CPSNS under verification
               </div>
-              <div style={{ fontSize: 12, color: '#B45309' }}>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#B45309' }}>
                 An administrator will verify your CPSNS number. You can post jobs
                 once verified.
-              </div>
-            </div>
-          </div>)}
-        {allDone && verified && (<div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: '#ECFDF5',
-                border: '1px solid #A7F3D0',
-                borderRadius: 8,
-                padding: '12px 16px',
-                marginBottom: 20,
-            }}>
-            <span style={{ fontSize: 20 }}>✓</span>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>
-                CPSNS verified
-              </div>
-              <div style={{ fontSize: 12, color: '#047857' }}>
-                Your registration has been manually verified. You can post jobs.
               </div>
             </div>
           </div>)}
@@ -574,13 +596,22 @@ export default function HostProfilePage(props: {
         }}>
             {steps.map((s) => {
             const isActive = activeStep === s.n;
-            const isCompleted = activeStep > s.n;
             const circleBg = isActive ? '#1522A6' : '#fff';
             const circleBorder = isActive
                 ? 'none'
                 : '1px solid rgba(21, 20, 20, 0.4)';
             const circleColor = isActive ? '#FFFFFF' : '#6B7280';
-            return (<div key={s.n} onClick={() => goToStep(s.n)} style={{
+            const labelStyle: React.CSSProperties = {
+                ...stepNavLabel,
+                color: isActive ? '#0B0F1F' : '#6B7280',
+                fontWeight: isActive ? 600 : 500,
+            };
+            return (<div key={s.n} role="button" tabIndex={0} aria-current={isActive ? 'step' : undefined} aria-label={`${s.label}, step ${s.n} of ${steps.length}`} onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            goToStep(s.n);
+                        }
+                    }} onClick={() => goToStep(s.n)} style={{
                     display: 'flex',
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -609,7 +640,7 @@ export default function HostProfilePage(props: {
                     lineHeight: 1,
                     color: circleColor,
                 }}>
-                    {isCompleted ? '✓' : s.n}
+                    {s.n}
                   </div>
 
                   <div style={{
@@ -621,24 +652,18 @@ export default function HostProfilePage(props: {
                     gap: 4,
                     alignItems: 'flex-start',
                 }}>
-                    <div style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontStyle: 'normal',
-                    fontWeight: 500,
-                    fontSize: 20,
-                    lineHeight: '124%',
-                    color: '#0B0F1F',
-                    textAlign: 'left',
-                }}>
+                    <div style={labelStyle}>
                       {s.label}
                     </div>
                   </div>
 
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#210840" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{
                     flexShrink: 0,
                     transform: 'rotate(-90deg)',
+                    color: '#210840',
+                    opacity: 0.55,
                 }} aria-hidden="true">
-                    <path d="m6 9 6 6 6-6"/>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>);
         })}
@@ -684,61 +709,33 @@ export default function HostProfilePage(props: {
         }} onClick={() => goToStep(1)}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#0B0F1F' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#0f1523' }} aria-hidden>
               <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M4 20c0-3.866 3.582-7 8-7s8 3.134 8 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span style={{
-            fontSize: 24,
-            fontWeight: 600,
-            lineHeight: 1,
-            color: '#0B0F1F',
-        }}>
+            <span style={cardHeaderTitle}>
               Basic Information
             </span>
           </div>
 
           
           <div style={{ width: '100%' }}>
-            <p style={{
-            fontSize: 22,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: '#0B0F1F',
-            marginBottom: 20,
-        }}>
+            <p style={subsectionHeading}>
               Clinic Information
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'row', gap: 40 }}>
               <div style={{
-            flex: 1,
-            minWidth: 0,
+            width: 524,
+            maxWidth: '100%',
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
         }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Clinic name
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 4,
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-            fontFamily: 'Inter, sans-serif',
-        }} value={clinicName} onChange={(e) => setClinicName(e.target.value)} placeholder="Enter clinic name"/>
+                <input style={fieldInput} value={clinicName} onChange={(e) => setClinicName(e.target.value)} placeholder="Enter clinic name"/>
               </div>
             </div>
           </div>
@@ -761,12 +758,7 @@ export default function HostProfilePage(props: {
             flexDirection: 'column',
             gap: 20,
         }}>
-              <p style={{
-            fontSize: 22,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: '#0B0F1F',
-        }}>
+              <p style={subsectionHeading}>
                 Host Doctors
               </p>
 
@@ -783,30 +775,37 @@ export default function HostProfilePage(props: {
                   <div style={{
             width: 46,
             height: 46,
-            background: '#EEF6FF',
-            borderRadius: 2,
+            background: avatarPhotoUrl ? 'transparent' : '#EEF6FF',
+            borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            overflow: 'hidden',
         }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="8" r="4" stroke="#0B0F1F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M4 20c0-3.866 3.582-7 8-7s8 3.134 8 7" stroke="#0B0F1F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    {avatarPhotoUrl ? (<img src={avatarPhotoUrl} alt="" width={46} height={46} style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+            }}/>) : (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <circle cx="12" cy="8" r="4" stroke="#0f1523" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M4 20c0-3.866 3.582-7 8-7s8 3.134 8 7" stroke="#0f1523" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>)}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <span style={{
-            fontSize: 20,
-            fontWeight: 500,
-            color: '#0B0F1F',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 15,
+            fontWeight: 600,
+            color: '#0f1523',
             lineHeight: 1,
         }}>
                       {hostFirst || hostLast
             ? `${hostFirst} ${hostLast}`.trim()
             : 'Host Doctor 1'}
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 400, color: '#6B7280' }}>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 400, color: '#6B7280' }}>
                       Just Now
                     </span>
                   </div>
@@ -822,15 +821,15 @@ export default function HostProfilePage(props: {
             borderRadius: 3,
             background: 'transparent',
             fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: 500,
             color: '#3A65DB',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             flexShrink: 0,
         }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M7 1v12M1 7h12" stroke="#3A65DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   Add Host
                 </button>
@@ -852,79 +851,34 @@ export default function HostProfilePage(props: {
             flexDirection: 'column',
             gap: 8,
         }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Name
                 </label>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <input style={{
+            ...fieldInput,
             flex: 1,
             minWidth: 0,
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 4,
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-            fontFamily: 'Inter, sans-serif',
         }} value={hostFirst} onChange={(e) => setHostFirst(e.target.value)} placeholder="First name"/>
                   <input style={{
+            ...fieldInput,
             flex: 1,
             minWidth: 0,
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 4,
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-            fontFamily: 'Inter, sans-serif',
         }} value={hostLast} onChange={(e) => setHostLast(e.target.value)} placeholder="Last name"/>
                 </div>
               </div>
 
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   CPSNS Number *
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 4,
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-            fontFamily: 'Inter, sans-serif',
-        }} inputMode="numeric" autoComplete="off" maxLength={9} value={cpsns} onChange={(e) => setCpsns(sanitizeCpsnsInput(e.target.value))} placeholder="9-digit number"/>
+                <input style={fieldInput} inputMode="numeric" autoComplete="off" maxLength={9} value={cpsns} onChange={(e) => setCpsns(sanitizeCpsnsInput(e.target.value))} placeholder="9-digit number"/>
               </div>
 
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   CPSNS License
                 </label>
 
@@ -933,12 +887,13 @@ export default function HostProfilePage(props: {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '6px 10px',
-                height: 56,
+                height: 'auto',
+                minHeight: 40,
                 border: '1px solid #22C55E',
                 borderRadius: 4,
                 background: '#fff',
             }}>
-                    <span style={{ fontSize: 16, fontWeight: 400, color: '#0B0F1F' }}>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 400, color: '#0f1523' }}>
                       {uploading
                 ? 'Uploading…'
                 : (licenseFile?.split('/').pop() ?? licenseFile)}
@@ -946,7 +901,7 @@ export default function HostProfilePage(props: {
                     <button type="button" onClick={(e) => {
                 e.stopPropagation();
                 setLicenseFile(null);
-            }} style={{
+            }} title="Remove file" style={{
                 width: 32,
                 height: 32,
                 background: '#F8F6F7',
@@ -957,12 +912,13 @@ export default function HostProfilePage(props: {
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-            }} title="Remove file">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M2 4h12" stroke="#210840" strokeWidth="1.5" strokeLinecap="round"/>
-                        <path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke="#210840" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="#210840" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M6.5 7.5v4M9.5 7.5v4" stroke="#210840" strokeWidth="1.5" strokeLinecap="round"/>
+                color: '#475569',
+            }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                        <path d="M2 4h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        <path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M6.5 7.5v4M9.5 7.5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                       </svg>
                     </button>
                   </div>) : (<>
@@ -988,10 +944,10 @@ export default function HostProfilePage(props: {
                 fileRef.current?.click();
             }} disabled={uploading} style={{
                 width: '100%',
-                height: 44,
-                padding: '6px 10px',
+                minHeight: 37,
+                padding: '8px 10px',
                 border: '1px solid #D0D5DD',
-                borderRadius: 4,
+                borderRadius: 6,
                 background: '#fff',
                 cursor: uploading ? 'default' : 'pointer',
                 display: 'flex',
@@ -1000,9 +956,14 @@ export default function HostProfilePage(props: {
                 gap: 10,
                 userSelect: 'none',
                 opacity: uploading ? 0.7 : 1,
+                boxSizing: 'border-box',
             }}>
-                      <Image src="/relevant-docs.png" alt="" width={18} height={18} style={{ objectFit: 'contain', flexShrink: 0, opacity: 0.9 }}/>
-                      <span style={{ fontSize: 16, color: 'rgba(11, 15, 31, 0.4)' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, opacity: 0.72 }} aria-hidden>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="#3B4FD8" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M14 2v6h6" stroke="#3B4FD8" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M9 14h6" stroke="#3B4FD8" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(11, 15, 31, 0.4)' }}>
                         {uploading ? 'Uploading…' : 'Upload CPSNS Certificate'}
                       </span>
                     </button>
@@ -1011,12 +972,7 @@ export default function HostProfilePage(props: {
 
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Speciality *
                 </label>
 
@@ -1029,16 +985,18 @@ export default function HostProfilePage(props: {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '6px 10px',
-            height: 44,
+            padding: '8px 10px',
+            minHeight: 37,
             border: '1px solid #D0D5DD',
-            borderRadius: 4,
+            borderRadius: 6,
             background: '#fff',
             cursor: 'pointer',
             fontFamily: 'Inter, sans-serif',
+            boxSizing: 'border-box',
         }}>
                     <span style={{
-            fontSize: 16,
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 13,
             fontWeight: 400,
             color: specialties.length
                 ? 'rgba(11, 15, 31, 0.8)'
@@ -1049,8 +1007,8 @@ export default function HostProfilePage(props: {
         }}>
                       {specialties.length ? specialties.join(', ') : 'Pick Speciality'}
                     </span>
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                      <path d="M4.5 6.75L9 11.25l4.5-4.5" stroke="#0B0F1F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0, color: '#0f1523' }}>
+                      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </button>
 
@@ -1066,9 +1024,10 @@ export default function HostProfilePage(props: {
                 zIndex: 30,
             }}>
                       <div style={{
-                fontSize: 14,
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 13,
                 fontWeight: 600,
-                color: '#0B0F1F',
+                color: '#0f1523',
                 marginBottom: 8,
             }}>
                         Custom title
@@ -1098,7 +1057,7 @@ export default function HostProfilePage(props: {
                             ? 'rgba(115, 177, 251, 0.12)'
                             : '#fff',
                         color: '#0B0F1F',
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: 500,
                     }}>
                               {opt}
@@ -1106,19 +1065,7 @@ export default function HostProfilePage(props: {
             })}
                       </div>
 
-                      <input style={{
-                width: '100%',
-                height: 44,
-                padding: '6px 8px',
-                border: '1px solid #D0D5DD',
-                borderRadius: 4,
-                fontSize: 16,
-                fontWeight: 400,
-                color: '#0B0F1F',
-                background: '#fff',
-                outline: 'none',
-                fontFamily: 'Inter, sans-serif',
-            }} value={specialtyInput} onChange={(e) => setSpecialtyInput(e.target.value)} onKeyDown={(e) => {
+                      <input style={fieldInput} value={specialtyInput} onChange={(e) => setSpecialtyInput(e.target.value)} onKeyDown={(e) => {
                 if (e.key === 'Enter' && specialtyInput.trim()) {
                     e.stopPropagation();
                     setSpecialties((sp) => [...sp, specialtyInput.trim()]);
@@ -1134,10 +1081,11 @@ export default function HostProfilePage(props: {
                 alignItems: 'center',
                 gap: 8,
                 padding: '0 12px',
-                height: 36,
+                height: 34,
                 background: 'rgba(115, 177, 251, 0.1)',
                 borderRadius: 40,
-                fontSize: 16,
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 13,
                 fontWeight: 400,
                 color: '#1522A6',
                 letterSpacing: '0.02em',
@@ -1161,7 +1109,9 @@ export default function HostProfilePage(props: {
                 fontSize: 14,
                 borderRadius: '50%',
             }} aria-label={`Remove ${s}`}>
-                        ✕
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
                       </button>
                     </span>))}
                 </div>
@@ -1179,16 +1129,11 @@ export default function HostProfilePage(props: {
         }} onClick={() => goToStep(2)}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#0B0F1F' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#0f1523' }} aria-hidden>
               <path d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
             </svg>
-            <span style={{
-            fontSize: 24,
-            fontWeight: 600,
-            lineHeight: 1,
-            color: '#0B0F1F',
-        }}>
+            <span style={cardHeaderTitle}>
               Clinic Location
             </span>
           </div>
@@ -1203,50 +1148,16 @@ export default function HostProfilePage(props: {
             
             <div style={{ display: 'flex', flexDirection: 'row', gap: 80, width: '100%' }}>
               <div style={{ width: 524, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 400,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Address Line 1
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 8,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-        }} value={addr1} onChange={(e) => setAddr1(e.target.value)} placeholder="Location Address Line 1"/>
+                <input style={fieldInput} value={addr1} onChange={(e) => setAddr1(e.target.value)} placeholder="Address Line 1"/>
               </div>
               <div style={{ width: 412, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 400,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Address Line 2
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 8,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-        }} value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder="Location Address Line 2"/>
+                <input style={fieldInput} value={addr2} onChange={(e) => setAddr2(e.target.value)} placeholder="Address Line 2"/>
               </div>
             </div>
 
@@ -1260,28 +1171,10 @@ export default function HostProfilePage(props: {
             gap: 8,
             position: 'relative',
         }}>
-                <label htmlFor="host-profile-city" style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label htmlFor="host-profile-city" style={lbl}>
                   City
                 </label>
-                <input id="host-profile-city" ref={hostCityInputRef} autoComplete="off" style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 4,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-            boxSizing: 'border-box',
-        }} value={city} onChange={(e) => {
+                <input id="host-profile-city" ref={hostCityInputRef} autoComplete="off" style={fieldInput} value={city} onChange={(e) => {
             setCity(e.target.value);
             setProvince('');
             searchHostCities(e.target.value);
@@ -1298,7 +1191,7 @@ export default function HostProfilePage(props: {
         }} onBlur={(e) => {
             setCity(formatCanadianCityDisplay(e.target.value));
             hostCityBlurTimer.current = setTimeout(() => setHostCityDropOpen(false), 160);
-        }} onClick={(e) => e.stopPropagation()} placeholder="Start typing city…"/>
+        }} onClick={(e) => e.stopPropagation()} placeholder="City"/>
                 {hostCityDropOpen && (<div ref={hostCityDropRef} style={{
                 position: 'absolute',
                 top: 'calc(100% + 4px)',
@@ -1356,54 +1249,20 @@ export default function HostProfilePage(props: {
                   </div>)}
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Province
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 4,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-        }} value={province} onChange={(e) => setProvince(e.target.value)} placeholder="Add Province"/>
+                <input style={fieldInput} value={province} onChange={(e) => setProvince(e.target.value)} placeholder="Province"/>
               </div>
             </div>
 
             
             <div style={{ display: 'flex', flexDirection: 'row', gap: 80, width: '100%' }}>
               <div style={{ width: 524, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 400,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Postal Code
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 8,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-        }} value={postal} onChange={(e) => setPostal(e.target.value)} placeholder="Enter valid 6 digit code"/>
+                <input style={fieldInput} value={postal} onChange={(e) => setPostal(e.target.value)} placeholder="Postal code"/>
               </div>
             </div>
           </div>
@@ -1418,17 +1277,12 @@ export default function HostProfilePage(props: {
         }} onClick={() => goToStep(3)}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#0B0F1F' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#0f1523' }} aria-hidden>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M9 14h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <span style={{
-            fontWeight: 600,
-            fontSize: 24,
-            lineHeight: 1,
-            color: '#0B0F1F',
-        }}>
+            <span style={cardHeaderTitle}>
               Practice Details
             </span>
           </div>
@@ -1443,29 +1297,11 @@ export default function HostProfilePage(props: {
             
             <div style={{ display: 'flex', flexDirection: 'row', gap: 40, width: '100%' }}>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Practice Type
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <select style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 36px 6px 8px',
-            border: '1px solid rgba(21, 20, 20, 0.2)',
-            borderRadius: 4,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-            appearance: 'none',
-        }} value={practiceType} onChange={(e) => setPracticeType(e.target.value)}>
+                  <select style={selectField} value={practiceType} onChange={(e) => setPracticeType(e.target.value)}>
                   <option value="" disabled>
                     Select practice type
                   </option>
@@ -1480,7 +1316,7 @@ export default function HostProfilePage(props: {
                   <option value="Nurse Practitioner (NP) Clinic">
                     Nurse Practitioner (NP) Clinic
                   </option>
-                  <option value="More">More</option>
+                  {/* <option value="More">More</option> */}
                 </select>
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{
             position: 'absolute',
@@ -1495,106 +1331,39 @@ export default function HostProfilePage(props: {
                 </div>
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   No. of Physicians
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid rgba(21, 20, 20, 0.2)',
-            borderRadius: 4,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-        }} value={numPhysicians} onChange={(e) => setNumPhysicians(e.target.value)} placeholder="..."/>
+                <input style={fieldInput} value={numPhysicians} onChange={(e) => setNumPhysicians(e.target.value)} placeholder="No. of Physicians"/>
               </div>
             </div>
 
             
             <div style={{ display: 'flex', flexDirection: 'row', gap: 40, width: '100%' }}>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   EMR System
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid rgba(21, 20, 20, 0.2)',
-            borderRadius: 4,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-        }} value={emr} onChange={(e) => setEmr(e.target.value)} placeholder="..."/>
+                <input style={fieldInput} value={emr} onChange={(e) => setEmr(e.target.value)} placeholder="EMR system"/>
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+                <label style={lbl}>
                   Patient Volume
                 </label>
-                <input style={{
-            width: '100%',
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid rgba(21, 20, 20, 0.2)',
-            borderRadius: 4,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-        }} value={patientVol} onChange={(e) => setPatientVol(e.target.value)} placeholder="..."/>
+                <input style={fieldInput} value={patientVol} onChange={(e) => setPatientVol(e.target.value)} placeholder="No. of Patient"/>
               </div>
             </div>
 
             
             <div style={{ display: 'flex', flexDirection: 'row', gap: 40, width: '100%' }}>
               <div style={{ flex: '1 1 100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{
-            fontSize: 20,
-            fontWeight: 500,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
-                  Clinic description
+                <label style={lbl}>
+                  Clinic description{' '}
+                  <span style={{ fontWeight: 400, fontSize: 13, color: '#6B7280' }}>
+                    (maximum 1000 characters)
+                  </span>
                 </label>
-                <textarea style={{
-            width: '100%',
-            height: 56,
-            padding: '6px 8px',
-            border: '1px solid rgba(21, 20, 20, 0.2)',
-            borderRadius: 4,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
-            resize: 'vertical',
-            lineHeight: '140%',
-        }} value={clinicDesc} onChange={(e) => setClinicDesc(e.target.value)} placeholder="..."/>
+                <textarea style={textareaField} value={clinicDesc} maxLength={1000} onChange={(e) => setClinicDesc(e.target.value.slice(0, 1000))} placeholder="Clinic Description"/>
               </div>
             </div>
           </div>
@@ -1607,35 +1376,18 @@ export default function HostProfilePage(props: {
             ...sectionCard(activeStep === 4, { gap: 24, borderRadius: 4 }),
             scrollMarginTop: 20,
         }} onClick={() => goToStep(4)}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 24 }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0B0F1F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l2.6-2.6a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0z"/>
-              <path d="M10.2 7.8 2 16v6h6l8.2-8.2"/>
-              <path d="M16 5 19 8"/>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 24 }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0, color: '#0f1523' }}>
+              <path d="M4.5 16.5c-1.1 0-2-.9-2-2v-2.2c0-.9.5-1.8 1.3-2.1l1.8-.8a6 6 0 0 1 7.8 0l1.8.8c.8.4 1.3 1.2 1.3 2.1v2.2c0 1.1-.9 2-2 2h-11Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 8.5V6a4 4 0 0 1 8 0v2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            <div style={{
-            fontFamily: 'Inter, sans-serif',
-            fontStyle: 'normal',
-            fontWeight: 600,
-            fontSize: 24,
-            lineHeight: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#0B0F1F',
-        }}>
+            <div style={cardHeaderTitle}>
               Services Offered
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
-            <div style={{
-            fontFamily: 'Inter, sans-serif',
-            fontStyle: 'normal',
-            fontWeight: 500,
-            fontSize: 20,
-            lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
-        }}>
+            <div style={subsectionHeading}>
               Amenities
             </div>
 
@@ -1662,19 +1414,23 @@ export default function HostProfilePage(props: {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '6px 16px',
-                height: 42,
+                padding: '6px 14px',
+                height: 38,
                 borderRadius: 8,
                 cursor: 'pointer',
                 background: '#fff',
                 border: `1px solid ${amenities.includes(a) ? 'rgba(21, 34, 166, 0.6)' : '#D0D5DD'}`,
                 color: amenities.includes(a) ? '#1522A6' : '#636364',
-                fontSize: 16,
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 13,
                 fontWeight: 400,
-                fontFamily: 'Gilroy-Medium, Inter, sans-serif',
             }}>
                   {a}
-                  {amenities.includes(a) && (<span style={{ marginLeft: 10, fontSize: 14, lineHeight: '14px' }}>×</span>)}
+                  {amenities.includes(a) && (<span style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', color: 'inherit' }} aria-hidden>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </span>)}
                 </span>))}
             </div>
 
@@ -1689,18 +1445,8 @@ export default function HostProfilePage(props: {
             setAmenities((am) => (am.includes(v) ? am : [...am, v]));
             setCustomAmenity('');
         }} placeholder="Add custom amenity and press Enter" style={{
-            width: '100%',
+            ...fieldInput,
             maxWidth: 713,
-            height: 44,
-            padding: '6px 8px',
-            border: '1px solid #D0D5DD',
-            borderRadius: 8,
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 16,
-            fontWeight: 400,
-            color: '#0B0F1F',
-            background: '#fff',
-            outline: 'none',
         }}/>
 
             <label style={{
@@ -1719,11 +1465,10 @@ export default function HostProfilePage(props: {
         }}/>
               <span style={{
             fontFamily: 'Inter, sans-serif',
-            fontStyle: 'normal',
             fontWeight: 400,
-            fontSize: 20,
+            fontSize: 16,
             lineHeight: '140%',
-            color: 'rgba(11, 15, 31, 0.8)',
+            color: '#374151',
         }}>
                 Accommodation provided for Locum
               </span>
@@ -1733,15 +1478,22 @@ export default function HostProfilePage(props: {
 
         
         {saved && (<div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
                 background: '#F0FDF4',
                 border: '1px solid #BBF7D0',
                 borderRadius: 6,
                 padding: '10px 14px',
                 marginBottom: 12,
+                fontFamily: 'Inter, sans-serif',
                 fontSize: 13,
                 color: '#166534',
             }}>
-            ✓ Profile saved successfully.
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+              <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Profile saved successfully.
           </div>)}
         {saveError && (<div style={{
                 background: '#FEF2F2',
@@ -1749,6 +1501,7 @@ export default function HostProfilePage(props: {
                 borderRadius: 6,
                 padding: '10px 14px',
                 marginBottom: 12,
+                fontFamily: 'Inter, sans-serif',
                 fontSize: 13,
                 color: '#dc2626',
             }}>
@@ -1761,6 +1514,7 @@ export default function HostProfilePage(props: {
             color: '#fff',
             border: 'none',
             borderRadius: 6,
+            fontFamily: 'Inter, sans-serif',
             fontSize: 14,
             fontWeight: 500,
             cursor: saving ? 'not-allowed' : 'pointer',

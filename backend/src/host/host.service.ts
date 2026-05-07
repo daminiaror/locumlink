@@ -262,7 +262,11 @@ export class HostService {
         await this.prisma.jobPosting.delete({ where: { id: jobId } });
         return { success: true };
     }
-    async reopenJob(userId: string, jobId: string, additionalApplicants: number) {
+    async reopenJob(userId: string, jobId: string, dto: {
+        additionalApplicants: number;
+        startDate?: string;
+        endDate?: string;
+    }) {
         const hostProfileId = await this.getHostProfileId(userId);
         const job = await this.prisma.jobPosting.findUnique({
             where: { id: jobId },
@@ -284,6 +288,27 @@ export class HostService {
         if (!eligible) {
             throw new BadRequestException('This job cannot be reopened (must be filled, expired, cancelled, past end date, or at applicant limit).');
         }
+        const hasBothSchedule = dto.startDate != null &&
+            dto.startDate.trim() !== '' &&
+            dto.endDate != null &&
+            dto.endDate.trim() !== '';
+        if (pastEndDate && !hasBothSchedule) {
+            throw new BadRequestException('Start and end dates are required to reopen a job that has ended.');
+        }
+        let startDateParsed: Date | undefined;
+        let endDateParsed: Date | undefined;
+        if (hasBothSchedule) {
+            startDateParsed = new Date(dto.startDate as string);
+            endDateParsed = new Date(dto.endDate as string);
+            if (Number.isNaN(startDateParsed.getTime()) || Number.isNaN(endDateParsed.getTime()))
+                throw new BadRequestException('Invalid start or end date.');
+            if (endDateParsed < startDateParsed)
+                throw new BadRequestException('End date must be on or after start date.');
+        }
+        else if ((dto.startDate != null && dto.startDate.trim() !== '') ||
+            (dto.endDate != null && dto.endDate.trim() !== '')) {
+            throw new BadRequestException('Both start date and end date are required.');
+        }
         if (job.status === 'FILLED') {
             await this.prisma.application.updateMany({
                 where: { jobPostingId: jobId, status: 'CONFIRMED' },
@@ -294,7 +319,12 @@ export class HostService {
             where: { id: jobId },
             data: {
                 status: 'ACTIVE',
-                maxApplicants: job.maxApplicants + additionalApplicants,
+                maxApplicants: job.maxApplicants + dto.additionalApplicants,
+                ...(startDateParsed != null &&
+                    endDateParsed != null && {
+                    startDate: startDateParsed,
+                    endDate: endDateParsed,
+                }),
             },
         });
         return { success: true, job: updated };

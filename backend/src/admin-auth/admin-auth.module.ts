@@ -5,8 +5,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AdminAuthController } from './admin-auth.controller.js';
 import { AdminAuthService } from './admin-auth.service.js';
-import { GoogleAdminStrategy } from './strategies/google-admin.strategy.js';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy.js';
+import { AdminGoogleStrategy } from './strategies/admin-google.strategy.js';
+import { AdminGoogleEnabledGuard } from './guards/admin-google-enabled.guard.js';
+import { RedirectAdminOAuthToLoginFilter } from './filters/redirect-admin-oauth-login.filter.js';
 
 @Module({
   imports: [
@@ -23,7 +25,13 @@ import { AdminJwtStrategy } from './strategies/admin-jwt.strategy.js';
     }),
   ],
   controllers: [AdminAuthController],
-  providers: [AdminAuthService, GoogleAdminStrategy, AdminJwtStrategy],
+  providers: [
+    AdminAuthService,
+    AdminJwtStrategy,
+    AdminGoogleStrategy,
+    AdminGoogleEnabledGuard,
+    RedirectAdminOAuthToLoginFilter,
+  ],
   exports: [AdminAuthService],
 })
 export class AdminAuthModule {}

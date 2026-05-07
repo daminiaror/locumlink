@@ -173,4 +173,10 @@ export class ReopenJobDto {
     @IsNumber()
     @Min(1)
     additionalApplicants!: number;
+    @IsString()
+    @IsOptional()
+    startDate?: string;
+    @IsString()
+    @IsOptional()
+    endDate?: string;
 }

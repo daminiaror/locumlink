@@ -6,7 +6,7 @@ import { HomeLandingView } from '@/components/HomeLandingView';
 import { useAuth } from '@/providers/AuthProvider';
 import { locumApi, uploadFile } from '@/lib/api';
 import type { LocumProfile } from '@/types';
-import { isCpsnsNineDigitsFormat, sanitizeCpsnsInput, } from '@/lib/cpsnsVerify';
+import { sanitizeCpsnsInput, } from '@/lib/cpsnsVerify';
 import BarWaveButton from '@/components/ui/BarWaveButton';
 import { beforeClientNavigation } from '@/lib/topLoader';
 const LOCUM_SETUP_MODAL = {
@@ -133,7 +133,7 @@ const lbl: React.CSSProperties = {
 };
 function ReqStar() {
     return (<span style={{
-            color: '#DC2626',
+        color: '#0B0F1F',
             fontWeight: 600,
             display: 'inline',
             marginLeft: 4,
@@ -282,7 +282,7 @@ export default function LocumSetupPage() {
         });
     }
     const step1Valid = useMemo(() => (form.firstName ?? '').trim().length > 0 &&
-        isCpsnsNineDigitsFormat(form.cpsnsNumber), [form.firstName, form.cpsnsNumber]);
+        (form.cpsnsNumber ?? '').trim().length > 0, [form.firstName, form.cpsnsNumber]);
     const step2Valid = true;
     const step3Valid = true;
     function set<K extends keyof LocumProfile>(k: K, v: LocumProfile[K]) {
@@ -500,7 +500,7 @@ export default function LocumSetupPage() {
                           First name
                           <ReqStar />
                         </label>
-                        <input id="locum-setup-firstname" className="locum-setup-input" style={inp} placeholder="John" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} aria-required/>
+                        <input id="locum-setup-firstname" className="locum-setup-input" style={inp} placeholder="First name" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} aria-required/>
                       </div>
                       <div style={{
                 flex: 1,
@@ -510,7 +510,7 @@ export default function LocumSetupPage() {
                 gap: 8,
             }}>
                         <label style={lbl}>Last name</label>
-                        <input className="locum-setup-input" style={inp} placeholder="Doe" value={form.lastName} onChange={(e) => set('lastName', e.target.value)}/>
+                        <input className="locum-setup-input" style={inp} placeholder="Last name" value={form.lastName} onChange={(e) => set('lastName', e.target.value)}/>
                       </div>
                     </div>
 
@@ -525,7 +525,7 @@ export default function LocumSetupPage() {
                         CPSNS Number
                         <ReqStar />
                       </label>
-                      <input id="locum-setup-cpsns" className="locum-setup-input" style={inp} inputMode="numeric" autoComplete="off" maxLength={9} placeholder="9-digit number" value={form.cpsnsNumber} onChange={(e) => set('cpsnsNumber', sanitizeCpsnsInput(e.target.value))} aria-required/>
+                      <input id="locum-setup-cpsns" className="locum-setup-input" style={inp} inputMode="numeric" autoComplete="off" maxLength={9} placeholder="License number" value={form.cpsnsNumber} onChange={(e) => set('cpsnsNumber', sanitizeCpsnsInput(e.target.value))} aria-required/>
                     </div>
 
                     
@@ -788,7 +788,7 @@ export default function LocumSetupPage() {
                 width: '100%',
             }}>
                           <label style={lbl}>Address Line 1</label>
-                          <input className="locum-setup-input" style={inpStep2} placeholder="Location Address Line 1" value={form.address1} onChange={(e) => set('address1', e.target.value)}/>
+                          <input className="locum-setup-input" style={inpStep2} placeholder="Address Line 1" value={form.address1} onChange={(e) => set('address1', e.target.value)}/>
                         </div>
                         <div style={{
                 display: 'flex',
@@ -797,7 +797,7 @@ export default function LocumSetupPage() {
                 width: '100%',
             }}>
                           <label style={lbl}>Address Line 2</label>
-                          <input className="locum-setup-input" style={inpStep2} placeholder="Location Address Line 2" value={form.address2} onChange={(e) => set('address2', e.target.value)}/>
+                          <input className="locum-setup-input" style={inpStep2} placeholder="Address Line 2" value={form.address2} onChange={(e) => set('address2', e.target.value)}/>
                         </div>
                       </div>
 
@@ -808,15 +808,6 @@ export default function LocumSetupPage() {
                 gap: 16,
                 width: '100%',
             }}>
-                        <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                width: '100%',
-            }}>
-                          <label style={lbl}>Postal Code</label>
-                          <input className="locum-setup-input" style={inpStep2} placeholder="Postal code" value={form.postalCode} onChange={(e) => set('postalCode', e.target.value.toUpperCase())}/>
-                        </div>
                         <div style={{
                 display: 'flex',
                 flexDirection: 'row',
@@ -843,7 +834,7 @@ export default function LocumSetupPage() {
                 boxShadow: form.city && form.province
                     ? '0 0 0 3px rgba(34,197,94,0.1)'
                     : undefined,
-            }} placeholder="Start typing city…" autoComplete="off" value={form.city} onChange={(e) => {
+            }} placeholder="City" autoComplete="off" value={form.city} onChange={(e) => {
                 set('city', e.target.value);
                 set('province', '');
                 searchCities(e.target.value);
@@ -955,8 +946,17 @@ export default function LocumSetupPage() {
                     ...inp,
                     color: 'rgba(11,15,31,0.3)',
                     background: '#F8FAFF',
-                }} placeholder="Auto-filled from city" value="" readOnly tabIndex={-1} aria-readonly/>)}
+                }} placeholder="Province" value="" readOnly tabIndex={-1} aria-readonly/>)}
                           </div>
+                        </div>
+                        <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                width: '100%',
+            }}>
+                          <label style={lbl}>Postal Code</label>
+                          <input className="locum-setup-input" style={inpStep2} placeholder="Postal code" value={form.postalCode} onChange={(e) => set('postalCode', e.target.value.toUpperCase())}/>
                         </div>
                       </div>
                     </div>
@@ -1017,8 +1017,8 @@ export default function LocumSetupPage() {
                     const result = await uploadFile(file, 'locum/license');
                     set('licenseFileName', result.path);
                 }
-                catch {
-                    alert('Upload failed. Try again.');
+                catch (err) {
+                    alert(err instanceof Error ? err.message : 'Upload failed. Try again.');
                 }
                 finally {
                     setUploading(null);
@@ -1067,8 +1067,8 @@ export default function LocumSetupPage() {
                     const result = await uploadFile(file, 'locum/resume');
                     set('resumeFileName', result.path);
                 }
-                catch {
-                    alert('Upload failed. Try again.');
+                catch (err) {
+                    alert(err instanceof Error ? err.message : 'Upload failed. Try again.');
                 }
                 finally {
                     setUploading(null);
@@ -1117,8 +1117,8 @@ export default function LocumSetupPage() {
                     const result = await uploadFile(file, 'locum/extra');
                     set('extraFileName', result.path);
                 }
-                catch {
-                    alert('Upload failed. Try again.');
+                catch (err) {
+                    alert(err instanceof Error ? err.message : 'Upload failed. Try again.');
                 }
                 finally {
                     setUploading(null);

@@ -20,7 +20,7 @@ export function HostSetupStep3({ amenities, onAmenitiesChange, accommodationProv
 
       <label className="host-setup-step3-accommodation">
         <input type="checkbox" checked={accommodationProvided} onChange={(e) => onAccommodationChange(e.target.checked)}/>
-        Accommodation provided for Locum physicians
+        Accommodation provided for Locum
       </label>
     </div>);
 }
