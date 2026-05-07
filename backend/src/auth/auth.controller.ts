@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Ip, Post, Patch, Headers, UseGuards, Get, UsePipes, ValidationPipe, } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Ip, Post, Patch, Delete, Headers, UseGuards, Get, UsePipes, ValidationPipe, } from '@nestjs/common';
 import { Role as PrismaRole } from '@prisma/client';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -15,6 +15,7 @@ export class AuthController {
     constructor(private readonly authService: AuthService) { }
     @Public()
     @Post('register')
+    @UsePipes(new ValidationPipe({ whitelist: true }))
     async register(
     @Body()
     dto: RegisterDto, 
@@ -26,6 +27,7 @@ export class AuthController {
     }
     @Public()
     @Post('login')
+    @UsePipes(new ValidationPipe({ whitelist: true }))
     @HttpCode(HttpStatus.OK)
     async login(
     @Body()
@@ -47,6 +49,18 @@ export class AuthController {
         const prismaRole: PrismaRole = dto.role === 'clinic' ? PrismaRole.HOST : PrismaRole.LOCUM;
         return this.authService.syncFromSupabaseToken(authorization, prismaRole);
     }
+    @Public()
+    @Post('dev-otp-login')
+    @HttpCode(HttpStatus.OK)
+    devOtpLogin(
+    @Body()
+    dto: {
+        email?: string;
+        role?: 'locum' | 'clinic';
+    }): Promise<AuthTokens> {
+        const prismaRole: PrismaRole = dto.role === 'clinic' ? PrismaRole.HOST : PrismaRole.LOCUM;
+        return this.authService.devOtpLogin(dto.email, prismaRole);
+    }
     @Get('me')
     @UseGuards(JwtAuthGuard)
     getMe(
@@ -66,6 +80,17 @@ export class AuthController {
         success: true;
     }> {
         await this.authService.setUserAvatarStoragePath(user.id, dto.storagePath);
+        return { success: true };
+    }
+    @Delete('me/avatar')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.OK)
+    async clearAvatar(
+    @CurrentUser()
+    user: User): Promise<{
+        success: true;
+    }> {
+        await this.authService.clearUserAvatar(user.id);
         return { success: true };
     }
 }

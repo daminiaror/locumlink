@@ -17,12 +17,112 @@ const userSelect = {
 @Injectable()
 export class MessageService {
     constructor(private readonly prisma: PrismaService, private readonly gcs: GcsService) { }
-    async getConversations(userId: string) {
+    async getConversations(userId: string, search?: string) {
+        const trimmed = search?.trim() ?? '';
+        const hasSearch = trimmed.length > 0;
+        let partnerIdFilter: string[] | null = null;
+        if (hasSearch) {
+            const partnerIds = new Set<string>();
+            const [bodyMsgs, attachMsgs, jobMsgs, profileUsers] = await Promise.all([
+                this.prisma.message.findMany({
+                    where: {
+                        OR: [{ senderId: userId }, { recipientId: userId }],
+                        deletedAt: null,
+                        body: { contains: trimmed, mode: 'insensitive' },
+                    },
+                    select: { senderId: true, recipientId: true },
+                }),
+                this.prisma.message.findMany({
+                    where: {
+                        OR: [{ senderId: userId }, { recipientId: userId }],
+                        deletedAt: null,
+                        attachments: { some: { fileName: { contains: trimmed, mode: 'insensitive' } } },
+                    },
+                    select: { senderId: true, recipientId: true },
+                }),
+                this.prisma.message.findMany({
+                    where: {
+                        OR: [{ senderId: userId }, { recipientId: userId }],
+                        deletedAt: null,
+                        jobPosting: { is: { title: { contains: trimmed, mode: 'insensitive' } } },
+                    },
+                    select: { senderId: true, recipientId: true },
+                }),
+                this.prisma.user.findMany({
+                    where: {
+                        id: { not: userId },
+                        AND: [
+                            {
+                                OR: [
+                                    { email: { contains: trimmed, mode: 'insensitive' } },
+                                    {
+                                        locumProfile: {
+                                            is: {
+                                                OR: [
+                                                    { firstName: { contains: trimmed, mode: 'insensitive' } },
+                                                    { lastName: { contains: trimmed, mode: 'insensitive' } },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    {
+                                        hostProfile: {
+                                            is: {
+                                                OR: [
+                                                    { contactFirstName: { contains: trimmed, mode: 'insensitive' } },
+                                                    { contactLastName: { contains: trimmed, mode: 'insensitive' } },
+                                                    { practiceName: { contains: trimmed, mode: 'insensitive' } },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                            {
+                                OR: [
+                                    { sentMessages: { some: { recipientId: userId } } },
+                                    { receivedMessages: { some: { senderId: userId } } },
+                                ],
+                            },
+                        ],
+                    },
+                    select: { id: true },
+                }),
+            ]);
+            const pushPartner = (senderId: string, recipientId: string) => {
+                partnerIds.add(senderId === userId ? recipientId : senderId);
+            };
+            for (const m of bodyMsgs)
+                pushPartner(m.senderId, m.recipientId);
+            for (const m of attachMsgs)
+                pushPartner(m.senderId, m.recipientId);
+            for (const m of jobMsgs)
+                pushPartner(m.senderId, m.recipientId);
+            for (const u of profileUsers)
+                partnerIds.add(u.id);
+            if (partnerIds.size === 0)
+                return { conversations: [] };
+            partnerIdFilter = [...partnerIds];
+        }
+        const participantClause = {
+            OR: [{ senderId: userId }, { recipientId: userId }],
+        };
+        const whereClause = partnerIdFilter
+            ? {
+                    AND: [
+                        participantClause,
+                        {
+                            OR: [
+                                { senderId: userId, recipientId: { in: partnerIdFilter } },
+                                { recipientId: userId, senderId: { in: partnerIdFilter } },
+                            ],
+                        },
+                    ],
+                }
+            : participantClause;
         const [messages, unreadGroups] = await Promise.all([
             this.prisma.message.findMany({
-                where: {
-                    OR: [{ senderId: userId }, { recipientId: userId }],
-                },
+                where: whereClause,
                 orderBy: { sentAt: 'desc' },
                 include: {
                     sender: { select: userSelect },

@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useCallback, useMemo, Suspense, } from 're
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
-import { hostApi, locumApi, messageApi, uploadFile, type Conversation, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
+import { hostApi, locumApi, messageApi, uploadFile, type ApplicationRecord, type Conversation, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
 import { getEmail, getToken } from '@/lib/auth';
 import { beforeClientNavigation } from '@/lib/topLoader';
 import { useAuth } from '@/providers/AuthProvider';
@@ -140,6 +140,25 @@ function fmtConvDate(iso: string): string {
 function isImageMime(mime: string): boolean {
     return /^image\//i.test(mime);
 }
+const MESSAGE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+const MESSAGE_ATTACHMENT_MIME = new Set([
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+const DOCUMENT_ATTACH_ACCEPT = 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.doc,.docx';
+const IMAGE_ATTACH_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
+function messageAttachmentError(file: File): string | null {
+    if (file.size > MESSAGE_ATTACHMENT_MAX_BYTES)
+        return 'File must be 10 MB or smaller.';
+    if (file.type && !MESSAGE_ATTACHMENT_MIME.has(file.type))
+        return 'Only PDF, JPG, PNG, WEBP, GIF, DOC, or DOCX files are allowed.';
+    return null;
+}
 const AVATAR_GLYPH_PX = 16;
 function AvatarGlyph({ variant, size = AVATAR_GLYPH_PX, }: {
     variant: 'locum' | 'clinic';
@@ -172,15 +191,24 @@ function SearchIcon() {
       <path d="M10 10l3.5 3.5" stroke="#9CA3AF" strokeWidth="1.4" strokeLinecap="round"/>
     </svg>);
 }
-function VerifiedIcon() {
-    return (<Image src="/clinic-verified.png" alt="Verified" width={16} height={16} style={{ flexShrink: 0, objectFit: 'contain', opacity: 1 }}/>);
-}
 function EmojiIcon() {
     return (<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
       <circle cx="10" cy="10" r="8" stroke="#6B7280" strokeWidth="1.4"/>
       <circle cx="7.5" cy="8.5" r="1" fill="#6B7280"/>
       <circle cx="12.5" cy="8.5" r="1" fill="#6B7280"/>
       <path d="M6.5 12.5c.8 1.5 2.1 2 3.5 2s2.7-.5 3.5-2" stroke="#6B7280" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>);
+}
+function AttachFileIcon() {
+    return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="#6B7280" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>);
+}
+function AttachImagesIcon() {
+    return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="2.5" stroke="#6B7280" strokeWidth="1.75"/>
+      <circle cx="8.75" cy="8.75" r="1.6" fill="#6B7280"/>
+      <path d="M21 17l-4.25-4.25a2 2 0 0 0-2.71-.08L6 21" stroke="#6B7280" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>);
 }
 function Avatar({ user, size = AVATAR_GLYPH_PX, variant, }: {
@@ -206,9 +234,8 @@ function Avatar({ user, size = AVATAR_GLYPH_PX, variant, }: {
       <AvatarGlyph variant={locum ? 'locum' : 'clinic'} size={size}/>
     </div>);
 }
-function DeleteModal({ onDeleteForEveryone, onDeleteForMe, onCancel, }: {
+function DeleteModal({ onDeleteForEveryone, onCancel, }: {
     onDeleteForEveryone: () => void;
-    onDeleteForMe: () => void;
     onCancel: () => void;
 }) {
     return (<>
@@ -235,12 +262,9 @@ function DeleteModal({ onDeleteForEveryone, onDeleteForMe, onCancel, }: {
             fontSize: 16,
             fontWeight: 700,
             color: '#0f1523',
-            marginBottom: 8,
+            marginBottom: 20,
         }}>
           Delete message?
-        </div>
-        <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 20 }}>
-          Choose how to delete this message.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button onClick={onDeleteForEveryone} style={{
@@ -256,36 +280,6 @@ function DeleteModal({ onDeleteForEveryone, onDeleteForMe, onCancel, }: {
             textAlign: 'left',
         }}>
             Delete for everyone
-            <div style={{
-            fontSize: 11,
-            fontWeight: 400,
-            opacity: 0.85,
-            marginTop: 2,
-        }}>
-              Removed from both sides — shows &quot;message deleted&quot;
-            </div>
-          </button>
-          <button onClick={onDeleteForMe} style={{
-            padding: '10px 16px',
-            background: '#F3F4F6',
-            color: '#374151',
-            border: '1px solid #E5E7EB',
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            textAlign: 'left',
-        }}>
-            Delete for me
-            <div style={{
-            fontSize: 11,
-            fontWeight: 400,
-            color: '#9CA3AF',
-            marginTop: 2,
-        }}>
-              Only removed from your view
-            </div>
           </button>
           <button onClick={onCancel} style={{
             padding: '8px',
@@ -321,6 +315,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const [messageText, setMessageText] = useState('');
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [search, setSearch] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [loadingConvs, setLoadingConvs] = useState(true);
     const [loadingThread, setLoadingThread] = useState(false);
     const [sending, setSending] = useState(false);
@@ -363,10 +358,17 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         };
     }, [authLoading, role, userId]);
     const [composeJobPostingId, setComposeJobPostingId] = useState<string | null>(null);
+    const [threadHostApplication, setThreadHostApplication] = useState<{
+        id: string;
+        status: ApplicationRecord['status'];
+    } | null>(null);
+    const [confirmLocumBusy, setConfirmLocumBusy] = useState(false);
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-    const bottomRef = useRef<HTMLDivElement>(null);
+    const threadScrollRef = useRef<HTMLDivElement>(null);
+    const stickToBottomRef = useRef(true);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const filePickRef = useRef<HTMLInputElement>(null);
+    const imagePickRef = useRef<HTMLInputElement>(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
     const emojiPickerRef = useRef<HTMLDivElement>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -393,9 +395,19 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         document.addEventListener('mousedown', onDocMouseDown);
         return () => document.removeEventListener('mousedown', onDocMouseDown);
     }, [emojiPickerOpen]);
-    const loadConversations = useCallback(async () => {
+    useEffect(() => {
+        const t = window.setTimeout(() => setDebouncedSearchQuery(search.trim()), 280);
+        return () => window.clearTimeout(t);
+    }, [search]);
+    const loadConversations = useCallback(async (opts?: {
+        skipTopLoader?: boolean;
+    }) => {
         try {
-            const { conversations: data } = await messageApi.getConversations();
+            const q = debouncedSearchQuery || undefined;
+            const { conversations: data } = await messageApi.getConversations({
+                skipTopLoader: opts?.skipTopLoader,
+                q,
+            });
             setConversations(data);
             if (!urlPartnerId && !selectedPartnerId && data.length > 0) {
                 const first = data[0];
@@ -408,7 +420,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         finally {
             setLoadingConvs(false);
         }
-    }, [urlPartnerId]);
+    }, [urlPartnerId, debouncedSearchQuery, selectedPartnerId]);
     useEffect(() => {
         if (authLoading)
             return;
@@ -419,7 +431,15 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             return;
         }
         void loadConversations();
-    }, [authLoading, router, loadConversations]);
+    }, [authLoading, router, loadConversations, debouncedSearchQuery]);
+    useEffect(() => {
+        const pid = searchParams.get('partnerId');
+        const jid = searchParams.get('jobPostingId');
+        if (pid)
+            setSelectedPartnerId(pid);
+        if (role === 'host' && jid)
+            setComposeJobPostingId(jid);
+    }, [searchParams, role]);
     useEffect(() => {
         if (authLoading || role !== 'locum' || !getToken())
             return;
@@ -448,8 +468,28 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         void loadThread(selectedPartnerId);
     }, [selectedPartnerId, loadThread, authLoading]);
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [thread]);
+        stickToBottomRef.current = true;
+    }, [selectedPartnerId]);
+    function onThreadScroll() {
+        const el = threadScrollRef.current;
+        if (!el)
+            return;
+        const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+        stickToBottomRef.current = dist < 80;
+    }
+    useEffect(() => {
+        if (!stickToBottomRef.current)
+            return;
+        const el = threadScrollRef.current;
+        if (!el)
+            return;
+        if (loadingThread || thread.length === 0)
+            return;
+        const id = window.requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight;
+        });
+        return () => window.cancelAnimationFrame(id);
+    }, [thread, loadingThread]);
     useEffect(() => {
         if (!selectedPartnerId || authLoading || !getToken())
             return;
@@ -459,7 +499,10 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             try {
                 const [{ messages }, { conversations: convs }] = await Promise.all([
                     messageApi.getThread(selectedPartnerId, { skipTopLoader: true }),
-                    messageApi.getConversations({ skipTopLoader: true }),
+                    messageApi.getConversations({
+                        skipTopLoader: true,
+                        q: debouncedSearchQuery || undefined,
+                    }),
                 ]);
                 setThread(messages);
                 setConversations(convs.map((c) => c.partnerId === selectedPartnerId ? { ...c, unreadCount: 0 } : c));
@@ -471,7 +514,31 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             if (pollRef.current)
                 clearInterval(pollRef.current);
         };
-    }, [selectedPartnerId, authLoading]);
+    }, [selectedPartnerId, authLoading, debouncedSearchQuery]);
+    useEffect(() => {
+        if (role !== 'host' || !selectedPartnerId || !composeJobPostingId) {
+            setThreadHostApplication(null);
+            return;
+        }
+        let cancelled = false;
+        void hostApi
+            .getApplications(composeJobPostingId)
+            .then(({ applications }) => {
+            if (cancelled)
+                return;
+            const app = applications.find((a) => a.locumProfile.userId === selectedPartnerId);
+            setThreadHostApplication(app
+                ? { id: app.id, status: app.status }
+                : null);
+        })
+            .catch(() => {
+            if (!cancelled)
+                setThreadHostApplication(null);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [role, selectedPartnerId, composeJobPostingId]);
     async function handleSend() {
         const body = messageText.trim();
         if (!selectedPartnerId || sending)
@@ -495,6 +562,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 }))
                 : [];
             const { message } = await messageApi.sendMessage(selectedPartnerId, body, composeJobPostingId ?? undefined, attachments);
+            stickToBottomRef.current = true;
             setThread((prev) => [...prev, message as ThreadMessage]);
             setPendingFiles([]);
             void loadConversations();
@@ -527,9 +595,44 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         }
     }
     function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.nativeEvent.isComposing)
+            return;
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             void handleSend();
+        }
+    }
+    function appendPendingAttachments(files: File[]) {
+        const next: File[] = [];
+        for (const f of files) {
+            const err = messageAttachmentError(f);
+            if (err) {
+                window.alert(`${f.name}: ${err}`);
+                continue;
+            }
+            next.push(f);
+        }
+        if (next.length)
+            setPendingFiles((prev) => [...prev, ...next]);
+    }
+    async function handleConfirmLocumFromThread() {
+        if (role !== 'host' || !composeJobPostingId || !threadHostApplication || confirmLocumBusy)
+            return;
+        if (threadHostApplication.status === 'CONFIRMED' ||
+            threadHostApplication.status === 'REJECTED' ||
+            threadHostApplication.status === 'WITHDRAWN')
+            return;
+        setConfirmLocumBusy(true);
+        try {
+            await hostApi.updateApplication(composeJobPostingId, threadHostApplication.id, 'CONFIRMED');
+            setThreadHostApplication((prev) => prev ? { ...prev, status: 'CONFIRMED' } : null);
+            void loadConversations();
+        }
+        catch (e: unknown) {
+            window.alert(e instanceof Error ? e.message : 'Could not confirm this applicant.');
+        }
+        finally {
+            setConfirmLocumBusy(false);
         }
     }
     function startEdit(msg: ThreadMessage) {
@@ -569,27 +672,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             setDeleteTarget(null);
         }
     }
-    function confirmDeleteForMe() {
-        if (!deleteTarget)
-            return;
-        setThread((prev) => prev.filter((m) => m.id !== deleteTarget.id));
-        setDeleteTarget(null);
-    }
-    const filteredConvs = useMemo(() => {
-        if (!search.trim())
-            return conversations;
-        const q = search.toLowerCase();
-        return conversations.filter((c) => {
-            const display = getDisplayName(c.partner).toLowerCase();
-            const practice = (c.partner.hostProfile?.practiceName ?? '').toLowerCase();
-            const jobTitle = (c.lastMessage.jobPosting?.title ?? '').toLowerCase();
-            const body = (c.lastMessage.body ?? '').toLowerCase();
-            return (display.includes(q) ||
-                practice.includes(q) ||
-                jobTitle.includes(q) ||
-                body.includes(q));
-        });
-    }, [conversations, search]);
     const hostIdsWithConvs = useMemo(() => new Set(conversations.map((c) => c.partnerId)), [conversations]);
     const locumApplicationSidebarRows = useMemo(() => {
         if (role !== 'locum')
@@ -605,12 +687,26 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         });
     }, [role, myApplications, hostIdsWithConvs]);
     const filteredLocumAppRows = useMemo(() => {
-        if (!search.trim())
+        if (!debouncedSearchQuery)
             return locumApplicationSidebarRows;
-        const q = search.toLowerCase();
-        return locumApplicationSidebarRows.filter((a) => a.jobPosting.title.toLowerCase().includes(q) ||
-            a.jobPosting.hostProfile.practiceName.toLowerCase().includes(q));
-    }, [locumApplicationSidebarRows, search]);
+        const q = debouncedSearchQuery.toLowerCase();
+        return locumApplicationSidebarRows.filter((a) => {
+            const jp = a.jobPosting;
+            const hp = jp.hostProfile;
+            const title = jp.title.toLowerCase();
+            const practice = hp.practiceName.toLowerCase();
+            const city = (hp.city ?? '').toLowerCase();
+            const province = (hp.province ?? '').toLowerCase();
+            const desc = (jp.description ?? '').toLowerCase();
+            const cover = (a.coverNote ?? '').toLowerCase();
+            return (title.includes(q) ||
+                practice.includes(q) ||
+                city.includes(q) ||
+                province.includes(q) ||
+                desc.includes(q) ||
+                cover.includes(q));
+        });
+    }, [locumApplicationSidebarRows, debouncedSearchQuery]);
     useEffect(() => {
         if (authLoading || role !== 'locum')
             return;
@@ -640,6 +736,15 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const location = getLocation(partner);
     const partnerName = partner ? getDisplayName(partner as AnyUser) : '';
     const clinicName = partner ? getClinicName(partner as AnyUser) : '';
+    const showHostThreadConfirm = role === 'host' &&
+        partner?.locumProfile != null &&
+        composeJobPostingId != null &&
+        threadHostApplication != null &&
+        threadHostApplication.status !== 'REJECTED' &&
+        threadHostApplication.status !== 'WITHDRAWN';
+    const hostThreadNeedsConfirm = Boolean(showHostThreadConfirm &&
+        (threadHostApplication?.status === 'APPLIED' || threadHostApplication?.status === 'SHORTLISTED'));
+    const hostThreadAlreadyConfirmed = Boolean(showHostThreadConfirm && threadHostApplication?.status === 'CONFIRMED');
     return (<DashLayout navItems={navItems} activeHref={activeHref} topbarFirstName={undefined} topbarLastName={undefined}>
       <h1 style={{
             fontSize: 22,
@@ -663,7 +768,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         }}>
         
         <div style={{
-            width: 300,
+            width: 360,
             flexShrink: 0,
             borderRight: '1px solid #E5E7EB',
             display: 'flex',
@@ -685,7 +790,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             padding: '8px 12px',
         }}>
               <SearchIcon />
-              <input type="text" placeholder="Search message" value={search} onChange={(e) => setSearch(e.target.value)} style={{
+              <input type="text" placeholder="Search names, jobs, or any message…" value={search} onChange={(e) => setSearch(e.target.value)} style={{
             flex: 1,
             border: 'none',
             outline: 'none',
@@ -707,7 +812,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             }}>
                 Loading…
               </div>) : (<>
-                {filteredConvs.map((conv) => {
+                {conversations.map((conv) => {
                 const isSelected = conv.partnerId === selectedPartnerId;
                 const name = getDisplayName(conv.partner);
                 const jobTitle = conv.lastMessage.jobPosting?.title ?? null;
@@ -955,7 +1060,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         </div>
                       </div>);
                 })}
-                {filteredConvs.length === 0 &&
+                {conversations.length === 0 &&
                 filteredLocumAppRows.length === 0 && (<div style={{ padding: '48px 24px', textAlign: 'center' }}>
                       {urlPartnerId ? (<>
                           <div style={{ fontSize: 40, marginBottom: 12 }}>
@@ -972,7 +1077,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                           <div style={{ fontSize: 12, color: '#9CA3AF' }}>
                             Type a message below to reach out
                           </div>
-                        </>) : role === 'locum' && search.trim() ? (<>
+                        </>) : debouncedSearchQuery ? (<>
                           <div style={{ fontSize: 40, marginBottom: 12 }}>
                             🔍
                           </div>
@@ -982,10 +1087,10 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         color: '#374151',
                         marginBottom: 6,
                     }}>
-                            No matching chats or applications
+                            No matching conversations
                           </div>
                           <div style={{ fontSize: 12, color: '#9CA3AF' }}>
-                            Try a different search term
+                            Try a name, practice, job title, or a word from any message
                           </div>
                         </>) : role === 'locum' &&
                     locumApplicationSidebarRows.length === 0 &&
@@ -1014,10 +1119,10 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         color: '#374151',
                         marginBottom: 6,
                     }}>
-                            No applications yet
+                            No messages yet
                           </div>
                           <div style={{ fontSize: 12, color: '#9CA3AF' }}>
-                            Apply to a job from Browse to message clinics here
+                            
                           </div>
                         </>) : (<>
                           <div style={{ fontSize: 40, marginBottom: 12 }}>
@@ -1050,7 +1155,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 color: '#9CA3AF',
                 gap: 12,
             }}>
-            <div style={{ fontSize: 36 }}>✉️</div>
             <div style={{ fontSize: 13 }}>
               Select a conversation to start messaging
             </div>
@@ -1059,38 +1163,48 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 display: 'flex',
                 flexDirection: 'column',
                 minWidth: 0,
+                minHeight: 0,
                 position: 'relative',
             }}>
             
             <div style={{
-                padding: '16px 20px',
+                padding: '12px 16px',
                 borderBottom: '1px solid #E5E7EB',
                 flexShrink: 0,
             }}>
               {loadingThread ? (<div style={{ fontSize: 12, color: '#9CA3AF' }}>Loading…</div>) : (<div style={{
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: 16,
                     width: '100%',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                    flex: '1',
+                    minWidth: 0,
                     maxWidth: 705,
                     fontFamily: 'Inter, sans-serif',
                 }}>
                   
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     
                     {clinicName ? (<div style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 4,
-                        padding: '8px 12px',
+                        padding: '6px 10px',
                         background: 'rgba(209, 213, 219, 0.2)',
                         borderRadius: 40,
                         width: 'fit-content',
                     }}>
                         <span style={{
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: 600,
-                        lineHeight: '150%',
+                        lineHeight: '142%',
                         color: 'rgba(11, 15, 31, 0.7)',
                         textTransform: 'capitalize',
                     }}>
@@ -1101,24 +1215,42 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{
-                    fontSize: 20,
+                    fontSize: 17,
                     fontWeight: 600,
                     lineHeight: '100%',
                     color: '#151414',
                 }}>
                         {partnerName}
                       </span>
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, color: '#0F2A7A' }} aria-hidden>
-                        <path d="M10 2l2.09 4.26L17 7.27l-3.5 3.41.83 4.82L10 13.27l-4.33 2.23.83-4.82L3 7.27l4.91-.01L10 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                        <path d="M7.5 10l1.5 1.5 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden
+                        style={{ flexShrink: 0, verticalAlign: 'middle' }}
+                      >
+                        <path
+                          d="M12 3.25 19 5.9v5.25c0 4.45-2.82 7.95-7 9.6-4.18-1.65-7-5.15-7-9.6V5.9l7-2.65Z"
+                          stroke="#1B31D2"
+                          strokeWidth="1.8"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M8.6 12.1 10.9 14.4 15.7 9.6"
+                          stroke="#1B31D2"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     </div>
 
                     
                     {location ? (<span style={{
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: 400,
-                        lineHeight: '150%',
+                        lineHeight: '142%',
                         color: '#6B7280',
                         textTransform: 'capitalize',
                     }}>
@@ -1131,17 +1263,17 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         display: 'flex',
                         flexDirection: 'row',
                         flexWrap: 'wrap',
-                        gap: 10,
+                        gap: 8,
                     }}>
                       {specializations.map((s) => (<div key={s} style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            padding: '6px 12px',
+                            padding: '5px 10px',
                             background: 'rgba(58, 101, 219, 0.07)',
                             borderRadius: 8,
-                            fontSize: 16,
+                            fontSize: 13,
                             fontWeight: 500,
-                            lineHeight: '150%',
+                            lineHeight: '142%',
                             color: 'rgba(58, 101, 219, 0.8)',
                             textTransform: 'capitalize',
                             whiteSpace: 'nowrap',
@@ -1149,12 +1281,44 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                           {s}
                         </div>))}
                     </div>) : null}
+                  </div>
+                  {(hostThreadNeedsConfirm || hostThreadAlreadyConfirmed) ? (<div style={{ flexShrink: 0, paddingTop: 2 }}>
+                      {hostThreadNeedsConfirm ? (<button type="button" onClick={() => void handleConfirmLocumFromThread()} disabled={confirmLocumBusy} style={{
+                        padding: '8px 18px',
+                        borderRadius: 8,
+                        border: 'none',
+                        cursor: confirmLocumBusy ? 'default' : 'pointer',
+                        background: confirmLocumBusy ? '#94D3AF' : 'linear-gradient(180deg,#22C55E 0%,#16A34A 100%)',
+                        color: '#fff',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        fontFamily: 'inherit',
+                        whiteSpace: 'nowrap',
+                        boxShadow: confirmLocumBusy ? 'none' : '0 1px 2px rgba(22,163,74,0.35)',
+                    }}>
+                          {confirmLocumBusy ? 'Confirming…' : 'Confirm'}
+                        </button>) : (<span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        background: '#ECFDF5',
+                        border: '1px solid #A7F3D0',
+                        color: '#047857',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        fontFamily: 'inherit',
+                    }}>
+                          Confirmed
+                        </span>)}
+                    </div>) : null}
                 </div>)}
             </div>
 
             
-            <div style={{
+            <div ref={threadScrollRef} onScroll={onThreadScroll} style={{
                 flex: 1,
+                minHeight: 0,
                 overflowY: 'auto',
                 padding: '16px 20px',
                 display: 'flex',
@@ -1398,6 +1562,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                             color: '#374151',
                             lineHeight: 1.6,
                             wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap',
                         }}>
                               {msg.body}
                               {msg.attachments && msg.attachments.length > 0 && (<div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
@@ -1442,7 +1607,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                       </div>
                     </div>);
             }))}
-              <div ref={bottomRef}/>
             </div>
 
             
@@ -1504,7 +1668,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                       </button>
                     </div>))}
                 </div>)}
-              <textarea ref={inputRef} value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyDown={handleKeyDown} placeholder="Type a message… (Enter to send, Shift+Enter for new line)" rows={2} style={{
+              <textarea ref={inputRef} value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyDown={handleKeyDown} placeholder="Type a message… (Enter for new line, Ctrl+Enter or ⌘+Enter to send)" rows={2} style={{
                 width: '100%',
                 border: '1px solid #E5E7EB',
                 borderRadius: 8,
@@ -1524,7 +1688,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 justifyContent: 'space-between',
             }}>
                 <div ref={emojiPickerRef} style={{ position: 'relative', display: 'flex', gap: 12 }}>
-                  <button type="button" title="Attach files" onClick={() => filePickRef.current?.click()} style={{
+                  <button type="button" title="Attach PDF or Word documents" aria-label="Attach PDF or Word documents" onClick={() => filePickRef.current?.click()} style={{
                 background: 'none',
                 border: '1px solid #E5E7EB',
                 borderRadius: 8,
@@ -1533,13 +1697,12 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 display: 'flex',
                 alignItems: 'center',
             }}>
-                    <span style={{ fontSize: 16, lineHeight: 1 }}>📎</span>
+                    <AttachFileIcon />
                   </button>
-                  <input ref={filePickRef} type="file" multiple accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={(e) => {
+                  <input ref={filePickRef} type="file" multiple accept={DOCUMENT_ATTACH_ACCEPT} style={{ display: 'none' }} onChange={(e) => {
                 const files = Array.from(e.target.files ?? []);
-                if (files.length) {
-                    setPendingFiles((prev) => [...prev, ...files]);
-                }
+                if (files.length)
+                    appendPendingAttachments(files);
                 e.target.value = '';
             }}/>
                   <button type="button" title="Add emoji" aria-expanded={emojiPickerOpen} aria-haspopup="dialog" onClick={() => setEmojiPickerOpen((o) => !o)} style={{
@@ -1553,6 +1716,23 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             }}>
                     <EmojiIcon />
                   </button>
+                  <button type="button" title="Add images" aria-label="Add images" onClick={() => imagePickRef.current?.click()} style={{
+                background: 'none',
+                border: '1px solid #E5E7EB',
+                borderRadius: 8,
+                cursor: 'pointer',
+                padding: '4px 8px',
+                display: 'flex',
+                alignItems: 'center',
+            }}>
+                    <AttachImagesIcon />
+                  </button>
+                  <input ref={imagePickRef} type="file" multiple accept={IMAGE_ATTACH_ACCEPT} style={{ display: 'none' }} onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                if (files.length)
+                    appendPendingAttachments(files);
+                e.target.value = '';
+            }}/>
                   {emojiPickerOpen && (<div role="dialog" aria-label="Quick emoji" style={{
                     position: 'absolute',
                     left: 0,
@@ -1606,7 +1786,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
           </div>)}
       </div>
 
-      {deleteTarget && (<DeleteModal onDeleteForEveryone={() => void confirmDeleteForEveryone()} onDeleteForMe={confirmDeleteForMe} onCancel={() => setDeleteTarget(null)}/>)}
+      {deleteTarget && (<DeleteModal onDeleteForEveryone={() => void confirmDeleteForEveryone()} onCancel={() => setDeleteTarget(null)}/>)}
     </DashLayout>);
 }
 export default function MessagesPage(props: MessagesPageProps) {

@@ -1,7 +1,6 @@
 'use client';
 import { ReactNode, useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/providers/AuthProvider';
@@ -36,7 +35,7 @@ function NavIcon({ name }: {
     name: string;
 }) {
     const d = ICON[name] ?? ICON.profile;
-    return (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
       <path d={d}/>
     </svg>);
 }
@@ -64,7 +63,7 @@ function fmtNotifTime(iso: string): string {
 }
 export default function DashLayout({ navItems, activeHref, topbarRight, topbarFirstName, topbarLastName, topbarAvatarText, children, }: Props) {
     const router = useRouter();
-    const { logout } = useAuth();
+    const { logout, userId } = useAuth();
     const activeNavIndex = Math.max(0, navItems.findIndex((n) => n.href === activeHref));
     const NAV_PADDING_TOP = 8;
     const NAV_INNER_TOP = 8;
@@ -76,6 +75,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     const avatarFileInputRef = useRef<HTMLInputElement>(null);
     const [avatarPhotoUrl, setAvatarPhotoUrl] = useState<string | null>(null);
     const [avatarUploadBusy, setAvatarUploadBusy] = useState(false);
+    const [avatarRemoveBusy, setAvatarRemoveBusy] = useState(false);
     const [authAvatarInitials, setAuthAvatarInitials] = useState<string | null>(null);
     const [apiFirstName, setApiFirstName] = useState<string | null>(null);
     const [apiLastName, setApiLastName] = useState<string | null>(null);
@@ -100,40 +100,33 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
         return () => {
             cancelled = true;
         };
+    }, [userId]);
+    const refreshDashProfileNames = useCallback(async () => {
+        const role = getRole();
+        if (!role || !getToken())
+            return;
+        try {
+            if (role === 'locum') {
+                const data = await locumApi.getProfile();
+                if (data.exists && data.profile) {
+                    setApiFirstName(data.profile.firstName ?? null);
+                    setApiLastName(data.profile.lastName ?? null);
+                }
+            }
+            else {
+                const p = await hostApi.getProfile();
+                if (p) {
+                    setApiFirstName(p.contactFirstName ?? null);
+                    setApiLastName(p.contactLastName ?? null);
+                }
+            }
+        }
+        catch {
+        }
     }, []);
     useEffect(() => {
-        let cancelled = false;
-        const role = getRole();
-        if (!role)
-            return;
-        (async () => {
-            try {
-                if (role === 'locum') {
-                    const data = await locumApi.getProfile();
-                    if (cancelled)
-                        return;
-                    if (data.exists && data.profile) {
-                        setApiFirstName(data.profile.firstName ?? null);
-                        setApiLastName(data.profile.lastName ?? null);
-                    }
-                }
-                else {
-                    const p = await hostApi.getProfile();
-                    if (cancelled)
-                        return;
-                    if (p) {
-                        setApiFirstName(p.contactFirstName ?? null);
-                        setApiLastName(p.contactLastName ?? null);
-                    }
-                }
-            }
-            catch {
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        void refreshDashProfileNames();
+    }, [userId, refreshDashProfileNames]);
     useEffect(() => {
         if (!avatarMenuOpen)
             return;
@@ -192,16 +185,18 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
         void (async () => {
             try {
                 const me = await authApi.getMe();
-                if (!cancelled && me.avatarUrl)
-                    setAvatarPhotoUrl(me.avatarUrl);
+                if (!cancelled)
+                    setAvatarPhotoUrl(me.avatarUrl ?? null);
             }
             catch {
+                if (!cancelled)
+                    setAvatarPhotoUrl(null);
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [userId]);
     function handleLogout() {
         logout();
         beforeClientNavigation('/home');
@@ -214,8 +209,10 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     }
     const mergedFirst = topbarFirstName?.trim() || apiFirstName?.trim() || '';
     const mergedLast = topbarLastName?.trim() || apiLastName?.trim() || '';
-    const fromProfile = computeAvatarInitials(mergedFirst || undefined, mergedLast || undefined, topbarAvatarText);
-    const avatarText = fromProfile !== 'N' ? fromProfile : (authAvatarInitials ?? fromProfile);
+    const initialsFromContactNames = computeAvatarInitials(mergedFirst || undefined, mergedLast || undefined, topbarAvatarText);
+    const avatarText = initialsFromContactNames !== 'N'
+        ? initialsFromContactNames
+        : (authAvatarInitials ?? 'N');
     return (<div style={{
             display: 'flex',
             flexDirection: 'column',
@@ -249,7 +246,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             border: 'none',
             cursor: 'pointer',
             padding: 4,
-            color: '#5a6478',
+            color: '#1B31D2',
             position: 'relative',
         }} title="Notifications">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -266,8 +263,8 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 borderRadius: '50%',
                 width: 16,
                 height: 16,
-                fontSize: 9,
-                fontWeight: 700,
+                fontSize: 'var(--font-small)',
+                fontWeight: 'var(--font-weight-bold)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -302,10 +299,10 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 justifyContent: 'space-between',
                 alignItems: 'center',
             }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#0f1523' }}>
+                  <span style={{ fontSize: 'var(--font-heading)', fontWeight: 'var(--font-weight-bold)', color: '#0f1523' }}>
                     Notifications
                   </span>
-                  {notifTotal > 0 && (<span style={{ fontSize: 11, color: '#6B7280' }}>
+                  {notifTotal > 0 && (<span style={{ fontSize: 'var(--font-small)', color: '#6B7280' }}>
                       {notifTotal} unread
                     </span>)}
                 </div>
@@ -314,7 +311,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 <div style={{ overflowY: 'auto', flex: 1 }}>
                   {notifications.length === 0 ? (<div style={{ padding: '36px 20px', textAlign: 'center' }}>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
-                      <div style={{ fontSize: 13, color: '#9CA3AF' }}>
+                      <div style={{ fontSize: 'var(--font-body)', color: '#9CA3AF' }}>
                         No new notifications
                       </div>
                     </div>) : (notifications.map((notif) => (<div key={notif.id} onClick={() => handleNotifClick(notif)} style={{
@@ -348,8 +345,8 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                         
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{
-                    fontSize: 13,
-                    fontWeight: 600,
+                    fontSize: 'var(--font-heading)',
+                    fontWeight: 'var(--font-weight-bold)',
                     color: '#0f1523',
                     marginBottom: 2,
                     lineHeight: 1.4,
@@ -357,7 +354,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                             {notif.title}
                           </div>
                           <div style={{
-                    fontSize: 12,
+                    fontSize: 'var(--font-small)',
                     color: '#6B7280',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -366,7 +363,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                             {notif.body}
                           </div>
                           <div style={{
-                    fontSize: 11,
+                    fontSize: 'var(--font-small)',
                     color: '#9CA3AF',
                     marginTop: 4,
                 }}>
@@ -403,9 +400,9 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 }} style={{
                     background: 'none',
                     border: 'none',
-                    fontSize: 12,
+                    fontSize: 'var(--font-small)',
                     color: '#3B4FD8',
-                    fontWeight: 600,
+                    fontWeight: 'var(--font-weight-bold)',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                 }}>
@@ -459,8 +456,8 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 13,
-            fontWeight: 600,
+            fontSize: 'var(--font-body)',
+            fontWeight: 'var(--font-weight-bold)',
             cursor: 'pointer',
             userSelect: 'none',
             overflow: 'hidden',
@@ -487,7 +484,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 padding: 6,
                 zIndex: 50,
             }}>
-                <button type="button" disabled={avatarUploadBusy || !getToken()} onClick={() => avatarFileInputRef.current?.click()} style={{
+                <button type="button" disabled={avatarUploadBusy || avatarRemoveBusy || !getToken()} onClick={() => avatarFileInputRef.current?.click()} style={{
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
@@ -496,14 +493,14 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 border: 'none',
                 borderRadius: 8,
                 padding: '10px 10px',
-                cursor: avatarUploadBusy || !getToken() ? 'default' : 'pointer',
+                cursor: avatarUploadBusy || avatarRemoveBusy || !getToken() ? 'default' : 'pointer',
                 color: '#0f1523',
-                fontSize: 13,
-                fontWeight: 600,
+                fontSize: 'var(--font-body)',
+                fontWeight: 'var(--font-weight-bold)',
                 textAlign: 'left',
-                opacity: avatarUploadBusy || !getToken() ? 0.55 : 1,
+                opacity: avatarUploadBusy || avatarRemoveBusy || !getToken() ? 0.55 : 1,
             }} onMouseOver={(e) => {
-                if (!avatarUploadBusy && getToken())
+                if (!avatarUploadBusy && !avatarRemoveBusy && getToken())
                     e.currentTarget.style.background = '#F3F4F6';
             }} onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -517,7 +514,63 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     ? 'Change profile photo'
                     : 'Add profile photo'}
                 </button>
-                <button type="button" onClick={() => {
+                {avatarPhotoUrl ? (<button type="button" disabled={avatarUploadBusy || avatarRemoveBusy || !getToken()} onClick={() => {
+                        void (async () => {
+                            if (!getToken())
+                                return;
+                            setAvatarRemoveBusy(true);
+                            try {
+                                await authApi.clearAvatar();
+                                setAvatarPhotoUrl(null);
+                                try {
+                                    const me = await authApi.getMe();
+                                    setAvatarPhotoUrl(me.avatarUrl ?? null);
+                                }
+                                catch {
+                                    setAvatarPhotoUrl(null);
+                                }
+                                await refreshDashProfileNames();
+                                setAvatarMenuOpen(false);
+                            }
+                            catch (err) {
+                                window.alert(err instanceof Error
+                                    ? err.message
+                                    : 'Could not remove profile photo.');
+                            }
+                            finally {
+                                setAvatarRemoveBusy(false);
+                            }
+                        })();
+                    }} style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '10px 10px',
+                        cursor: avatarUploadBusy || avatarRemoveBusy || !getToken() ? 'default' : 'pointer',
+                        color: '#92400E',
+                        fontSize: 'var(--font-body)',
+                        fontWeight: 'var(--font-weight-bold)',
+                        textAlign: 'left',
+                        borderTop: '1px solid #F3F4F6',
+                        opacity: avatarUploadBusy || avatarRemoveBusy || !getToken() ? 0.55 : 1,
+                        fontFamily: 'inherit',
+                    }} onMouseOver={(e) => {
+                        if (!avatarUploadBusy && !avatarRemoveBusy && getToken())
+                            e.currentTarget.style.background = '#FFFBEB';
+                    }} onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <path d="M10 11v6M14 11v6"/>
+                  </svg>
+                  {avatarRemoveBusy ? 'Removing…' : 'Remove profile photo'}
+                </button>) : null}
+                <button type="button" disabled={avatarRemoveBusy || avatarUploadBusy} onClick={() => {
                 setAvatarMenuOpen(false);
                 handleLogout();
             }} style={{
@@ -529,13 +582,18 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 border: 'none',
                 borderRadius: 8,
                 padding: '10px 10px',
-                cursor: 'pointer',
+                cursor: avatarRemoveBusy || avatarUploadBusy ? 'default' : 'pointer',
                 color: '#dc2626',
-                fontSize: 13,
-                fontWeight: 600,
+                fontSize: 'var(--font-body)',
+                fontWeight: 'var(--font-weight-bold)',
                 textAlign: 'left',
                 borderTop: '1px solid #F3F4F6',
-            }} onMouseOver={(e) => (e.currentTarget.style.background = '#FEF2F2')} onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}>
+                opacity: avatarRemoveBusy || avatarUploadBusy ? 0.55 : 1,
+                fontFamily: 'inherit',
+            }} onMouseOver={(e) => {
+                if (!avatarRemoveBusy && !avatarUploadBusy)
+                    e.currentTarget.style.background = '#FEF2F2';
+            }} onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                     <polyline points="16 17 21 12 16 7"/>
@@ -582,21 +640,35 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
               {navItems.map(({ label, href, icon }) => {
             const active = activeHref === href;
             const isBrowseOpportunities = href === '/locum/browse' || label === 'Browse Opportunities';
-            const isMyApplications = href === '/locum/dashboard' || label === 'My Applications';
-            const isProfile = href === '/locum/profile' || label === 'Profile';
-            const isMessages = href === '/locum/messages' || label === 'Messages';
-            const isResources = href === '/locum/resources' || label === 'Resources';
+            const isLocumDashboard = href === '/locum/dashboard' || label === 'My Applications';
+            const isHostPostings = href === '/host/dashboard' || label === 'My Postings';
+            const isProfile = href === '/locum/profile' || href === '/host/profile' || label === 'Profile';
+            const isMessages = href === '/locum/messages' || href === '/host/messages' || label === 'Messages';
+            const isResources = href === '/locum/resources' || href === '/host/resources' || label === 'Resources';
+            const sidebarIconName = isBrowseOpportunities
+                ? 'browse'
+                : isLocumDashboard || isHostPostings
+                    ? 'postings'
+                    : isProfile
+                        ? 'profile'
+                        : isMessages
+                            ? 'messages'
+                            : isResources
+                                ? 'resources'
+                                : null;
             const navId = isBrowseOpportunities
                 ? 'nav-browse-opportunities'
-                : isMyApplications
-                    ? 'nav-my-applications'
-                    : isProfile
-                        ? 'nav-profile'
-                        : isMessages
-                            ? 'nav-messages'
-                            : isResources
-                                ? 'nav-resources'
-                                : undefined;
+                : isHostPostings
+                    ? 'nav-my-postings'
+                    : isLocumDashboard
+                        ? 'nav-my-applications'
+                        : isProfile
+                            ? 'nav-profile'
+                            : isMessages
+                                ? 'nav-messages'
+                                : isResources
+                                    ? 'nav-resources'
+                                    : undefined;
             return (<Link key={href} href={href} style={{ textDecoration: 'none' }}>
                     <div id={navId} style={{
                     boxSizing: 'border-box',
@@ -613,6 +685,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                         : 'transparent',
                     borderRadius: active ? 4 : 16,
                     cursor: 'pointer',
+                    color: active ? '#1B31D2' : 'rgba(2,7,27,0.9)',
                 }}>
                       <span style={{
                     width: 20,
@@ -622,32 +695,12 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     justifyContent: 'center',
                     flexShrink: 0,
                 }}>
-                        {isBrowseOpportunities ? (<Image src="/browse-opportunities.png" alt="" width={20} height={20} style={{
-                        objectFit: 'contain',
-                        display: 'block',
-                        opacity: active ? 1 : 0.9,
-                    }}/>) : isMyApplications ? (<Image src="/my-applications.png" alt="" width={20} height={20} style={{
-                        objectFit: 'contain',
-                        display: 'block',
-                        opacity: active ? 1 : 0.9,
-                    }}/>) : isProfile ? (<Image src="/basic-information.png" alt="" width={20} height={20} style={{
-                        objectFit: 'contain',
-                        display: 'block',
-                        opacity: active ? 1 : 0.9,
-                    }}/>) : isMessages ? (<Image src="/messages.png" alt="" width={20} height={20} style={{
-                        objectFit: 'contain',
-                        display: 'block',
-                        opacity: active ? 1 : 0.9,
-                    }}/>) : isResources ? (<Image src="/resources.png" alt="" width={20} height={20} style={{
-                        objectFit: 'contain',
-                        display: 'block',
-                        opacity: active ? 1 : 0.9,
-                    }}/>) : (icon)}
+                        {sidebarIconName ? <NavIcon name={sidebarIconName}/> : icon}
                       </span>
                       <span style={{
                     fontFamily: 'Gilroy-Medium, Inter, sans-serif',
-                    fontWeight: 400,
-                    fontSize: 16,
+                    fontWeight: 'var(--font-weight-normal)',
+                    fontSize: 'var(--font-heading)',
                     lineHeight: '20px',
                     textTransform: 'capitalize',
                     whiteSpace: 'nowrap',
@@ -657,7 +710,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                         }
-                        : { color: 'rgba(2,7,27,0.9)' }),
+                        : { color: 'inherit' }),
                 }}>
                         {label}
                       </span>

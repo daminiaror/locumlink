@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -10,10 +11,10 @@ import { hostProfileCompletionPct } from '@/lib/hostProfileCompletion';
 import { computeAvatarInitials } from '@/lib/avatarInitials';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import { isCpsnsVerified } from '@/lib/cpsnsVerify';
-import { ApiHttpError, authApi, hostApi, uploadFile, type Job, type ApplicationRecord, type DashboardStats, type CreateJobPayload, type LocumDocumentSnippet, } from '@/lib/api';
+import { ApiHttpError, authApi, hostApi, uploadFile, type Job, type ApplicationRecord, type CreateJobPayload, } from '@/lib/api';
 import { beforeClientNavigation } from '@/lib/topLoader';
 import type { HostProfile } from '@/types';
-import { BellIcon, BookIcon, EmptyIllustration, FileIcon, MessageIcon, PlusIcon, ProfileIcon, ShieldIcon, TrashIcon, UserEditIcon, } from './host-dashboard-icons';
+import { BellIcon, BookIcon, EmptyIllustration, FileIcon, MessageIcon, PlusIcon, ProfileIcon, ReopenJobIcon, ShieldIcon, TrashIcon, UserEditIcon, } from './host-dashboard-icons';
 const NAV_ITEMS = [
     { id: 'postings', label: 'My Postings', href: '/host/dashboard' },
     { id: 'profile', label: 'Profile', href: '/host/profile' },
@@ -62,6 +63,25 @@ function fmtDate(iso: string | null | undefined): string {
         day: '2-digit',
         year: 'numeric',
     });
+}
+function isoToDateInputLocal(iso: string | null | undefined): string {
+    if (!iso)
+        return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime()))
+        return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+function isJobPastEndDate(job: Pick<Job, 'endDate'>): boolean {
+    if (!job.endDate)
+        return false;
+    const end = new Date(job.endDate);
+    if (Number.isNaN(end.getTime()))
+        return false;
+    return end < new Date();
 }
 function parseMmDdYyyyToIso(input: string): string {
     const t = input.trim();
@@ -261,22 +281,80 @@ function CompBadge({ change, direction, period, }: {
 }
 function ReOpenModal({ job, onConfirm, onCancel, }: {
     job: Job;
-    onConfirm: (extra: number) => void;
+    onConfirm: (payload: {
+        additionalApplicants: number;
+        startDate: string;
+        endDate: string;
+    }) => Promise<void>;
     onCancel: () => void;
 }) {
-    const [step, setStep] = useState<1 | 2>(1);
+    const [step, setStep] = useState<1 | 2 | 3>(1);
     const [extra, setExtra] = useState('10');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [dontShow, setDontShow] = useState(false);
     const [busy, setBusy] = useState(false);
-    async function handleConfirm() {
+    useEffect(() => {
+        setStep(1);
+        setExtra('10');
+        setStartDate(isoToDateInputLocal(job.startDate as string | null | undefined));
+        setEndDate(isoToDateInputLocal(job.endDate as string | null | undefined));
+        setDontShow(false);
+        setBusy(false);
+    }, [job.id, job.startDate, job.endDate]);
+    async function handlePrimary() {
         if (step === 1) {
             setStep(2);
             return;
         }
+        if (step === 2) {
+            const slot = Number(extra);
+            if (!Number.isFinite(slot) || slot < 1 || !Number.isInteger(slot)) {
+                window.alert('Enter a whole number of at least 1 for additional applicants.');
+                return;
+            }
+            setStep(3);
+            return;
+        }
+        if (!startDate.trim() || !endDate.trim()) {
+            window.alert('Choose a start date and an end date.');
+            return;
+        }
+        const st = new Date(`${startDate}T12:00:00`);
+        const en = new Date(`${endDate}T12:00:00`);
+        if (Number.isNaN(st.getTime()) || Number.isNaN(en.getTime())) {
+            window.alert('Invalid dates.');
+            return;
+        }
+        if (en < st) {
+            window.alert('End date must be on or after the start date.');
+            return;
+        }
+        const n = Number(extra);
+        const additionalApplicants = Number.isFinite(n) && n >= 1 ? Math.floor(n) : 10;
         setBusy(true);
-        await onConfirm(Number(extra) || 10);
-        setBusy(false);
+        try {
+            await onConfirm({
+                additionalApplicants,
+                startDate: startDate.trim(),
+                endDate: endDate.trim(),
+            });
+        }
+        catch (e) {
+            window.alert(e instanceof Error ? e.message : 'Could not reopen this job.');
+        }
+        finally {
+            setBusy(false);
+        }
     }
+    function titleForStep(): string {
+        if (step === 1)
+            return 'Re-open the position';
+        if (step === 2)
+            return 'Additional applicants';
+        return 'Dates for this posting';
+    }
+    const primaryLabel = busy ? 'Reopening…' : step === 3 ? 'Reopen' : 'Continue';
     return (<>
       <div onClick={onCancel} style={{
             position: 'fixed',
@@ -304,9 +382,9 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
             marginBottom: 16,
         }}>
           <span style={{ fontSize: 18, fontWeight: 700, color: '#0B0F1F' }}>
-            {step === 1 ? 'Re-open the position' : 'How many more applicants?'}
+            {titleForStep()}
           </span>
-          <button onClick={onCancel} style={{
+          <button type="button" onClick={onCancel} style={{
             background: 'none',
             border: 'none',
             cursor: 'pointer',
@@ -336,13 +414,25 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
               <input type="checkbox" checked={dontShow} onChange={(e) => setDontShow(e.target.checked)} style={{ width: 14, height: 14, accentColor: '#1C32D2' }}/>
               Don&apos;t show again
             </label>
-          </>) : (<div style={{ marginBottom: 24 }}>
-            <label style={lbl}>Additional applicants to accept</label>
-            <input type="number" min={1} style={{ ...fieldInp, maxWidth: 160 }} value={extra} onChange={(e) => setExtra(e.target.value)}/>
+          </>) : step === 2 ? (<div style={{ marginBottom: 24 }}>
+            <label style={lbl}>How many additional applicants can apply?</label>
+            <input type="number" min={1} step={1} style={{ ...fieldInp, maxWidth: 160 }} value={extra} onChange={(e) => setExtra(e.target.value)}/>
+          </div>) : (<div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={lbl}>Start date</label>
+              <input type="date" style={fieldInp} value={startDate} onChange={(e) => setStartDate(e.target.value)}/>
+            </div>
+            <div>
+              <label style={lbl}>End date</label>
+              <input type="date" style={fieldInp} value={endDate} onChange={(e) => setEndDate(e.target.value)}/>
+            </div>
+            <p style={{ fontSize: 12, color: '#6B7280', margin: 0, lineHeight: 1.45 }}>
+              Set the schedule for this republished posting. You can adjust both dates before continuing.
+            </p>
           </div>)}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <button onClick={onCancel} style={{
+          <button type="button" onClick={onCancel} style={{
             padding: '9px 24px',
             border: '1px solid #D0D5DD',
             borderRadius: 8,
@@ -354,7 +444,7 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
         }}>
             Cancel
           </button>
-          <button onClick={handleConfirm} disabled={busy} style={{
+          <button type="button" onClick={() => void handlePrimary()} disabled={busy} style={{
             padding: '9px 24px',
             border: 'none',
             borderRadius: 8,
@@ -362,296 +452,23 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
             color: '#fff',
             fontWeight: 600,
             fontSize: 14,
-            cursor: 'pointer',
+            cursor: busy ? 'default' : 'pointer',
+            opacity: busy ? 0.85 : 1,
         }}>
-            {busy ? 'Reopening…' : step === 1 ? 'Okay' : 'Reopen'}
+            {primaryLabel}
           </button>
         </div>
       </div>
     </>);
 }
-function ApplicantSidePanel({ app, jobId, onClose, onShortlisted, onConfirmed, }: {
-    app: ApplicationRecord;
-    jobId: string;
-    onClose: () => void;
-    onShortlisted: (appId: string) => void;
-    onConfirmed: (appId: string) => void;
-}) {
-    const [busy, setBusy] = useState(false);
-    const isShortlisted = app.status === 'SHORTLISTED' || app.status === 'CONFIRMED';
-    const isConfirmed = app.status === 'CONFIRMED';
-    const displayName = getLocumDisplayName(app);
-    const lp = app.locumProfile;
-    async function handleShortlist() {
-        setBusy(true);
-        try {
-            await hostApi.updateApplication(jobId, app.id, 'SHORTLISTED');
-            onShortlisted(app.id);
-        }
-        finally {
-            setBusy(false);
-        }
-    }
-    async function handleConfirm() {
-        setBusy(true);
-        try {
-            await hostApi.updateApplication(jobId, app.id, 'CONFIRMED');
-            onConfirmed(app.id);
-        }
-        finally {
-            setBusy(false);
-        }
-    }
-    const docLabel: Record<string, string> = {
-        CPSNS_LICENSE: 'CPSNS License',
-        CMPA_CERTIFICATE: 'CMPA Certificate',
-        DEA_CERTIFICATE: 'DEA Certificate',
-        CV: 'Resume / CV',
-        PHOTO_ID: 'Photo ID',
-        OTHER: 'Document',
-    };
-    return (<>
-      <div onClick={onClose} style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.2)',
-            zIndex: 200,
-        }}/>
-      <div style={{
-            position: 'fixed',
-            top: 0,
-            right: 0,
-            width: 420,
-            height: '100vh',
-            background: '#fff',
-            zIndex: 201,
-            display: 'flex',
-            flexDirection: 'column',
-            fontFamily: 'Inter, sans-serif',
-            boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
-            overflowY: 'auto',
-        }}>
-        
-        <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '22px 24px 16px',
-            borderBottom: '1px solid #F3F4F6',
-            flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 20, fontWeight: 700, color: '#0B0F1F' }}>
-            Professional Info
-          </span>
-          <button onClick={onClose} style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: 22,
-            color: '#6B7280',
-            lineHeight: 1,
-            padding: 0,
-        }}>
-            ×
-          </button>
-        </div>
-
-        
-        <div style={{
-            padding: '20px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 20,
-        }}>
-          
-          <div>
-            <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginBottom: 4,
-        }}>
-              <ShieldIcon />
-              <span style={{ fontWeight: 700, fontSize: 16, color: '#309BB7' }}>
-                {displayName}
-              </span>
-            </div>
-            <div style={{ fontSize: 13, color: '#6B7280' }}>
-              {lp.user.email}
-            </div>
-            {lp.cpsnsId && (<div style={{ fontSize: 13, color: '#6B7280' }}>
-                CPSNS: {lp.cpsnsId}
-              </div>)}
-          </div>
-
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={handleShortlist} disabled={busy || isShortlisted} style={{
-            flex: 1,
-            padding: '10px 0',
-            borderRadius: 8,
-            border: 'none',
-            background: isShortlisted
-                ? '#E5E7EB'
-                : 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
-            color: isShortlisted ? '#6B7280' : '#fff',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: isShortlisted ? 'default' : 'pointer',
-        }}>
-              {isShortlisted
-            ? '✓ Shortlisted'
-            : busy
-                ? 'Shortlisting…'
-                : 'Shortlist'}
-            </button>
-            <Link href={isShortlisted ? `/host/messages` : '#'} style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            padding: '10px 0',
-            borderRadius: 8,
-            border: `1px solid ${isShortlisted ? '#1C32D2' : '#E5E7EB'}`,
-            background: '#fff',
-            color: isShortlisted ? '#1C32D2' : '#9CA3AF',
-            fontWeight: 500,
-            fontSize: 14,
-            textDecoration: 'none',
-            pointerEvents: isShortlisted ? 'auto' : 'none',
-        }}>
-              <span style={{ display: 'inline-flex', width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }}>
-                <MessageIcon active={true} />
-              </span>
-              Message
-            </Link>
-            </div>
-
-            <button onClick={handleConfirm} disabled={busy || !isShortlisted || isConfirmed} style={{
-            width: '100%',
-            padding: '10px 0',
-            borderRadius: 8,
-            border: 'none',
-            background: isConfirmed
-                ? '#E5E7EB'
-                : !isShortlisted
-                    ? '#E5E7EB'
-                    : 'linear-gradient(270deg,#22C55E 0%,#16A34A 100%)',
-            color: isConfirmed ? '#6B7280' : !isShortlisted ? '#9CA3AF' : '#fff',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: isConfirmed || !isShortlisted ? 'default' : 'pointer',
-        }}>
-              {isConfirmed
-            ? '✓ Confirmed'
-            : busy
-                ? 'Confirming…'
-                : 'Confirm (makes it show in locum Upcoming Jobs)'}
-            </button>
-          </div>
-
-          
-          {lp.summary && (<div>
-              <div style={{
-                fontWeight: 700,
-                fontSize: 15,
-                color: '#0B0F1F',
-                marginBottom: 8,
-            }}>
-                About
-              </div>
-              <p style={{
-                fontSize: 13,
-                color: '#6B7280',
-                lineHeight: 1.6,
-                margin: 0,
-            }}>
-                {lp.summary}
-              </p>
-            </div>)}
-
-          
-          <div>
-            <div style={{
-            fontWeight: 700,
-            fontSize: 15,
-            color: '#0B0F1F',
-            marginBottom: 10,
-        }}>
-              Specialization
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <span style={{
-            padding: '5px 14px',
-            background: 'rgba(115,177,251,0.12)',
-            borderRadius: 20,
-            fontSize: 13,
-            color: '#1C32D2',
-        }}>
-                {lp.specialty.replace(/_/g, ' ')}
-              </span>
-              {lp.yearsOfExperience != null && (<span style={{
-                padding: '5px 14px',
-                background: '#F3F4F6',
-                borderRadius: 20,
-                fontSize: 13,
-                color: '#374151',
-            }}>
-                  {lp.yearsOfExperience} yrs exp
-                </span>)}
-            </div>
-          </div>
-
-          
-          {lp.documents.length > 0 && (<div>
-              <div style={{
-                fontWeight: 700,
-                fontSize: 15,
-                color: '#0B0F1F',
-                marginBottom: 10,
-            }}>
-                Docs
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {lp.documents.map((doc: LocumDocumentSnippet) => (<a key={doc.id} href={doc.storageUrl} target="_blank" rel="noopener noreferrer" style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '12px 14px',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: 8,
-                    textDecoration: 'none',
-                    color: '#0B0F1F',
-                }}>
-                    <CalendarIcon />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>
-                        {docLabel[doc.documentType] ?? doc.documentType}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#9CA3AF' }}>
-                        {doc.fileName}
-                      </div>
-                    </div>
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <path d="M5 3l4 4-4 4" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </a>))}
-              </div>
-            </div>)}
-        </div>
-      </div>
-    </>);
-}
-function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onApplicantClick, onViewAll, }: {
+function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onViewAll, }: {
     jobId: string;
     jobTitle: string;
     applications: ApplicationRecord[];
     loading: boolean;
-    onApplicantClick: (app: ApplicationRecord) => void;
     onViewAll: () => void;
 }) {
+    const router = useRouter();
     const preview = applications.slice(0, 7);
     return (<div style={{
             marginTop: 12,
@@ -668,15 +485,15 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
             padding: '12px 16px',
             borderBottom: '1px solid #F3F4F6',
         }}>
-        <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>
+        <span style={{ fontSize: 'var(--font-heading)', color: '#6B7280', fontWeight: 'var(--font-weight-bold)' }}>
           {jobTitle}
         </span>
         <button onClick={onViewAll} style={{
             all: 'unset',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 'var(--font-body)',
             color: '#1C32D2',
-            fontWeight: 600,
+            fontWeight: 'var(--font-weight-bold)',
             display: 'flex',
             alignItems: 'center',
             gap: 4,
@@ -697,8 +514,8 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
             borderBottom: '1px solid #F3F4F6',
         }}>
         {['', 'NAME', 'YRS EXP', 'SPECIALIZATION', 'STATUS', ''].map((h, i) => (<span key={i} style={{
-                fontSize: 11,
-                fontWeight: 600,
+                fontSize: 'var(--font-small)',
+                fontWeight: 'var(--font-weight-bold)',
                 color: '#9CA3AF',
                 letterSpacing: '0.06em',
             }}>
@@ -709,7 +526,7 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
       {loading && (<div style={{
                 padding: '24px',
                 textAlign: 'center',
-                fontSize: 13,
+                fontSize: 'var(--font-body)',
                 color: '#9CA3AF',
             }}>
           Loading applicants…
@@ -718,7 +535,7 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
       {!loading && preview.length === 0 && (<div style={{
                 padding: '24px',
                 textAlign: 'center',
-                fontSize: 13,
+                fontSize: 'var(--font-body)',
                 color: '#9CA3AF',
             }}>
           No applicants yet
@@ -728,7 +545,11 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
             preview.map((app, idx) => {
                 const isShortlisted = app.status === 'SHORTLISTED' || app.status === 'CONFIRMED';
                 const specs = [app.locumProfile.specialty.replace(/_/g, ' ')];
-                return (<div key={app.id} onClick={() => onApplicantClick(app)} style={{
+                return (<div key={app.id} onClick={() => {
+                        const href = `/host/applicants/${jobId}`;
+                        beforeClientNavigation(href);
+                        router.push(href);
+                    }} style={{
                         display: 'grid',
                         gridTemplateColumns: '32px 1fr 90px 1fr 130px 80px',
                         gap: '0 8px',
@@ -737,11 +558,11 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
                         cursor: 'pointer',
                         alignItems: 'center',
                     }}>
-              <span style={{ fontSize: 12, color: '#9CA3AF' }}>{idx + 1}</span>
-              <span style={{ fontSize: 14, color: '#0B0F1F', fontWeight: 500 }}>
+              <span style={{ fontSize: 'var(--font-small)', color: '#9CA3AF' }}>{idx + 1}</span>
+              <span style={{ fontSize: 'var(--font-heading)', color: '#0B0F1F', fontWeight: 'var(--font-weight-bold)' }}>
                 {getLocumDisplayName(app)}
               </span>
-              <span style={{ fontSize: 13, color: '#6B7280', textAlign: 'center' }}>
+              <span style={{ fontSize: 'var(--font-body)', color: '#6B7280', textAlign: 'center' }}>
                 {app.locumProfile.yearsOfExperience ?? '—'}
               </span>
               <div style={{
@@ -759,7 +580,7 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
                             background: '#F3F4F6',
                             border: '1px solid #E5E7EB',
                             borderRadius: 6,
-                            fontSize: 13,
+                            fontSize: 'var(--font-small)',
                             lineHeight: '140%',
                             color: '#374151',
                             maxWidth: '100%',
@@ -779,19 +600,25 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onAppli
                         flexShrink: 0,
                     }}/>
                 <span style={{
-                        fontSize: 13,
+                        fontSize: 'var(--font-body)',
                         color: isShortlisted ? '#166534' : '#6B7280',
                     }}>
                   {isShortlisted ? 'Shortlisted' : 'Pending'}
                 </span>
               </div>
-              <button onClick={(e) => {
+              <button type="button" onClick={(e) => {
                         e.stopPropagation();
+                        const qs = new URLSearchParams({
+                            partnerId: app.locumProfile.userId,
+                            jobPostingId: jobId,
+                        });
+                        const href = `/host/messages?${qs.toString()}`;
+                        beforeClientNavigation(href);
+                        router.push(href);
                     }} style={{
                         all: 'unset',
-                        cursor: isShortlisted ? 'pointer' : 'default',
-                        opacity: isShortlisted ? 1 : 0.35,
-                        fontSize: 12,
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-small)',
                         color: '#1C32D2',
                         display: 'flex',
                         alignItems: 'center',
@@ -820,25 +647,21 @@ function canHostShowReopenJob(job: Job): boolean {
         ? job.maxApplicants
         : 20;
     const atCap = job.status === 'ACTIVE' && job.applicationsCount >= max;
-    let pastEnd = false;
-    if (job.endDate) {
-        const end = new Date(job.endDate);
-        if (!Number.isNaN(end.getTime()))
-            pastEnd = end < new Date();
-    }
+    const pastEnd = isJobPastEndDate(job);
     return (job.status === 'FILLED' ||
         job.status === 'EXPIRED' ||
         job.status === 'CANCELLED' ||
         atCap ||
         pastEnd);
 }
-function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApplicants, onApplicantClick, onViewAll, onReOpen, onEdit, onJobDeleted, }: {
+const JOB_ACTIONS_MENU_W = 196;
+const JOB_ACTIONS_MENU_EST_H = 168;
+function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApplicants, onViewAll, onReOpen, onEdit, onJobDeleted, }: {
     job: Job;
     expandedJobId: string | null;
     applications: Record<string, ApplicationRecord[]>;
     loadingAppsFor: string | null;
     onToggleApplicants: (jobId: string) => void;
-    onApplicantClick: (app: ApplicationRecord, jobId: string) => void;
     onViewAll: (jobId: string) => void;
     onReOpen: (job: Job) => void;
     onEdit: (job: Job) => void;
@@ -846,12 +669,51 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+    const [menuFixedPos, setMenuFixedPos] = useState<{
+        top: number;
+        left: number;
+    } | null>(null);
+    const menuWrapRef = useRef<HTMLDivElement>(null);
+    const kebabBtnRef = useRef<HTMLButtonElement>(null);
+    const portalMenuRef = useRef<HTMLDivElement>(null);
+    const updateMenuFixedPos = useCallback(() => {
+        const btn = kebabBtnRef.current;
+        if (!btn) {
+            setMenuFixedPos(null);
+            return;
+        }
+        const r = btn.getBoundingClientRect();
+        const pad = 8;
+        const gap = 6;
+        let top = r.bottom + gap;
+        let left = r.right - JOB_ACTIONS_MENU_W;
+        if (left < pad)
+            left = pad;
+        if (left + JOB_ACTIONS_MENU_W > window.innerWidth - pad)
+            left = Math.max(pad, window.innerWidth - pad - JOB_ACTIONS_MENU_W);
+        if (top + JOB_ACTIONS_MENU_EST_H > window.innerHeight - pad)
+            top = Math.max(pad, r.top - JOB_ACTIONS_MENU_EST_H - gap);
+        setMenuFixedPos({ top, left });
+    }, []);
+    useLayoutEffect(() => {
+        if (!menuOpen) {
+            setMenuFixedPos(null);
+            return;
+        }
+        updateMenuFixedPos();
+        window.addEventListener('scroll', updateMenuFixedPos, true);
+        window.addEventListener('resize', updateMenuFixedPos);
+        return () => {
+            window.removeEventListener('scroll', updateMenuFixedPos, true);
+            window.removeEventListener('resize', updateMenuFixedPos);
+        };
+    }, [menuOpen, updateMenuFixedPos]);
     useEffect(() => {
         if (!menuOpen)
             return;
         function onDocMouseDown(e: MouseEvent) {
-            if (menuRef.current?.contains(e.target as Node))
+            const t = e.target as Node;
+            if (menuWrapRef.current?.contains(t) || portalMenuRef.current?.contains(t))
                 return;
             setMenuOpen(false);
         }
@@ -873,13 +735,14 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
         padding: '10px 14px',
         border: 'none',
         background: 'transparent',
-        fontSize: 14,
+        fontSize: 'var(--font-body)',
         fontFamily: 'inherit',
-        fontWeight: 500,
+        fontWeight: 'var(--font-weight-normal)',
         color: '#374151',
         cursor: 'pointer',
         display: 'block',
     };
+    const showExpiredActiveCard = job.status === 'ACTIVE' && isJobPastEndDate(job);
     async function handleDeleteJob() {
         if (!window.confirm('Delete this job posting? This cannot be undone.')) {
             setMenuOpen(false);
@@ -899,11 +762,12 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
         }
     }
     return (<div style={{
-            border: '1px solid #E5E7EB',
+            border: showExpiredActiveCard ? '1px solid #D1D5DB' : '1px solid #E5E7EB',
             borderRadius: 10,
-            background: '#fff',
+            background: showExpiredActiveCard ? '#F3F4F6' : '#fff',
             padding: '18px 20px',
             boxSizing: 'border-box',
+            opacity: showExpiredActiveCard ? 0.92 : 1,
         }}>
       <div style={{
             display: 'flex',
@@ -914,17 +778,38 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
         
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontWeight: 700,
-            fontSize: 17,
-            color: '#0B0F1F',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
             marginBottom: 6,
+        }}>
+            <div style={{
+            fontWeight: 'var(--font-weight-bold)',
+            fontSize: 'var(--font-heading)',
+            color: showExpiredActiveCard ? '#6B7280' : '#0B0F1F',
             lineHeight: 1.3,
         }}>
             {job.title}
           </div>
+            {showExpiredActiveCard && (<span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#92400E',
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: 6,
+                padding: '3px 8px',
+                whiteSpace: 'nowrap',
+            }}>
+              Posting ended
+            </span>)}
+          </div>
           {job.description && (<div style={{
-                fontSize: 13,
-                color: '#6B7280',
+                fontSize: 'var(--font-body)',
+                color: showExpiredActiveCard ? '#9CA3AF' : '#6B7280',
                 marginBottom: 12,
                 lineHeight: 1.5,
             }}>
@@ -940,13 +825,13 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
         }}>
             {(startFmt || endFmt) && (<div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <CalendarIcon />
-                <span style={{ fontSize: 13, color: '#374151' }}>
+                <span style={{ fontSize: 'var(--font-body)', color: showExpiredActiveCard ? '#78716C' : '#374151' }}>
                   {startFmt}
                   {startFmt && endFmt && ' – '}
                   {endFmt}
                 </span>
               </div>)}
-            {pay && (<span style={{ fontWeight: 700, fontSize: 15, color: '#0B0F1F' }}>
+            {pay && (<span style={{ fontWeight: 'var(--font-weight-bold)', fontSize: 'var(--font-heading)', color: showExpiredActiveCard ? '#78716C' : '#0B0F1F' }}>
                 {pay}
               </span>)}
           </div>
@@ -961,8 +846,8 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
             gap: !isDraft && !isFilled ? 18 : 10,
             minWidth: 120,
         }}>
-          <div ref={menuRef} style={{ position: 'relative' }}>
-            <button type="button" aria-label="Job actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} style={{
+          <div ref={menuWrapRef} style={{ position: 'relative' }}>
+            <button ref={kebabBtnRef} type="button" aria-label="Job actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)} style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -978,17 +863,16 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
         }}>
               <JobActionsKebabIcon />
             </button>
-            {menuOpen && (<div role="menu" style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                marginTop: 6,
-                minWidth: 196,
+            {menuOpen && menuFixedPos != null && typeof document !== 'undefined' && createPortal(<div ref={portalMenuRef} role="menu" style={{
+                position: 'fixed',
+                top: menuFixedPos.top,
+                left: menuFixedPos.left,
+                minWidth: JOB_ACTIONS_MENU_W,
                 background: '#fff',
                 border: '1px solid #E5E7EB',
                 borderRadius: 10,
                 boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
-                zIndex: 50,
+                zIndex: 10000,
                 overflow: 'hidden',
             }}>
                 <button type="button" role="menuitem" style={menuItemBase} onClick={() => {
@@ -1008,7 +892,14 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
                     onReOpen(job);
                     setMenuOpen(false);
                 }} onMouseDown={(e) => e.preventDefault()}>
-                    Re-open job
+                    <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+            }}>
+                      <ReopenJobIcon stroke="#374151"/>
+                      Re-open job
+                    </span>
                   </button>)}
                 <button type="button" role="menuitem" disabled={deleting} style={{
                 ...menuItemBase,
@@ -1026,7 +917,7 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
                     {deleting ? 'Deleting…' : 'Delete job'}
                   </span>
                 </button>
-              </div>)}
+              </div>, document.body)}
           </div>
 
           {isFilled ? (<span style={{
@@ -1034,9 +925,9 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
                 background: '#F3F4F6',
                 border: '1px solid #E5E7EB',
                 borderRadius: 6,
-                fontSize: 13,
+                fontSize: 'var(--font-small)',
                 color: '#6B7280',
-                fontWeight: 600,
+                fontWeight: 'var(--font-weight-bold)',
             }}>
               Filled
             </span>) : isDraft ? (<span style={{
@@ -1045,8 +936,8 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
                 border: '1px solid #FCD34D',
                 borderRadius: 6,
                 color: '#92400E',
-                fontWeight: 600,
-                fontSize: 13,
+                fontWeight: 'var(--font-weight-bold)',
+                fontSize: 'var(--font-small)',
             }}>
               Draft
             </span>) : (<button type="button" onClick={() => onToggleApplicants(job.id)} style={{
@@ -1057,8 +948,8 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
                 border: 'none',
                 borderRadius: 6,
                 color: isExpanded ? '#1C32D2' : '#fff',
-                fontWeight: 600,
-                fontSize: 13,
+                fontWeight: 'var(--font-weight-bold)',
+                fontSize: 'var(--font-small)',
                 cursor: 'pointer',
             }}>
               {appCount} Applicant{appCount !== 1 ? 's' : ''}
@@ -1067,7 +958,7 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
       </div>
 
       
-      {isExpanded && !isDraft && (<InlineApplicantsTable jobId={job.id} jobTitle={job.title} applications={applications[job.id] ?? []} loading={loadingAppsFor === job.id} onApplicantClick={(app) => onApplicantClick(app, job.id)} onViewAll={() => onViewAll(job.id)}/>)}
+      {isExpanded && !isDraft && (<InlineApplicantsTable jobId={job.id} jobTitle={job.title} applications={applications[job.id] ?? []} loading={loadingAppsFor === job.id} onViewAll={() => onViewAll(job.id)}/>)}
     </div>);
 }
 function JobPostingOverlay({ onClose, onSuccess, }: {
@@ -1551,14 +1442,11 @@ export default function HostDashboard(props: {
     const [activeTab, setActiveTab] = useState<'active' | 'ongoing' | 'recent' | 'draft'>('active');
     const [showJobOverlay, setShowJobOverlay] = useState(false);
     const [jobs, setJobs] = useState<Job[]>([]);
-    const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loadingData, setLoadingData] = useState(false);
     const [dataLoadError, setDataLoadError] = useState<string | null>(null);
     const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
     const [jobApplications, setJobApplications] = useState<Record<string, ApplicationRecord[]>>({});
     const [loadingAppsFor, setLoadingAppsFor] = useState<string | null>(null);
-    const [selectedApp, setSelectedApp] = useState<ApplicationRecord | null>(null);
-    const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
     const [reopenTarget, setReopenTarget] = useState<Job | null>(null);
     const [profile, setProfile] = useState<HostProfile | null>(null);
     const [initialDashboardLoad, setInitialDashboardLoad] = useState(true);
@@ -1576,7 +1464,7 @@ export default function HostDashboard(props: {
     const profilePct = hostProfileCompletionPct(profile);
     const profileAllStepsDone = profilePct === 100;
     const dashboardProfileTitle = !profileAllStepsDone
-        ? 'Set up your profile to start posting'
+        ? 'Set up your complete profile'
         : verified
             ? 'Profile complete and verified'
             : 'Profile complete — CPSNS under verification';
@@ -1589,12 +1477,10 @@ export default function HostDashboard(props: {
         setLoadingData(true);
         setDataLoadError(null);
         try {
-            const dashOpts = { skipAuthRedirectOn401: true } as const;
             const errs: string[] = [];
-            const [profileResult, jobsResult, statsResult] = await Promise.allSettled([
+            const [profileResult, jobsResult] = await Promise.allSettled([
                 hostApi.getProfile(),
                 hostApi.getJobs(),
-                hostApi.getDashboardStats(),
             ]);
             if (profileResult.status === 'fulfilled') {
                 setProfile(profileResult.value);
@@ -1619,18 +1505,6 @@ export default function HostDashboard(props: {
                 }
                 else {
                     errs.push(r instanceof Error ? r.message : 'Could not load jobs.');
-                }
-            }
-            if (statsResult.status === 'fulfilled') {
-                setStats(statsResult.value);
-            }
-            else {
-                const r = statsResult.reason;
-                if (r instanceof ApiHttpError && r.status === 401) {
-                    errs.push('Could not load dashboard stats (unauthorized or API unavailable).');
-                }
-                else {
-                    errs.push(r instanceof Error ? r.message : 'Could not load stats.');
                 }
             }
             if (errs.length)
@@ -1708,8 +1582,8 @@ export default function HostDashboard(props: {
         router.replace('/home');
     }
     const today = new Date();
-    const activePosts = jobs.filter((j) => verified && j.status === 'ACTIVE');
     const draftJobs = jobs.filter((j) => j.status === 'DRAFT' || (!verified && j.status === 'ACTIVE'));
+    const activePosts = jobs.filter((j) => !(j.status === 'DRAFT' || (!verified && j.status === 'ACTIVE')));
     const ongoingJobs = jobs.filter((j) => j.status !== 'DRAFT' &&
         j.startDate &&
         new Date(j.startDate) <= today &&
@@ -1729,23 +1603,11 @@ export default function HostDashboard(props: {
     const statsDisplay = [
         {
             label: 'Total Jobs Posted',
-            value: stats?.totalJobsPosted ?? 0,
-            comp: stats?.comparisons.totalJobsPosted,
+            value: activePosts.length,
         },
         {
-            label: 'Active Jobs',
-            value: stats?.activeJobs ?? 0,
-            comp: stats?.comparisons.activeJobs,
-        },
-        {
-            label: 'Completed Jobs',
-            value: stats?.completedJobs ?? 0,
-            comp: stats?.comparisons.completedJobs,
-        },
-        {
-            label: 'Applications',
-            value: stats?.applications ?? 0,
-            comp: stats?.comparisons.applications,
+            label: 'Total Completed Jobs',
+            value: recentJobs.length,
         },
     ];
     async function handleToggleApplicants(jobId: string) {
@@ -1768,34 +1630,14 @@ export default function HostDashboard(props: {
             }
         }
     }
-    function handleApplicantClick(app: ApplicationRecord, jobId: string) {
-        setSelectedApp(app);
-        setSelectedJobId(jobId);
-    }
-    function handleShortlisted(appId: string) {
-        if (!selectedJobId)
-            return;
-        setJobApplications((prev) => ({
-            ...prev,
-            [selectedJobId]: (prev[selectedJobId] ?? []).map((a) => a.id === appId ? { ...a, status: 'SHORTLISTED' as const } : a),
-        }));
-        if (selectedApp?.id === appId)
-            setSelectedApp((prev: ApplicationRecord | null) => prev ? { ...prev, status: 'SHORTLISTED' as const } : null);
-    }
-    function handleConfirmed(appId: string) {
-        if (!selectedJobId)
-            return;
-        setJobApplications((prev) => ({
-            ...prev,
-            [selectedJobId]: (prev[selectedJobId] ?? []).map((a) => a.id === appId ? { ...a, status: 'CONFIRMED' as const } : a),
-        }));
-        if (selectedApp?.id === appId)
-            setSelectedApp((prev: ApplicationRecord | null) => prev ? { ...prev, status: 'CONFIRMED' as const } : null);
-    }
-    async function handleReopen(extra: number) {
+    async function handleReopen(payload: {
+        additionalApplicants: number;
+        startDate: string;
+        endDate: string;
+    }) {
         if (!reopenTarget)
             return;
-        await hostApi.reopenJob(reopenTarget.id, extra);
+        await hostApi.reopenJob(reopenTarget.id, payload);
         setReopenTarget(null);
         loadDashboardFromApi();
     }
@@ -1897,8 +1739,8 @@ export default function HostDashboard(props: {
                     display: 'block',
                 }}/>) : (<span style={{
                     fontFamily: 'Hanken Grotesk, Inter, sans-serif',
-                    fontWeight: 700,
-                    fontSize: 16,
+                    fontWeight: 'var(--font-weight-bold)',
+                    fontSize: 'var(--font-heading)',
                     color: '#0F2AAE',
                 }}>
                   {hostInitial}
@@ -1929,8 +1771,8 @@ export default function HostDashboard(props: {
                     padding: '10px 10px',
                     cursor: avatarUploadBusy || !getToken() ? 'default' : 'pointer',
                     color: '#0f1523',
-                    fontSize: 13,
-                    fontWeight: 600,
+                    fontSize: 'var(--font-body)',
+                    fontWeight: 'var(--font-weight-bold)',
                     textAlign: 'left',
                     opacity: avatarUploadBusy || !getToken() ? 0.55 : 1,
                     fontFamily: 'inherit',
@@ -1958,8 +1800,8 @@ export default function HostDashboard(props: {
                     padding: '10px 10px',
                     cursor: 'pointer',
                     color: '#dc2626',
-                    fontSize: 13,
-                    fontWeight: 600,
+                    fontSize: 'var(--font-body)',
+                    fontWeight: 'var(--font-weight-bold)',
                     textAlign: 'left',
                     borderTop: '1px solid #F3F4F6',
                     fontFamily: 'inherit',
@@ -2048,8 +1890,8 @@ export default function HostDashboard(props: {
                     </span>
                     <span style={{
                     fontFamily: 'Gilroy-Medium, Inter, sans-serif',
-                    fontWeight: 400,
-                    fontSize: 16,
+                    fontWeight: 'var(--font-weight-normal)',
+                    fontSize: 'var(--font-heading)',
                     lineHeight: '20px',
                     textTransform: 'capitalize',
                     whiteSpace: 'nowrap',
@@ -2098,8 +1940,8 @@ export default function HostDashboard(props: {
         }}>
                   <span style={{
             fontFamily: 'Inter, sans-serif',
-            fontWeight: 600,
-            fontSize: 18,
+            fontWeight: 'var(--font-weight-bold)',
+            fontSize: 'var(--font-heading)',
             lineHeight: '120%',
             color: '#309BB7',
             textTransform: 'capitalize',
@@ -2111,8 +1953,8 @@ export default function HostDashboard(props: {
                 <h1 style={{
             margin: 0,
             fontFamily: 'Inter, sans-serif',
-            fontWeight: 700,
-            fontSize: 30,
+            fontWeight: 'var(--font-weight-bold)',
+            fontSize: 'var(--font-heading)',
             lineHeight: '120%',
             color: '#0B0F1F',
             textTransform: 'capitalize',
@@ -2127,7 +1969,7 @@ export default function HostDashboard(props: {
                 background: '#FEF2F2',
                 border: '1px solid #FECACA',
                 fontFamily: 'Inter, sans-serif',
-                fontSize: 13,
+                fontSize: 'var(--font-body)',
                 color: '#991B1B',
                 lineHeight: 1.45,
             }}>
@@ -2156,8 +1998,8 @@ export default function HostDashboard(props: {
             }}>
                         <span style={{
                 fontFamily: 'Inter, sans-serif',
-                fontWeight: 500,
-                fontSize: 18,
+                fontWeight: 'var(--font-weight-bold)',
+                fontSize: 'var(--font-heading)',
                 lineHeight: '140%',
                 color: '#4A4A4A',
             }}>
@@ -2165,8 +2007,8 @@ export default function HostDashboard(props: {
                         </span>
                         <span style={{
                 fontFamily: 'Inter, sans-serif',
-                fontWeight: 600,
-                fontSize: 32,
+                fontWeight: 'var(--font-weight-bold)',
+                fontSize: 'var(--font-heading)',
                 lineHeight: '26px',
                 color: '#000',
             }}>
@@ -2217,8 +2059,8 @@ export default function HostDashboard(props: {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <span style={{
             fontFamily: 'Gilroy-Medium, Inter, sans-serif',
-            fontWeight: 400,
-            fontSize: 22,
+            fontWeight: 'var(--font-weight-bold)',
+            fontSize: 'var(--font-heading)',
             lineHeight: '100%',
             color: '#151414',
         }}>
@@ -2226,8 +2068,8 @@ export default function HostDashboard(props: {
                   </span>
                   <span style={{
             fontFamily: 'Gilroy-Medium, Inter, sans-serif',
-            fontWeight: 400,
-            fontSize: 18,
+            fontWeight: 'var(--font-weight-normal)',
+            fontSize: 'var(--font-body)',
             lineHeight: '100%',
             color: '#606061',
         }}>
@@ -2257,8 +2099,8 @@ export default function HostDashboard(props: {
                 <UserEditIcon />
                 <span style={{
             fontFamily: 'Inter, sans-serif',
-            fontWeight: 500,
-            fontSize: 18,
+            fontWeight: 'var(--font-weight-bold)',
+            fontSize: 'var(--font-body)',
             lineHeight: '140%',
             color: '#0B0F1F',
         }}>
@@ -2293,8 +2135,8 @@ export default function HostDashboard(props: {
                 }}>
                         <span style={{
                     fontFamily: 'Inter, sans-serif',
-                    fontWeight: 600,
-                    fontSize: 16,
+                    fontWeight: 'var(--font-weight-bold)',
+                    fontSize: 'var(--font-heading)',
                     lineHeight: '24px',
                     letterSpacing: '0.02em',
                     textTransform: 'uppercase',
@@ -2330,8 +2172,8 @@ export default function HostDashboard(props: {
                   <PlusIcon />
                   <span style={{
             fontFamily: 'Inter, sans-serif',
-            fontWeight: 500,
-            fontSize: 18,
+            fontWeight: 'var(--font-weight-bold)',
+            fontSize: 'var(--font-body)',
             lineHeight: '140%',
             color: '#fff',
             whiteSpace: 'nowrap',
@@ -2352,7 +2194,7 @@ export default function HostDashboard(props: {
                 {loadingData && (<div style={{
                 padding: '40px',
                 textAlign: 'center',
-                fontSize: 13,
+                fontSize: 'var(--font-body)',
                 color: '#9CA3AF',
             }}>
                     Loading…
@@ -2369,8 +2211,8 @@ export default function HostDashboard(props: {
                     <EmptyIllustration />
                     <span style={{
                 fontFamily: 'Inter, sans-serif',
-                fontWeight: 600,
-                fontSize: 18,
+                fontWeight: 'var(--font-weight-bold)',
+                fontSize: 'var(--font-heading)',
                 color: '#0B0F1F',
                 marginTop: 8,
             }}>
@@ -2378,12 +2220,12 @@ export default function HostDashboard(props: {
                     </span>
                     <span style={{
                 fontFamily: 'Inter, sans-serif',
-                fontWeight: 400,
-                fontSize: 14,
+                fontWeight: 'var(--font-weight-normal)',
+                fontSize: 'var(--font-body)',
                 color: '#6B7280',
             }}>
                       {activeTab === 'active' &&
-                'You have not posted any active jobs yet'}
+                'You have not posted any jobs yet'}
                       {activeTab === 'ongoing' &&
                 'No jobs are currently ongoing'}
                       {activeTab === 'recent' && 'No recent or completed jobs'}
@@ -2392,7 +2234,7 @@ export default function HostDashboard(props: {
                   </div>)}
 
                 {!loadingData &&
-            tabJobs.map((job) => (<JobCard key={job.id} job={job} expandedJobId={expandedJobId} applications={jobApplications} loadingAppsFor={loadingAppsFor} onToggleApplicants={handleToggleApplicants} onApplicantClick={handleApplicantClick} onViewAll={(jobId) => {
+            tabJobs.map((job) => (<JobCard key={job.id} job={job} expandedJobId={expandedJobId} applications={jobApplications} loadingAppsFor={loadingAppsFor} onToggleApplicants={handleToggleApplicants} onViewAll={(jobId) => {
                     const href = `/host/applicants/${jobId}`;
                     beforeClientNavigation(href);
                     router.push(href);
@@ -2414,12 +2256,6 @@ export default function HostDashboard(props: {
             }}/>)}
 
       
-      {selectedApp && selectedJobId && (<ApplicantSidePanel app={selectedApp} jobId={selectedJobId} onClose={() => {
-                setSelectedApp(null);
-                setSelectedJobId(null);
-            }} onShortlisted={handleShortlisted} onConfirmed={handleConfirmed}/>)}
-
-      
-      {reopenTarget && (<ReOpenModal job={reopenTarget} onConfirm={handleReopen} onCancel={() => setReopenTarget(null)}/>)}
+      {reopenTarget && (<ReOpenModal key={reopenTarget.id} job={reopenTarget} onConfirm={handleReopen} onCancel={() => setReopenTarget(null)}/>)}
     </div>);
 }

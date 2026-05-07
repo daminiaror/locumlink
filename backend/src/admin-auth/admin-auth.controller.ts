@@ -1,85 +1,57 @@
-import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Request, Response } from 'express';
+import { Controller, Get, Req, Res, UseFilters, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
+import type { AdminJwtPayload } from './admin-auth.types.js';
 import { Public } from '../auth/decorators/public.decorator.js';
 import { AdminAuthService } from './admin-auth.service.js';
-import { ADMIN_AUTH_COOKIE_OPTS } from './admin-auth.constants.js';
+import { ADMIN_AUTH_COOKIE_OPTS, ADMIN_GOOGLE_STRATEGY } from './admin-auth.constants.js';
 import { AdminJwtAuthGuard } from './guards/admin-jwt-auth.guard.js';
+import { AdminGoogleEnabledGuard } from './guards/admin-google-enabled.guard.js';
+import { RedirectAdminOAuthToLoginFilter } from './filters/redirect-admin-oauth-login.filter.js';
 import { CurrentAdmin } from './decorators/current-admin.decorator.js';
-import type { AdminJwtPayload } from './admin-auth.types.js';
-import { GoogleAdminGuard } from './guards/google-admin.guard.js';
 
+@Public()
 @Controller('admin-auth')
 export class AdminAuthController {
-  constructor(
-    private readonly adminAuth: AdminAuthService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly adminAuth: AdminAuthService) {}
 
-  @Public()
+  /** Browser hits this → redirect to Google (credentials in backend/.env, not Supabase). */
   @Get('google')
-  @UseGuards(GoogleAdminGuard)
-  async googleStart() {
-    // Redirects to Google automatically.
+  @UseGuards(AdminGoogleEnabledGuard, AuthGuard(ADMIN_GOOGLE_STRATEGY))
+  googleAuth(): void {
+    /* Passport issues HTTP redirect */
   }
 
-  @Public()
   @Get('google/callback')
-  @UseGuards(GoogleAdminGuard)
-  async googleCallback(
-    @Req() req: Request & { user?: { email?: string; name?: string } },
+  @UseFilters(RedirectAdminOAuthToLoginFilter)
+  @UseGuards(AdminGoogleEnabledGuard, AuthGuard(ADMIN_GOOGLE_STRATEGY))
+  async googleAuthCallback(
+    @Req() req: { user: { adminId: string; email: string } },
     @Res() res: Response,
   ) {
-    const email = req.user?.email?.toLowerCase();
-    try {
-      const admin = await this.adminAuth.assertEmailIsAllowedAdmin(email);
-      const token = await this.adminAuth.signAdminJwt({ adminId: admin.id, email: admin.email });
+    const u = req.user;
+    const token = await this.adminAuth.signAdminJwt({
+      adminId: u.adminId,
+      email: u.email,
+    });
 
-      res.cookie(this.adminAuth.getCookieName(), token, {
-        ...ADMIN_AUTH_COOKIE_OPTS,
-        maxAge: this.parseExpiresToMs(),
-      });
+    res.cookie(this.adminAuth.getCookieName(), token, {
+      ...ADMIN_AUTH_COOKIE_OPTS,
+      maxAge: this.adminAuth.parseAdminJwtCookieMaxAgeMs(),
+    });
 
-      return res.redirect(this.adminAuth.getFrontendRedirectUrl());
-    } catch (e) {
-      const raw = this.config.get<string>('ALLOWED_ORIGINS', 'http://localhost:3001');
-      const origin = raw.split(',')[0]?.trim() || 'http://localhost:3001';
-      return res.redirect(`${origin.replace(/\/$/, '')}/admin/login?error=not_allowed`);
-    }
+    return res.redirect(this.adminAuth.getFrontendRedirectUrl());
   }
 
-  @Public()
   @Get('logout')
   async logout(@Res() res: Response) {
     res.clearCookie(this.adminAuth.getCookieName(), { path: '/' });
     return res.status(200).json({ ok: true });
   }
 
-  // Simple "am I logged in?" endpoint for admin UI.
-  @Public()
   @Get('me')
   @UseGuards(AdminJwtAuthGuard)
   async me(@CurrentAdmin() admin: AdminJwtPayload) {
     return { admin };
   }
-
-  private parseExpiresToMs() {
-    // ADMIN_JWT_EXPIRES_IN supports formats like "7d", "12h".
-    // For cookie maxAge, we’ll approximate only the common suffixes used here.
-    const raw = this.config.get<string>('ADMIN_JWT_EXPIRES_IN', '7d');
-    const match = /^(\d+)([smhd])$/.exec(raw.trim());
-    if (!match) return 7 * 24 * 60 * 60 * 1000;
-    const n = parseInt(match[1], 10);
-    const unit = match[2];
-    const mult =
-      unit === 's'
-        ? 1000
-        : unit === 'm'
-          ? 60 * 1000
-          : unit === 'h'
-            ? 60 * 60 * 1000
-            : 24 * 60 * 60 * 1000;
-    return n * mult;
-  }
 }
-

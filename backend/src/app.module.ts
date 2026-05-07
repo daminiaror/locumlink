@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { GcsModule } from './gcs/gcs.module.js';
 import { UploadModule } from './upload/upload.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
@@ -14,6 +12,7 @@ import { HostModule } from './host/host.module.js';
 import { LocumModule } from './locum/locum.module.js';
 import { MessageModule } from './message/message.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
+import { backendDevelopmentEnvPaths } from './config/backend-env-files.js';
 import { validate } from './config/env.validation.js';
 import { AdminAuthModule } from './admin-auth/admin-auth.module.js';
 import { AdminModule } from './admin/admin.module.js';
@@ -21,19 +20,7 @@ import { AdminModule } from './admin/admin.module.js';
     imports: [
         ConfigModule.forRoot({
             isGlobal: true,
-            envFilePath: (() => {
-                if (process.env.NODE_ENV === 'production')
-                    return [];
-                const env = process.env.NODE_ENV ?? 'development';
-                const candidates = [
-                    resolve(process.cwd(), 'backend', `.env.${env}`),
-                    resolve(process.cwd(), 'backend', '.env'),
-                    resolve(process.cwd(), `.env.${env}`),
-                    resolve(process.cwd(), '.env'),
-                ];
-                const first = candidates.find((p) => existsSync(p));
-                return first ? [first] : [];
-            })(),
+            envFilePath: process.env.NODE_ENV === 'production' ? [] : backendDevelopmentEnvPaths(),
             validate,
         }),
         GcsModule,

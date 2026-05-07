@@ -79,16 +79,35 @@ export type UploadResult = {
     size: number;
     mimeType: string;
 };
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+const BROWSER_API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
 export async function uploadFile(file: File, folder?: string): Promise<UploadResult> {
+    if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error('File must be 10 MB or smaller.');
+    }
+    if (file.type && !ALLOWED_UPLOAD_MIME_TYPES.has(file.type)) {
+        throw new Error('Only PDF, JPG, PNG, WEBP, GIF, DOC, or DOCX files are allowed.');
+    }
     const formData = new FormData();
     formData.append('file', file);
     if (folder)
         formData.append('folder', folder);
     const token = getToken();
-    const res = await trackedFetch(`${NEST_BASE}/api/upload`, {
+    const uploadBase = BROWSER_API_BASE || NEST_BASE;
+    const res = await trackedFetch(`${uploadBase}/api/upload`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
+        skipTopLoader: true,
     });
     if (!res.ok) {
         const text = await res.text();
@@ -145,6 +164,25 @@ export type AuthMeResponse = {
     updatedAt?: string;
 };
 export const authApi = {
+    devOtpLogin: async (email: string, role: Role): Promise<{
+        accessToken: string;
+        refreshToken: string;
+    }> => {
+        const authBase = BROWSER_API_BASE || NEST_BASE;
+        const res = await trackedFetch(`${authBase}/api/auth/dev-otp-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, role }),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || `dev-otp-login failed: ${res.status}`);
+        }
+        return res.json() as Promise<{
+            accessToken: string;
+            refreshToken: string;
+        }>;
+    },
     syncFromSupabase: async (role: Role): Promise<{
         accessToken: string;
         refreshToken: string;
@@ -185,6 +223,16 @@ export const authApi = {
             throw new Error(text || `Could not save profile photo (${res.status})`);
         }
     },
+    clearAvatar: async (): Promise<void> => {
+        const res = await trackedFetch(`${NEST_BASE}/api/auth/me/avatar`, {
+            method: 'DELETE',
+            headers: nestHeaders(true),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || `Could not remove profile photo (${res.status})`);
+        }
+    },
 };
 export type BrowseJobHostProfile = {
     practiceName: string;
@@ -222,6 +270,7 @@ export type MyApplication = {
     status: 'APPLIED' | 'SHORTLISTED' | 'CONFIRMED' | 'REJECTED' | 'WITHDRAWN';
     appliedAt: string;
     coverNote?: string | null;
+    locumAcceptedAt?: string | null;
     jobPosting: {
         id: string;
         title: string;
@@ -309,6 +358,20 @@ export const locumApi = {
         return res.json() as Promise<{
             applications: MyApplication[];
         }>;
+    },
+    respondToConfirmedPlacement: async (applicationId: string, response: 'accept' | 'decline'): Promise<{
+        success: boolean;
+    }> => {
+        const res = await trackedFetch(`${NEST_BASE}/api/locum/applications/${encodeURIComponent(applicationId)}/respond`, {
+            method: 'PATCH',
+            headers: nestHeaders(true),
+            body: JSON.stringify({ response }),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw nestHttpError(text, res.status, 'Updating application');
+        }
+        return res.json() as Promise<{ success: boolean }>;
     },
 };
 export type PostingStatus = 'DRAFT' | 'ACTIVE' | 'FILLED' | 'CANCELLED' | 'EXPIRED';
@@ -569,11 +632,15 @@ export const hostApi = {
         }
         return res.json();
     },
-    reopenJob: async (jobId: string, additionalApplicants: number): Promise<unknown> => {
+    reopenJob: async (jobId: string, payload: {
+        additionalApplicants: number;
+        startDate?: string;
+        endDate?: string;
+    }): Promise<unknown> => {
         const res = await trackedFetch(`${NEST_BASE}/api/host/jobs/${encodeURIComponent(jobId)}/reopen`, {
             method: 'POST',
             headers: nestHeaders(true),
-            body: JSON.stringify({ additionalApplicants }),
+            body: JSON.stringify(payload),
         });
         if (!res.ok) {
             const text = await res.text();
@@ -651,10 +718,13 @@ export type ThreadPartner = ConversationPartner & {
 export const messageApi = {
     getConversations: async (opts?: {
         skipTopLoader?: boolean;
+        q?: string;
     }): Promise<{
         conversations: Conversation[];
     }> => {
-        const res = await trackedFetch(`${NEST_BASE}/api/messages/conversations`, {
+        const q = opts?.q?.trim();
+        const qs = q ? `?${new URLSearchParams({ q }).toString()}` : '';
+        const res = await trackedFetch(`${NEST_BASE}/api/messages/conversations${qs}`, {
             cache: 'no-store',
             headers: nestHeaders(false),
             skipTopLoader: opts?.skipTopLoader ?? false,

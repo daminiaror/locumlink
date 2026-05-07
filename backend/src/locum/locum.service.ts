@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, } from '@nestjs/common';
 import { DocumentType, Specialty, type LocumProfile as LocumProfileRow, } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isCpsnsVerified, normalizeCpsns, } from '../cpsns/cpsns-verified.js';
@@ -310,5 +310,47 @@ export class LocumService {
             },
         });
         return { applications };
+    }
+    async respondToConfirmedPlacement(userId: string, applicationId: string, response: 'accept' | 'decline') {
+        if (response !== 'accept' && response !== 'decline')
+            throw new BadRequestException('Choose accept or decline.');
+        const locumProfile = await this.prisma.locumProfile.findUnique({
+            where: { userId },
+            select: { id: true },
+        });
+        if (!locumProfile)
+            throw new ForbiddenException();
+        const app = await this.prisma.application.findFirst({
+            where: { id: applicationId, locumProfileId: locumProfile.id },
+            include: { jobPosting: { select: { id: true, status: true } } },
+        });
+        if (!app)
+            throw new NotFoundException('Application not found');
+        if (app.status !== 'CONFIRMED')
+            throw new BadRequestException('Only host-confirmed placements can be accepted or declined.');
+        if (response === 'accept') {
+            if (app.locumAcceptedAt)
+                throw new BadRequestException('You have already accepted this placement.');
+            await this.prisma.application.update({
+                where: { id: applicationId },
+                data: { locumAcceptedAt: new Date() },
+            });
+            return { success: true };
+        }
+        if (app.locumAcceptedAt)
+            throw new BadRequestException('You already accepted this placement.');
+        await this.prisma.$transaction(async (tx) => {
+            await tx.application.update({
+                where: { id: applicationId },
+                data: { status: 'WITHDRAWN' },
+            });
+            if (app.jobPosting.status === 'FILLED') {
+                await tx.jobPosting.update({
+                    where: { id: app.jobPostingId },
+                    data: { status: 'ACTIVE' },
+                });
+            }
+        });
+        return { success: true };
     }
 }

@@ -58,6 +58,14 @@ export function TrashIcon({ stroke = '#B91C1C' }: {
       <path d="M2.5 4.5h13M6.5 4.5V3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1.5M7 8v6m4-6v6M4.5 8.5v7A1.5 1.5 0 0 0 6 17h6a1.5 1.5 0 0 0 1.5-1.5v-7" stroke={stroke} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>);
 }
+export function ReopenJobIcon({ stroke = '#374151' }: {
+    stroke?: string;
+}) {
+    return (<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M13.75 7.75A5.25 5.25 0 1 0 12.62 13" stroke={stroke} strokeWidth="1.35" strokeLinecap="round" fill="none"/>
+      <path d="M13.75 4.25v3.75h-3.5" stroke={stroke} strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>);
+}
 export function UserEditIcon({ stroke = '#0B0F1F' }: {
     stroke?: string;
 }) {

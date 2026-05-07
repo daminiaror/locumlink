@@ -83,7 +83,7 @@ export class HostController {
     id: string, 
     @Body()
     dto: ReopenJobDto) {
-        return this.hostService.reopenJob(req.user.id, id, dto.additionalApplicants);
+        return this.hostService.reopenJob(req.user.id, id, dto);
     }
     @Get('jobs/:jobId/applications')
     getApplications(

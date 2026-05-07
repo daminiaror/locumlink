@@ -22,6 +22,8 @@ function isPlaceholderSupabaseKey(key: string | undefined): boolean {
         return true;
     if (/^your-supabase-/i.test(s))
         return true;
+    if (s.startsWith('sb_publishable_'))
+        return false;
     return s.length < 80;
 }
 @Injectable()
@@ -110,6 +112,7 @@ export class AuthService {
         const serviceKeyRaw = this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY');
         const anonKey = (this.config.get<string>('SUPABASE_ANON_KEY') ??
             this.config.get<string>('NEXT_PUBLIC_SUPABASE_ANON_KEY') ??
+            this.config.get<string>('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') ??
             '').trim();
         const sbKey = !isPlaceholderSupabaseKey(serviceKeyRaw)
             ? serviceKeyRaw!.trim()
@@ -137,17 +140,33 @@ export class AuthService {
             throw new UnauthorizedException('Invalid session. For OTP login, set SUPABASE_URL and SUPABASE_ANON_KEY (or NEXT_PUBLIC_*) to the same Supabase project as the frontend; do not use a placeholder SUPABASE_SERVICE_ROLE_KEY.');
         }
     }
+    async devOtpLogin(email: string | undefined, roleHint: Role): Promise<AuthTokens> {
+        if (this.config.get<string>('NODE_ENV') === 'production') {
+            throw new UnauthorizedException('Dev OTP login is disabled in production');
+        }
+        const normalizedEmail = email?.trim().toLowerCase();
+        if (!normalizedEmail) {
+            throw new BadRequestException('Email is required');
+        }
+        const user = await this.findOrCreateUserForSupabase(normalizedEmail, roleHint);
+        return this.issueTokens(user);
+    }
     private async findOrCreateUserForSupabase(email: string, roleHint: Role): Promise<User> {
         const existing = await this.prisma.user.findUnique({ where: { email } });
         if (existing) {
-            if (existing.role !== roleHint &&
-                existing.role !== Role.ADMIN) {
-                return this.prisma.user.update({
-                    where: { id: existing.id },
-                    data: { role: roleHint },
-                });
+            const data: Partial<Pick<User, 'role' | 'status' | 'emailVerified' | 'emailVerifiedAt' | 'lastLoginAt'>> = {
+                status: 'ACTIVE',
+                emailVerified: true,
+                emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
+                lastLoginAt: new Date(),
+            };
+            if (existing.role !== roleHint && existing.role !== Role.ADMIN) {
+                data.role = roleHint;
             }
-            return existing;
+            return this.prisma.user.update({
+                where: { id: existing.id },
+                data,
+            });
         }
         const passwordHash = await bcrypt.hash(randomUUID(), BCRYPT_ROUNDS);
         return this.prisma.user.create({
@@ -184,6 +203,19 @@ export class AuthService {
         await this.prisma.user.update({
             where: { id: userId },
             data: { avatarStoragePath: next },
+        });
+    }
+    async clearUserAvatar(userId: string): Promise<void> {
+        const existing = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { avatarStoragePath: true },
+        });
+        const prev = existing?.avatarStoragePath?.trim() ?? '';
+        if (prev)
+            await this.gcs.delete(prev);
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { avatarStoragePath: null },
         });
     }
     private issueTokens(user: User): AuthTokens {

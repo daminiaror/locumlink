@@ -3,6 +3,7 @@ import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 interface LogParams {
     actorId?: string;
+    adminActorId?: string;
     subjectId?: string;
     action: AuditAction;
     entity: string;
@@ -21,6 +22,7 @@ export class AuditService {
             .create({
             data: {
                 actorId: params.actorId,
+                adminActorId: params.adminActorId,
                 subjectId: params.subjectId,
                 action: params.action,
                 entity: params.entity,

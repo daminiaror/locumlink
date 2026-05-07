@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req, HttpCode, HttpStatus, } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, HttpCode, HttpStatus, } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { LocumService } from './locum.service.js';
-import { ApplyJobDto } from './locum.dto.js';
+import { ApplyJobDto, RespondToConfirmedPlacementDto } from './locum.dto.js';
 interface JwtRequest {
     user: {
         id: string;
@@ -47,5 +47,16 @@ export class LocumController {
     @Req()
     req: JwtRequest) {
         return this.locumService.getMyApplications(req.user.id);
+    }
+    @Patch('applications/:applicationId/respond')
+    @HttpCode(HttpStatus.OK)
+    respondToConfirmedPlacement(
+    @Req()
+    req: JwtRequest, 
+    @Param('applicationId')
+    applicationId: string, 
+    @Body()
+    dto: RespondToConfirmedPlacementDto) {
+        return this.locumService.respondToConfirmedPlacement(req.user.id, applicationId, dto.response);
     }
 }

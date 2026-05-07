@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, IsIn } from 'class-validator';
 export class SaveLocumProfileDto {
     @IsString()
     firstName!: string;
@@ -46,4 +46,8 @@ export class ApplyJobDto {
     @IsString()
     @IsOptional()
     coverNote?: string;
+}
+export class RespondToConfirmedPlacementDto {
+    @IsIn(['accept', 'decline'])
+    response!: 'accept' | 'decline';
 }

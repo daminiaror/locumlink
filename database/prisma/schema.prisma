@@ -265,6 +265,7 @@ model Application {
   coverNote       String?           @db.Text
   appliedAt       DateTime          @default(now())
   statusChangedAt DateTime          @updatedAt
+  locumAcceptedAt DateTime?       @map("locum_accepted_at")
 
   @@unique([jobPostingId, locumProfileId])
   @@map("applications")
@@ -349,6 +350,9 @@ model AuditLog {
   actorId       String?
   actor         User?       @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
 
+  adminActorId  String?
+  adminActor    Admin?      @relation(fields: [adminActorId], references: [id], onDelete: SetNull)
+
   subjectId     String?
   subject       User?       @relation("AuditSubject", fields: [subjectId], references: [id], onDelete: SetNull)
 
@@ -366,6 +370,7 @@ model AuditLog {
   createdAt     DateTime    @default(now())
 
   @@index([actorId])
+  @@index([adminActorId])
   @@index([subjectId])
   @@index([entity, entityId])
   @@index([createdAt])
@@ -385,11 +390,12 @@ model Otp {
 // Separate table for Admin authentication/authorization.
 // Do NOT mix admin accounts with the main User table.
 model Admin {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
-  email     String   @unique
-  role      String   @default("admin")
-  createdAt DateTime @default(now())
+  email     String     @unique
+  role      String     @default("admin")
+  createdAt DateTime   @default(now())
+  auditLogs AuditLog[]
 
   @@map("admins")
 }

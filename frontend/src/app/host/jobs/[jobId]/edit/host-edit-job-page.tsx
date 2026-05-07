@@ -391,9 +391,6 @@ export default function HostEditJobPage(props: {
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#0B0F1F' }}>
                   Details
                 </div>
-                <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
-                  Define the role and culture.
-                </div>
 
                 <div style={sectionStack}>
                   <div>

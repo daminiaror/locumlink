@@ -76,7 +76,7 @@ export default function AdminLayout({ children, title, subtitle, right }: {
     right?: ReactNode;
 }) {
     const pathname = usePathname();
-    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
     return (<div style={{
             display: 'flex',
             flexDirection: 'column',

@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
 import { hostApi, messageApi, type ApplicationRecord } from '@/lib/api';
@@ -7,6 +9,7 @@ import { getToken } from '@/lib/auth';
 import { useAuth } from '@/providers/AuthProvider';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import { beforeClientNavigation } from '@/lib/topLoader';
+import { useHostProfile } from '@/hooks/useHostProfile';
 const NAV = [
     {
         label: 'My Postings',
@@ -25,6 +28,45 @@ const NAV = [
         icon: <NavIcon name="resources"/>,
     },
 ] as const;
+const QUICK_MESSAGE_PANEL_STORAGE_KEY = 'l2-host-applicants-quick-message-panel-pos';
+const QUICK_MESSAGE_PANEL_WIDTH = 384;
+const QUICK_MESSAGE_PANEL_MAX_HEIGHT = 280;
+function clampQuickMessagePanelPos(p: {
+    left: number;
+    top: number;
+}): {
+    left: number;
+    top: number;
+} {
+    if (typeof window === 'undefined')
+        return p;
+    const margin = 8;
+    const w = Math.min(QUICK_MESSAGE_PANEL_WIDTH, window.innerWidth - margin * 2);
+    const maxLeft = Math.max(margin, window.innerWidth - w - margin);
+    const maxTop = Math.max(margin, window.innerHeight - QUICK_MESSAGE_PANEL_MAX_HEIGHT - margin);
+    return {
+        left: Math.min(Math.max(margin, p.left), maxLeft),
+        top: Math.min(Math.max(margin, p.top), maxTop),
+    };
+}
+function defaultQuickMessagePanelPos(): {
+    left: number;
+    top: number;
+} {
+    if (typeof window === 'undefined')
+        return { left: 24, top: 100 };
+    const w = Math.min(QUICK_MESSAGE_PANEL_WIDTH, window.innerWidth - 16);
+    return clampQuickMessagePanelPos({
+        left: window.innerWidth - w - 24,
+        top: Math.round(window.innerHeight * 0.18),
+    });
+}
+function hostMessagesHref(partnerId: string, jobPostingId: string | null): string {
+    const q = new URLSearchParams({ partnerId });
+    if (jobPostingId)
+        q.set('jobPostingId', jobPostingId);
+    return `/host/messages?${q.toString()}`;
+}
 const STATUS_COLOR: Record<string, string> = {
     APPLIED: '#3B82F6',
     SHORTLISTED: '#10B981',
@@ -321,6 +363,7 @@ export default function HostApplicantsPage(props: {
 }) {
     useNextPageClientProps(props);
     const router = useRouter();
+    const { profile: headerProfile } = useHostProfile();
     const { isLoading: authLoading, userId } = useAuth();
     const [jobId, setJobId] = useState<string | null>(null);
     const [apps, setApps] = useState<ApplicationRecord[]>([]);
@@ -334,6 +377,45 @@ export default function HostApplicantsPage(props: {
     const [composeSending, setComposeSending] = useState(false);
     const [composeError, setComposeError] = useState<string | null>(null);
     const [composeSent, setComposeSent] = useState(false);
+    const [quickPanelPos, setQuickPanelPos] = useState<{
+        left: number;
+        top: number;
+    }>({ left: 24, top: 100 });
+    const quickPanelDragRef = useRef<{
+        pointerId: number;
+        startClientX: number;
+        startClientY: number;
+        startLeft: number;
+        startTop: number;
+    } | null>(null);
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(QUICK_MESSAGE_PANEL_STORAGE_KEY);
+            if (raw) {
+                const p = JSON.parse(raw) as {
+                    left?: unknown;
+                    top?: unknown;
+                };
+                if (typeof p.left === 'number' && typeof p.top === 'number')
+                    setQuickPanelPos(clampQuickMessagePanelPos({ left: p.left, top: p.top }));
+                else
+                    setQuickPanelPos(defaultQuickMessagePanelPos());
+            }
+            else {
+                setQuickPanelPos(defaultQuickMessagePanelPos());
+            }
+        }
+        catch {
+            setQuickPanelPos(defaultQuickMessagePanelPos());
+        }
+    }, []);
+    useEffect(() => {
+        function onResize() {
+            setQuickPanelPos((prev) => clampQuickMessagePanelPos(prev));
+        }
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
     useEffect(() => {
         let cancelled = false;
         void props.params.then((p) => {
@@ -399,7 +481,7 @@ export default function HostApplicantsPage(props: {
         try {
             await hostApi.updateApplication(jobId, a.id, 'SHORTLISTED');
             setApps((prev) => prev.map((app) => app.id === a.id ? { ...app, status: 'SHORTLISTED' } : app));
-            const href = `/host/messages?partnerId=${a.locumProfile.userId}`;
+            const href = hostMessagesHref(a.locumProfile.userId, jobId);
             beforeClientNavigation(href);
             router.push(href);
         }
@@ -433,7 +515,185 @@ export default function HostApplicantsPage(props: {
             });
         }
     }
-    return (<DashLayout navItems={[...NAV]} activeHref="/host/dashboard">
+    function onQuickPanelDragStart(e: ReactPointerEvent<HTMLDivElement>) {
+        if (e.button !== 0)
+            return;
+        e.preventDefault();
+        quickPanelDragRef.current = {
+            pointerId: e.pointerId,
+            startClientX: e.clientX,
+            startClientY: e.clientY,
+            startLeft: quickPanelPos.left,
+            startTop: quickPanelPos.top,
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    function onQuickPanelDragMove(e: ReactPointerEvent<HTMLDivElement>) {
+        const d = quickPanelDragRef.current;
+        if (!d || e.pointerId !== d.pointerId)
+            return;
+        const left = d.startLeft + (e.clientX - d.startClientX);
+        const top = d.startTop + (e.clientY - d.startClientY);
+        setQuickPanelPos(clampQuickMessagePanelPos({ left, top }));
+    }
+    function onQuickPanelDragEnd(e: ReactPointerEvent<HTMLDivElement>) {
+        const d = quickPanelDragRef.current;
+        if (!d || e.pointerId !== d.pointerId)
+            return;
+        quickPanelDragRef.current = null;
+        try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+        catch {
+        }
+        setQuickPanelPos((prev) => {
+            const c = clampQuickMessagePanelPos(prev);
+            try {
+                localStorage.setItem(QUICK_MESSAGE_PANEL_STORAGE_KEY, JSON.stringify(c));
+            }
+            catch {
+            }
+            return c;
+        });
+    }
+    const quickMessagePortal = composeOpen &&
+        selected &&
+        statusToUi(selected.status) === 'shortlisted' &&
+        typeof document !== 'undefined'
+        ? createPortal(<div style={{
+                position: 'fixed',
+                left: quickPanelPos.left,
+                top: quickPanelPos.top,
+                width: QUICK_MESSAGE_PANEL_WIDTH,
+                maxWidth: 'min(384px, calc(100vw - 16px))',
+                zIndex: 10050,
+                border: '1px solid #E5E7EB',
+                borderRadius: 10,
+                background: '#fff',
+                padding: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                boxShadow: '0 12px 40px rgba(15, 23, 42, 0.14)',
+                boxSizing: 'border-box',
+            }}>
+          <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                userSelect: 'none',
+            }}>
+            <div onPointerDown={onQuickPanelDragStart} onPointerMove={onQuickPanelDragMove} onPointerUp={onQuickPanelDragEnd} onPointerCancel={onQuickPanelDragEnd} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flex: 1,
+                    minWidth: 0,
+                    cursor: 'grab',
+                    touchAction: 'none',
+                    padding: '4px 2px',
+                    margin: '-4px -2px',
+                }}>
+              <span style={{ fontSize: 14, color: '#9CA3AF', lineHeight: 1 }} aria-hidden>
+                ⠿
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0B0F1F' }}>
+                Quick message
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', whiteSpace: 'nowrap' }}>
+                Drag to move
+              </span>
+            </div>
+            <button type="button" onClick={() => setComposeOpen(false)} onPointerDown={(e) => e.stopPropagation()} style={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: '#6B7280',
+                    flexShrink: 0,
+                }}>
+              Close
+            </button>
+          </div>
+
+          {composeError && (<div style={{ fontSize: 12, color: '#DC2626' }}>{composeError}</div>)}
+          {composeSent && !composeError && (<div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>Sent</div>)}
+
+          <textarea value={composeText} onChange={(e) => setComposeText(e.target.value)} placeholder="Type a message…" rows={3} style={{
+                width: '100%',
+                border: '1px solid #E5E7EB',
+                borderRadius: 8,
+                padding: '10px 12px',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                color: '#374151',
+                resize: 'none',
+                outline: 'none',
+                boxSizing: 'border-box',
+                background: '#FAFAFA',
+            }}/>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => {
+                const href = hostMessagesHref(selected.locumProfile.userId, jobId);
+                beforeClientNavigation(href);
+                router.push(href);
+            }} style={{
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #D0D5DD',
+                background: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                color: '#374151',
+            }}>
+              Open Messages
+            </button>
+
+            <button type="button" disabled={composeSending || !composeText.trim()} onClick={() => {
+                if (composeSending)
+                    return;
+                const body = composeText.trim();
+                if (!body)
+                    return;
+                setComposeSending(true);
+                setComposeError(null);
+                setComposeSent(false);
+                void (async () => {
+                    try {
+                        await messageApi.sendMessage(selected.locumProfile.userId, body, jobId ?? undefined);
+                        setComposeText('');
+                        setComposeSent(true);
+                    }
+                    catch (e) {
+                        setComposeError(e instanceof Error ? e.message : 'Could not send message.');
+                    }
+                    finally {
+                        setComposeSending(false);
+                    }
+                })();
+            }} style={{
+                padding: '9px 18px',
+                borderRadius: 8,
+                border: 'none',
+                background: composeSending || !composeText.trim()
+                    ? '#D1D5DB'
+                    : 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: composeSending || !composeText.trim() ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+                color: '#fff',
+            }}>
+              {composeSending ? 'Sending…' : 'Send'}
+            </button>
+          </div>
+        </div>, document.body)
+        : null;
+    return (<DashLayout navItems={[...NAV]} activeHref="/host/dashboard" topbarFirstName={headerProfile?.contactFirstName ?? undefined} topbarLastName={headerProfile?.contactLastName ?? undefined}>
       
       <div style={{
             display: 'flex',
@@ -509,7 +769,7 @@ export default function HostApplicantsPage(props: {
             gap: 18,
             boxSizing: 'border-box',
         }}>
-            {['NAME', 'YEARS OF EXP', 'SPECIALITY', 'STATUS', ''].map((h) => (<div key={h} style={{
+            {['NAME', 'YEARS OF EXP', 'SPECIALIZATION', 'STATUS', ''].map((h) => (<div key={h} style={{
                 fontFamily: 'Hanken Grotesk, Inter, sans-serif',
                 fontWeight: 600,
                 fontSize: 13,
@@ -599,7 +859,7 @@ export default function HostApplicantsPage(props: {
                     <div onClick={(e) => e.stopPropagation()}>
                       <MessageBtn active={canMessage} onClick={canMessage
                             ? () => {
-                                const href = `/host/messages?partnerId=${a.locumProfile.userId}`;
+                                const href = hostMessagesHref(a.locumProfile.userId, jobId);
                                 beforeClientNavigation(href);
                                 router.push(href);
                             }
@@ -647,7 +907,7 @@ export default function HostApplicantsPage(props: {
                 color: '#0B0F1F',
                 textTransform: 'capitalize',
               }}>
-                Professional Info
+                Professional Information
               </span>
               <button type="button" onClick={() => setSelected(null)} aria-label="Close" style={{
                 all: 'unset',
@@ -782,104 +1042,6 @@ export default function HostApplicantsPage(props: {
                 </div>
               </div>
 
-              {composeOpen && statusToUi(selected.status) === 'shortlisted' && (<div style={{
-                    marginTop: 12,
-                    border: '1px solid #E5E7EB',
-                    borderRadius: 10,
-                    background: '#fff',
-                    padding: 12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0B0F1F' }}>Quick message</span>
-                    <button type="button" onClick={() => setComposeOpen(false)} style={{
-                            all: 'unset',
-                            cursor: 'pointer',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: '#6B7280',
-                        }}>
-                      Close
-                    </button>
-                  </div>
-
-                  {composeError && (<div style={{ fontSize: 12, color: '#DC2626' }}>{composeError}</div>)}
-                  {composeSent && !composeError && (<div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>Sent</div>)}
-
-                  <textarea value={composeText} onChange={(e) => setComposeText(e.target.value)} placeholder="Type a message…" rows={3} style={{
-                        width: '100%',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: 8,
-                        padding: '10px 12px',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        color: '#374151',
-                        resize: 'none',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                        background: '#FAFAFA',
-                    }}/>
-
-                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                    <button type="button" onClick={() => {
-                            const href = `/host/messages?partnerId=${selected.locumProfile.userId}`;
-                            beforeClientNavigation(href);
-                            router.push(href);
-                        }} style={{
-                            padding: '9px 12px',
-                            borderRadius: 8,
-                            border: '1px solid #D0D5DD',
-                            background: '#fff',
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                            color: '#374151',
-                        }}>
-                      Open Messages
-                    </button>
-
-                    <button type="button" disabled={composeSending || !composeText.trim()} onClick={() => {
-                            if (composeSending)
-                                return;
-                            const body = composeText.trim();
-                            if (!body)
-                                return;
-                            setComposeSending(true);
-                            setComposeError(null);
-                            setComposeSent(false);
-                            void (async () => {
-                                try {
-                                    await messageApi.sendMessage(selected.locumProfile.userId, body, jobId ?? undefined);
-                                    setComposeText('');
-                                    setComposeSent(true);
-                                }
-                                catch (e) {
-                                    setComposeError(e instanceof Error ? e.message : 'Could not send message.');
-                                }
-                                finally {
-                                    setComposeSending(false);
-                                }
-                            })();
-                        }} style={{
-                            padding: '9px 18px',
-                            borderRadius: 8,
-                            border: 'none',
-                            background: composeSending || !composeText.trim()
-                                ? '#D1D5DB'
-                                : 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
-                            fontSize: 13,
-                            fontWeight: 700,
-                            cursor: composeSending || !composeText.trim() ? 'default' : 'pointer',
-                            fontFamily: 'inherit',
-                            color: '#fff',
-                        }}>
-                      {composeSending ? 'Sending…' : 'Send'}
-                    </button>
-                  </div>
-                </div>)}
             </div>
 
             <div style={{ padding: '0 18px 18px', overflowY: 'auto', flex: 1 }}>
@@ -990,12 +1152,12 @@ export default function HostApplicantsPage(props: {
                                 color: '#000',
                                 textTransform: 'capitalize',
                             }}>
-                              Additional Docs
+                              Additional documents
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                               {additional.length > 0
                                     ? additional.map((d: any) => (<DocRow key={d.id} label={docLabel(String(d.documentType))} subtitle={String(d.fileName ?? '')} url={String(d.storageUrl ?? '#')} />))
-                                    : (<DocRow label="Additional Documents" subtitle="No document uploaded" url={null} />)}
+                                    : (<DocRow label="Additional documents" subtitle="No document uploaded" url={null} />)}
                             </div>
                           </div>
                       </div>);
@@ -1004,5 +1166,6 @@ export default function HostApplicantsPage(props: {
             </div>
           </div>
         </>)}
+      {quickMessagePortal}
     </DashLayout>);
 }

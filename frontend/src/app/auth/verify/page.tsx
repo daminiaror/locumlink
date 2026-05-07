@@ -6,6 +6,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { getEmail, getRole, saveRole, type Role } from '@/lib/auth';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 const OTP_LEN = 6;
+const DEMO_OTP = '000000';
 const RESEND_COOLDOWN_SEC = 30;
 export default function VerifyPage(props: {
     params?: Promise<Record<string, string | string[] | undefined>>;
@@ -35,22 +36,52 @@ export default function VerifyPage(props: {
         return () => clearTimeout(t);
     }, [resendCooldown]);
     function handleChange(val: string, idx: number) {
-        const d = val.replace(/\D/, '').slice(-1);
+        const d = val.replace(/\D/g, '').slice(-1);
         const next = [...digits];
         next[idx] = d;
         setDigits(next);
+        if (error)
+            setError('');
         if (d && idx < OTP_LEN - 1)
             refs.current[idx + 1]?.focus();
     }
     function handleKey(e: KeyboardEvent<HTMLInputElement>, idx: number) {
-        if (e.key === 'Backspace' && !digits[idx] && idx > 0) {
-            refs.current[idx - 1]?.focus();
+        if (/^\d$/.test(e.key)) {
+            e.preventDefault();
+            const next = [...digits];
+            next[idx] = e.key;
+            setDigits(next);
+            if (error)
+                setError('');
+            if (idx < OTP_LEN - 1) {
+                refs.current[idx + 1]?.focus();
+            }
+            return;
+        }
+        if (e.key === 'Backspace') {
+            e.preventDefault();
+            const next = [...digits];
+            next[idx] = '';
+            setDigits(next);
+            if (error)
+                setError('');
+            if (idx > 0) {
+                refs.current[idx - 1]?.focus();
+            }
+            return;
+        }
+        if (!['Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+            e.preventDefault();
         }
     }
-    async function handleVerify() {
-        const otp = digits.join('');
+    async function handleVerify(otpOverride?: string) {
+        const otp = otpOverride ?? digits.join('');
         if (otp.length < OTP_LEN) {
             setError('Please enter the full 6-digit code.');
+            return;
+        }
+        if (otp !== DEMO_OTP) {
+            setError('Invalid code. For this demo, use 000000.');
             return;
         }
         const email = getEmail();
@@ -65,7 +96,7 @@ export default function VerifyPage(props: {
             router.replace(redirectTo);
         }
         catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Invalid code. Please try again.');
+            setError(err instanceof Error ? err.message : 'Could not verify the code. Please try again.');
         }
         finally {
             setBusy(false);
@@ -107,6 +138,7 @@ export default function VerifyPage(props: {
     }, []);
     const email = (mounted ? getEmail() : null) ?? 'your email';
     const masked = email.replace(/(.{2}).+(@.+)/, '$1…$2');
+    const otpComplete = digits.every((digit) => digit.length === 1);
     return (<AuthSplitLayout variant="verify">
       <h2 style={{
             fontSize: 20,
@@ -123,7 +155,7 @@ export default function VerifyPage(props: {
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {digits.map((d, i) => (<input key={i} ref={(el) => {
                 refs.current[i] = el;
-            }} type="text" inputMode="numeric" maxLength={1} value={d} onChange={(e) => handleChange(e.target.value, i)} onKeyDown={(e) => handleKey(e, i)} style={{
+            }} type="text" inputMode="numeric" maxLength={1} value={d} onFocus={(e) => e.target.select()} onChange={(e) => handleChange(e.target.value, i)} onKeyDown={(e) => handleKey(e, i)} style={{
                 width: 44,
                 height: 52,
                 textAlign: 'center',
@@ -143,22 +175,22 @@ export default function VerifyPage(props: {
           {error}
         </p>)}
 
-      <button onClick={handleVerify} disabled={busy} style={{
+      <button onClick={() => void handleVerify()} disabled={busy || !otpComplete} style={{
             width: '100%',
             padding: '11px',
             border: 'none',
             borderRadius: 6,
             fontSize: 14,
             fontWeight: 500,
-            cursor: busy ? 'default' : 'pointer',
-            background: busy ? '#8892a4' : '#3B4FD8',
+            cursor: busy || !otpComplete ? 'default' : 'pointer',
+            background: busy || !otpComplete ? '#8892a4' : '#3B4FD8',
             color: '#fff',
             fontFamily: 'inherit',
             marginBottom: 12,
             outline: 'none',
             WebkitTapHighlightColor: 'transparent',
         }}>
-        {busy ? 'Verifying…' : 'Verify Code'}
+        {busy ? 'Verifying…' : 'Verify'}
       </button>
 
       

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req, HttpCode, HttpStatus, } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req, HttpCode, HttpStatus, } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { MessageService } from './message.service.js';
 import { SendMessageDto, EditMessageDto } from './message.dto.js';
@@ -16,8 +16,10 @@ export class MessageController {
     @Get('conversations')
     getConversations(
     @Req()
-    req: JwtRequest) {
-        return this.messageService.getConversations(req.user.id);
+    req: JwtRequest, 
+    @Query('q')
+    q?: string) {
+        return this.messageService.getConversations(req.user.id, q);
     }
     @Get('thread/:partnerId')
     getThread(
