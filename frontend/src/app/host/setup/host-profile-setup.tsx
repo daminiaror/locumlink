@@ -208,10 +208,82 @@ export default function HostSetupPage(props: {
   const [provinceDropOpen, setProvinceDropOpen] = useState(false);
   const [provinceActiveIdx, setProvinceActiveIdx] = useState(-1);
   const provinceBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   useEffect(() => {
     setSpecialityTags(parseSpecialities(form.speciality));
   }, []);
+
+  // Auto-save functionality
+  useEffect(() => {
+    // Clear previous timer
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+    }
+
+    // Set new timer for auto-save
+    autoSaveTimer.current = setTimeout(() => {
+      handleAutoSave();
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => {
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+      }
+    };
+  }, [form, specialityTags]);
+
+  async function handleAutoSave() {
+    try {
+      setAutoSaving(true);
+      // Only save if there's some data
+      if (
+        form.clinicName.trim().length > 0 ||
+        form.contactFirstName.trim().length > 0 ||
+        form.address1.trim().length > 0
+      ) {
+        await hostApi.saveProfile(form);
+        console.log('Profile auto-saved successfully');
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+      // Don't show error to user for auto-save failures
+    } finally {
+      setAutoSaving(false);
+    }
+  }
+
+  async function handleExitWithConfirmation() {
+    // Check if form has any data
+    const hasData =
+      form.clinicName.trim().length > 0 ||
+      form.contactFirstName.trim().length > 0 ||
+      form.address1.trim().length > 0 ||
+      form.city.trim().length > 0;
+
+    if (hasData) {
+      setShowExitConfirm(true);
+    } else {
+      // No data, just navigate away
+      navigateToHome();
+    }
+  }
+
+  function confirmedExit() {
+    setShowExitConfirm(false);
+    navigateToHome();
+  }
+
+  function cancelExit() {
+    setShowExitConfirm(false);
+  }
+
+  function navigateToHome() {
+    beforeClientNavigation('/home');
+    router.push('/home');
+  }
 
   const step1Valid = useMemo(
     () =>
@@ -381,6 +453,94 @@ export default function HostSetupPage(props: {
         }}
       />
 
+      {/* Exit Confirmation Modal */}
+      {showExitConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              padding: '32px',
+              maxWidth: 400,
+              textAlign: 'center',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            <h3
+              style={{
+                margin: '0 0 12px 0',
+                fontSize: 20,
+                fontWeight: 600,
+                color: '#0B0F1F',
+              }}
+            >
+              Leave Setup?
+            </h3>
+            <p
+              style={{
+                margin: '0 0 28px 0',
+                fontSize: 16,
+                color: '#6B7280',
+                lineHeight: '1.5',
+              }}
+            >
+              Your profile has been auto-saved. Are you sure you want to leave?
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+              }}
+            >
+              <button
+                onClick={cancelExit}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  border: '1px solid #D0D5DD',
+                  borderRadius: 8,
+                  background: '#fff',
+                  color: '#5a6478',
+                  fontSize: 16,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmedExit}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  border: 'none',
+                  borderRadius: 8,
+                  background: '#DC2626',
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={hostSetupModalCardBase}>
         {/* ── Header ── */}
         <div
@@ -396,10 +556,7 @@ export default function HostSetupPage(props: {
         >
           <button
             type="button"
-            onClick={() => {
-              beforeClientNavigation('/home');
-              router.push('/home');
-            }}
+            onClick={handleExitWithConfirmation}
             aria-label="Close"
             style={{
               position: 'absolute',
@@ -429,6 +586,21 @@ export default function HostSetupPage(props: {
               ×
             </span>
           </button>
+
+          {/* Auto-save indicator */}
+          {autoSaving && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                fontSize: 12,
+                color: '#6B7280',
+              }}
+            >
+              Saving...
+            </div>
+          )}
 
           <h2
             style={{
