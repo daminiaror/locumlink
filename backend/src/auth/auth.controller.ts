@@ -39,6 +39,15 @@ export class AuthController {
         return this.authService.login(dto, { ip, userAgent });
     }
     @Public()
+    @Post('dev-otp-login')
+    @HttpCode(HttpStatus.OK)
+    async devOtpLogin(
+    @Body()
+    body: { email: string; role: string }): Promise<AuthTokens> {
+        return this.authService.devOtpLogin(body.email, body.role);
+    }
+
+    @Public()
     @Post('sync-supabase')
     @HttpCode(HttpStatus.OK)
     syncSupabase(

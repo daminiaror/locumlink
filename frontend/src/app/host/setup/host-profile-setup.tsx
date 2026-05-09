@@ -13,6 +13,7 @@ import Logo from '@/components/Logo';
 import { HomeLandingView } from '@/components/HomeLandingView';
 import { HostSetupStep3 } from '@/components/HostSetupStep3';
 import { useAuth } from '@/providers/AuthProvider';
+import { getToken } from '@/lib/auth';
 import { hostApi } from '@/lib/api';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import type { HostProfile } from '@/types';
@@ -282,7 +283,7 @@ export default function HostSetupPage(props: {
 
   function navigateToHome() {
     beforeClientNavigation('/home');
-    router.push('/home');
+    router.push('/home?skipSetup=1');
   }
 
   const step1Valid = useMemo(
