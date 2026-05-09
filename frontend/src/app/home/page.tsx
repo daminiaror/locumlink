@@ -32,7 +32,8 @@ export default function HomePage(props: {
             (rawNext.startsWith('/host') || rawNext.startsWith('/locum'))
             ? rawNext
             : null;
-        if (!done) {
+        const skipSetup = params.get('skipSetup') === '1';
+        if (!done && !skipSetup) {
             const href = role === 'clinic' ? '/host/setup' : '/locum/setup';
             beforeClientNavigation(href);
             router.replace(href);
