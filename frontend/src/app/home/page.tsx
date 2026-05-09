@@ -39,6 +39,10 @@ export default function HomePage(props: {
             router.replace(href);
             return;
         }
+        if (skipSetup) {
+            // User exited setup — stay on home, don't redirect anywhere
+            return;
+        }
         if (safeNext) {
             beforeClientNavigation(safeNext);
             router.replace(safeNext);
