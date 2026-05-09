@@ -216,6 +216,22 @@ export default function HostSetupPage(props: {
   useEffect(() => {
     setSpecialityTags(parseSpecialities(form.speciality));
   }, []);
+  // Load saved profile on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const saved = await hostApi.getProfile();
+        if (saved) {
+          setForm((f) => ({ ...f, ...saved }));
+          if (saved.speciality) {
+            setSpecialityTags(parseSpecialities(saved.speciality));
+          }
+        }
+      } catch {
+        // No saved profile yet, start fresh
+      }
+    })();
+  }, []);
 
   // Auto-save functionality
   useEffect(() => {
@@ -268,12 +284,14 @@ export default function HostSetupPage(props: {
       setShowExitConfirm(true);
     } else {
       // No data, just navigate away
+      await handleAutoSave();
       navigateToHome();
     }
   }
 
-  function confirmedExit() {
+  async function confirmedExit() {
     setShowExitConfirm(false);
+    await handleAutoSave();
     navigateToHome();
   }
 
