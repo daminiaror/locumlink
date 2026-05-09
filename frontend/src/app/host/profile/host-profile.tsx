@@ -238,12 +238,6 @@ export default function HostProfilePage(props: {
     const hostCityInputRef = useRef<HTMLInputElement>(null);
     const hostCityDropRef = useRef<HTMLDivElement>(null);
     const hostCityBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    function toTitleCase(str: string) {
-    return str.replace(
-        /\w\S*/g,
-        txt => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
-    );
-}
     const searchHostCities = useCallback((q: string) => {
         if (!q || q.trim().length < 2) {
             setHostCityResults([]);
@@ -255,18 +249,12 @@ export default function HostProfilePage(props: {
         setHostCityActiveIdx(-1);
         setHostCityDropOpen(true);
     }, []);
-function handleHostCitySelect(city: CanadianCityRow) {
-    setCity(formatCanadianCityDisplay(city.name));
-
-    setProvince(
-        toTitleCase(
-            CANADIAN_PROVINCE_NAMES[city.province] ?? city.province
-        )
-    );
-
-    setHostCityResults([]);
-    setHostCityDropOpen(false);
-}
+    function handleHostCitySelect(city: CanadianCityRow) {
+        setCity(formatCanadianCityDisplay(city.name));
+        setProvince(CANADIAN_PROVINCE_NAMES[city.province] ?? city.province);
+        setHostCityResults([]);
+        setHostCityDropOpen(false);
+    }
     function handleHostCityKeyDown(e: KeyboardEvent<HTMLInputElement>) {
         if (!hostCityDropOpen)
             return;
@@ -306,13 +294,8 @@ function handleHostCitySelect(city: CanadianCityRow) {
         setAddr1(profile.address1 ?? '');
         setAddr2(profile.address2 ?? '');
         setPostal(profile.postalCode ?? '');
-        setCity(formatCanadianCityDisplay(city.name));
-        // setProvince(profile.province ?? '');
-setProvince(
-    toTitleCase(
-        CANADIAN_PROVINCE_NAMES[city.province] ?? city.province
-    )
-);
+        setCity(formatCanadianCityDisplay(profile.city ?? ''));
+        setProvince(profile.province ?? '');
         setPracticeType(profile.practiceType ?? '');
         setNumPhysicians(profile.numPhysicians ?? '');
         setEmr(profile.emr ?? '');
@@ -353,8 +336,8 @@ setProvince(
             clearTimeout(hostCityBlurTimer.current);
         }
     }, []);
-    const derivedContactFirst = (contactFirst || hostFirst).trim();
-    const derivedContactLast = (contactLast || hostLast).trim();
+    const derivedContactFirst = (hostFirst || contactFirst).trim();
+    const derivedContactLast = (hostLast || contactLast).trim();
     const progressPct = hostProfileCompletionPct({
         clinicName,
         contactFirstName: derivedContactFirst,
@@ -480,7 +463,6 @@ setProvince(
       </DashLayout>);
     }
     return (<DashLayout navItems={NAV} activeHref="/host/profile" topbarFirstName={profile?.contactFirstName} topbarLastName={profile?.contactLastName}>
-
       <div style={{
             padding: '28px 36px 60px',
             maxWidth: 1180,
@@ -722,7 +704,7 @@ setProvince(
             stepSectionRefs.current[0] = el;
         }} style={{
             ...sectionCard(activeStep === 1, { gap: 24 }),
-            minHeight: 'auto',
+            minHeight: 820,
             scrollMarginTop: 20,
         }} onClick={() => goToStep(1)}>
           
@@ -737,8 +719,126 @@ setProvince(
           </div>
 
           
+          <div style={{ width: '100%' }}>
+            <p style={subsectionHeading}>
+              Clinic Information
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'row', gap: 40 }}>
+              <div style={{
+            width: 524,
+            maxWidth: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+        }}>
+                <label style={lbl}>
+                  Clinic name
+                </label>
+                <input style={fieldInput} value={clinicName} onChange={(e) => setClinicName(e.target.value)} placeholder="Enter clinic name"/>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ width: '100%', height: 1, background: '#EBEBEB' }}/>
+
+          
           <div style={{
             width: '100%',
+            display: 'flex',
+            gap: 40,
+            alignItems: 'stretch',
+            flex: '1 1 auto',
+            minHeight: 560,
+        }}>
+            <div style={{
+            flex: '1 1 0%',
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20,
+        }}>
+              <p style={subsectionHeading}>
+                Host Doctors
+              </p>
+
+              <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 12px',
+            background: 'rgba(115, 177, 251, 0.12)',
+            borderRadius: 2,
+            gap: 12,
+        }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+            width: 46,
+            height: 46,
+            background: avatarPhotoUrl ? 'transparent' : '#EEF6FF',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            overflow: 'hidden',
+        }}>
+                    {avatarPhotoUrl ? (<img src={avatarPhotoUrl} alt="" width={46} height={46} style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+            }}/>) : (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <circle cx="12" cy="8" r="4" stroke="#0f1523" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M4 20c0-3.866 3.582-7 8-7s8 3.134 8 7" stroke="#0f1523" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 15,
+            fontWeight: 600,
+            color: '#0f1523',
+            lineHeight: 1,
+        }}>
+                      {hostFirst || hostLast
+            ? `${hostFirst} ${hostLast}`.trim()
+            : 'Host Doctor 1'}
+                    </span>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 400, color: '#6B7280' }}>
+                      Just Now
+                    </span>
+                  </div>
+                </div>
+
+                <button type="button" onClick={(e) => e.stopPropagation()} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 16px',
+            height: 44,
+            border: '1px solid #3A65DB',
+            borderRadius: 3,
+            background: 'transparent',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 14,
+            fontWeight: 500,
+            color: '#3A65DB',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+        }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Add Host
+                </button>
+              </div>
+            </div>
+
+            <div style={{
+            flex: '1 1 0%',
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 20,
@@ -863,7 +963,7 @@ setProvince(
                         <path d="M14 2v6h6" stroke="#3B4FD8" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
                         <path d="M9 14h6" stroke="#3B4FD8" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(11, 15, 31, 0.4)' }}>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF' }}>
                         {uploading ? 'Uploading…' : 'Upload CPSNS Certificate'}
                       </span>
                     </button>
@@ -1016,6 +1116,7 @@ setProvince(
                     </span>))}
                 </div>
               </div>
+            </div>
           </div>
         </div>
 
@@ -1023,19 +1124,17 @@ setProvince(
         <div id="host-profile-step-2" ref={(el) => {
             stepSectionRefs.current[1] = el;
         }} style={{
-            ...sectionCard(activeStep === 2, { gap: 16 }),
+            ...sectionCard(activeStep === 2, { gap: 16, height: 392 }),
             scrollMarginTop: 20,
         }} onClick={() => goToStep(2)}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: '#0f1523' }} aria-hidden>
-              <path d="M3 9.5V21h18V9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M1 10.5L12 3l11 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M10 21v-6h4v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 8v4M10 10h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
             </svg>
             <span style={cardHeaderTitle}>
-              Clinic Information
+              Clinic Location
             </span>
           </div>
 
@@ -1048,13 +1147,6 @@ setProvince(
         }}>
             
             <div style={{ display: 'flex', flexDirection: 'row', gap: 80, width: '100%' }}>
-              <div style={{ width: 524, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={lbl}>
-                  Clinic Name
-                </label>
-                <input style={fieldInput} value={clinicName} onChange={(e) => setClinicName(e.target.value)} placeholder="Enter clinic name"/>
-              </div>
-            </div>
               <div style={{ width: 524, maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <label style={lbl}>
                   Address Line 1

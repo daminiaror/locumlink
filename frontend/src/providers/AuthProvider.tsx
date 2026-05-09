@@ -15,6 +15,7 @@ interface AuthCtx {
     }>;
     completeProfile: () => void;
     logout: () => void;
+    signInWithOAuth: (provider: 'google' | 'azure', role: Role) => Promise<void>;
 }
 const Ctx = createContext<AuthCtx | null>(null);
 const NEST_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -215,6 +216,17 @@ export function AuthProvider({ children }: {
         }
         return { role: savedRole, redirectTo };
     }
+    async function signInWithOAuth(provider: 'google' | 'azure', chosenRole: Role): Promise<void> {
+        saveRole(chosenRole);
+        setRoleState(chosenRole);
+        const supabase = getSupabase();
+        const redirectTo = `${window.location.origin}/auth/callback`;
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: provider === 'azure' ? 'azure' : 'google',
+            options: { redirectTo },
+        });
+        if (error) throw new Error(error.message);
+    }
     function completeProfile(): void {
         markProfileComplete();
         syncCookies();
@@ -237,6 +249,7 @@ export function AuthProvider({ children }: {
             verifyOtp,
             completeProfile,
             logout,
+            signInWithOAuth,
         }}>
       {children}
     </Ctx.Provider>);
