@@ -427,12 +427,7 @@ export class HostService {
             where: { id: appId },
             data: { status },
         });
-        if (status === 'CONFIRMED') {
-            await this.prisma.jobPosting.update({
-                where: { id: jobId },
-                data: { status: 'ONGOING' },
-            });
-        }
+
         return { success: true, application: updated };
     }
 }

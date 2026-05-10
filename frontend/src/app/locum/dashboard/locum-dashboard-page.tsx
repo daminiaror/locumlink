@@ -67,18 +67,18 @@ function applicationStatusPresentation(app: MyApplication): {
 } {
     switch (app.status) {
         case 'CONFIRMED':
-            if (!app.locumAcceptedAt)
+            if (app.locumResponse === 'ACCEPTED')
                 return {
-                    label: 'Host confirmed',
-                    bg: '#FFFBEB',
-                    border: '#FDE68A',
-                    color: '#B45309',
+                    label: 'Accepted',
+                    bg: '#ECFDF5',
+                    border: '#A7F3D0',
+                    color: '#047857',
                 };
             return {
-                label: 'Confirmed',
-                bg: '#ECFDF5',
-                border: '#A7F3D0',
-                color: '#047857',
+                label: 'Host Confirmed',
+                bg: '#FFFBEB',
+                border: '#FDE68A',
+                color: '#B45309',
             };
         case 'APPLIED':
             return {
@@ -102,6 +102,13 @@ function applicationStatusPresentation(app: MyApplication): {
                 color: '#DC2626',
             };
         case 'WITHDRAWN':
+            if (app.locumResponse === 'REJECTED')
+                return {
+                    label: 'Rejected',
+                    bg: '#FEF2F2',
+                    border: '#FECACA',
+                    color: '#DC2626',
+                };
             return {
                 label: 'Withdrawn',
                 bg: '#F9FAFB',
@@ -194,7 +201,7 @@ export default function LocumDashboard(props: {
             ? new Date(app.jobPosting.endDate)
             : null;
         if (tab === 'recent')
-            return true;
+            return app.status === 'APPLIED' || app.status === 'CONFIRMED' || app.locumResponse === 'ACCEPTED' || app.locumResponse === 'REJECTED';
         if (tab === 'upcoming')
             return app.status === 'CONFIRMED' &&
                 !!app.locumAcceptedAt &&
@@ -207,8 +214,9 @@ export default function LocumDashboard(props: {
                 endDate < today;
         return false;
     });
+    const acceptedCount = applications.filter((a) => a.locumResponse === 'ACCEPTED').length;
     const completedCount = applications.filter((a) => {
-        if (a.status !== 'CONFIRMED' || !a.locumAcceptedAt || !a.jobPosting.endDate)
+        if (a.locumResponse !== 'ACCEPTED' || !a.jobPosting.endDate)
             return false;
         return new Date(a.jobPosting.endDate) < today;
     }).length;
@@ -267,6 +275,19 @@ export default function LocumDashboard(props: {
             background: '#fff',
             flexShrink: 0,
         }}>
+        <div style={{ flex: 1, flexShrink: 0, padding: '18px 18px', borderRight: '1px solid #e2e5ee' }}>
+          <div style={{ fontSize: 'var(--font-small)', color: '#5a6478', marginBottom: 4 }}>
+            Total Accepted
+          </div>
+          <div style={{
+            fontSize: 'var(--font-heading)',
+            fontWeight: 'var(--font-weight-bold)',
+            color: '#0f1523',
+            lineHeight: 1,
+        }}>
+            {loading ? '–' : acceptedCount}
+          </div>
+        </div>
         <div style={{ flex: 1, flexShrink: 0, padding: '18px 18px' }}>
           <div style={{ fontSize: 'var(--font-small)', color: '#5a6478', marginBottom: 4 }}>
             Completed Jobs

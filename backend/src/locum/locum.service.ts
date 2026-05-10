@@ -335,6 +335,10 @@ export class LocumService {
                 where: { id: applicationId },
                 data: { locumAcceptedAt: new Date(), locumResponse: 'ACCEPTED' },
             });
+            await this.prisma.jobPosting.update({
+                where: { id: app.jobPostingId },
+                data: { status: 'ONGOING' },
+            });
             return { success: true };
         }
         if (app.locumAcceptedAt)
