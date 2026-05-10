@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useRef, useCallback, useMemo, Suspense, } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
 import { hostApi, locumApi, messageApi, uploadFile, type ApplicationRecord, type Conversation, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
@@ -234,8 +234,9 @@ function Avatar({ user, size = AVATAR_GLYPH_PX, variant, }: {
       <AvatarGlyph variant={locum ? 'locum' : 'clinic'} size={size}/>
     </div>);
 }
-function DeleteModal({ onDeleteForEveryone, onCancel, }: {
+function DeleteModal({ onDeleteForEveryone, onDeleteForMe, onCancel, }: {
     onDeleteForEveryone: () => void;
+    onDeleteForMe: () => void;
     onCancel: () => void;
 }) {
     return (<>
@@ -281,6 +282,20 @@ function DeleteModal({ onDeleteForEveryone, onCancel, }: {
         }}>
             Delete for everyone
           </button>
+          <button onClick={onDeleteForMe} style={{
+            padding: '10px 16px',
+            background: '#F3F4F6',
+            color: '#374151',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+        }}>
+            Delete for me
+          </button>
           <button onClick={onCancel} style={{
             padding: '8px',
             background: 'none',
@@ -301,6 +316,7 @@ export interface MessagesPageProps {
 }
 function MessagesPageInner({ role }: MessagesPageProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const { isLoading: authLoading, userId } = useAuth();
     const navItems = role === 'host' ? HOST_NAV : LOCUM_NAV;
@@ -326,6 +342,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const [deleteTarget, setDeleteTarget] = useState<ThreadMessage | null>(null);
     const [myApplications, setMyApplications] = useState<MyApplication[]>([]);
     const [myListPreviewName, setMyListPreviewName] = useState<string | null>(null);
+    useEffect(() => { setMyListPreviewName(null); }, [pathname]);
     useEffect(() => {
         if (authLoading || !getToken())
             return;
@@ -356,7 +373,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         return () => {
             cancelled = true;
         };
-    }, [authLoading, role, userId]);
+    }, [authLoading, role, userId, pathname]);
     const [composeJobPostingId, setComposeJobPostingId] = useState<string | null>(null);
     const [threadHostApplication, setThreadHostApplication] = useState<{
         id: string;
@@ -452,7 +469,8 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         setLoadingThread(true);
         try {
             const { messages, partner: p } = await messageApi.getThread(partnerId);
-            setThread(messages);
+            const hiddenIds = new Set(JSON.parse(localStorage.getItem('deleted-for-me') || '[]'));
+            setThread(messages.filter((m: ThreadMessage) => !hiddenIds.has(m.id)));
             setPartner(p);
             setConversations((prev) => prev.map((c) => c.partnerId === partnerId ? { ...c, unreadCount: 0 } : c));
         }
@@ -504,7 +522,8 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         q: debouncedSearchQuery || undefined,
                     }),
                 ]);
-                setThread(messages);
+                const hiddenIds2 = new Set(JSON.parse(localStorage.getItem('deleted-for-me') || '[]'));
+                setThread(messages.filter((m: ThreadMessage) => !hiddenIds2.has(m.id)));
                 setConversations(convs.map((c) => c.partnerId === selectedPartnerId ? { ...c, unreadCount: 0 } : c));
             }
             catch {
@@ -597,7 +616,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
         if (e.nativeEvent.isComposing)
             return;
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             void handleSend();
         }
@@ -1403,7 +1422,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         fontWeight: 600,
                         color: '#0f1523',
                     }}>
-                                {getDisplayName(msg.sender as AnyUser)}
+                                {isMine ? (myListPreviewName ?? getDisplayName(msg.sender as AnyUser)) : getDisplayName(msg.sender as AnyUser)}
                               </span>
                               <span style={{ fontSize: 11, color: '#9CA3AF' }}>
                                 {fmtTime(msg.sentAt)}
@@ -1786,7 +1805,14 @@ function MessagesPageInner({ role }: MessagesPageProps) {
           </div>)}
       </div>
 
-      {deleteTarget && (<DeleteModal onDeleteForEveryone={() => void confirmDeleteForEveryone()} onCancel={() => setDeleteTarget(null)}/>)}
+      {deleteTarget && (<DeleteModal onDeleteForEveryone={() => void confirmDeleteForEveryone()} onDeleteForMe={() => {
+        if (!deleteTarget) return;
+        const key = 'deleted-for-me';
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        localStorage.setItem(key, JSON.stringify([...existing, deleteTarget.id]));
+        setThread((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+        setDeleteTarget(null);
+      }} onCancel={() => setDeleteTarget(null)}/>)}
     </DashLayout>);
 }
 export default function MessagesPage(props: MessagesPageProps) {
