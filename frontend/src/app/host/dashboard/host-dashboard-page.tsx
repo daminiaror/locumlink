@@ -961,9 +961,10 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
       {isExpanded && !isDraft && (<InlineApplicantsTable jobId={job.id} jobTitle={job.title} applications={applications[job.id] ?? []} loading={loadingAppsFor === job.id} onViewAll={() => onViewAll(job.id)}/>)}
     </div>);
 }
-function JobPostingOverlay({ onClose, onSuccess, }: {
+function JobPostingOverlay({ onClose, onSuccess, verified = false, }: {
     onClose: () => void;
     onSuccess: () => void;
+    verified?: boolean;
 }) {
     const [step, setStep] = useState(1);
     const [jobTitle, setJobTitle] = useState('');
@@ -1056,6 +1057,25 @@ function JobPostingOverlay({ onClose, onSuccess, }: {
         }
     }
     return (<>
+      {!verified && (<div style={{
+            position: 'fixed',
+            top: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10001,
+            background: '#FFFBEB',
+            border: '1px solid #FDE68A',
+            borderRadius: 8,
+            padding: '10px 20px',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 13,
+            color: '#92400E',
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        }}>
+          ⚠️ CPSNS not verified — this job will be saved as a Draft until verified by admin.
+        </div>)}
       <div onClick={onClose} style={{
             position: 'fixed',
             inset: 0,
@@ -2142,10 +2162,6 @@ export default function HostDashboard(props: {
         })}
                 </div>
                 <button onClick={() => {
-            if (!verified) {
-                window.alert('Not verified yet. An admin must verify your CPSNS number before you can post a job.');
-                return;
-            }
             setShowJobOverlay(true);
         }} style={{
             all: 'unset',
@@ -2243,7 +2259,7 @@ export default function HostDashboard(props: {
       </div>
 
       
-      {showJobOverlay && (<JobPostingOverlay onClose={() => setShowJobOverlay(false)} onSuccess={() => {
+      {showJobOverlay && (<JobPostingOverlay verified={verified} onClose={() => setShowJobOverlay(false)} onSuccess={() => {
                 setShowJobOverlay(false);
                 loadDashboardFromApi();
             }}/>)}
