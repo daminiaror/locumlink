@@ -388,7 +388,6 @@ export default function HostProfilePage(props: {
         []
     );
 
-    // ── resolvedPracticeType: used for both progressPct and handleSave ──
     const resolvedPracticeType =
         practiceTypeChoice === CUSTOM_PRACTICE_TYPE
             ? practiceTypeCustom.trim()
@@ -439,13 +438,12 @@ export default function HostProfilePage(props: {
 
     const stepComplete = [
         !!(
-            clinicName &&
             derivedContactFirst &&
             derivedContactLast &&
             isCpsnsNineDigitsFormat(cpsns) &&
             specialties.length
         ),
-        !!(addr1 && postal && city && province),
+        !!(clinicName && addr1 && postal && city && province),
         !!(resolvedPracticeType && numPhysicians && emr && patientVol),
         amenities.length > 0,
     ];
@@ -1743,69 +1741,100 @@ export default function HostProfilePage(props: {
                                     }}
                                 >
                                     <label style={lbl}>Practice Type</label>
+                                    {/* ── Inline custom practice type: replaces select, no extra box ── */}
                                     <div style={{ position: 'relative' }}>
-                                        <select
-                                            style={selectField}
-                                            value={practiceTypeChoice}
-                                            onChange={(e) => {
-                                                const v = e.target.value;
-                                                setPracticeTypeChoice(v);
-                                                if (v !== CUSTOM_PRACTICE_TYPE)
-                                                    setPracticeTypeCustom('');
-                                            }}
-                                        >
-                                            <option value="" disabled>
-                                                Select practice type
-                                            </option>
-                                            {PRACTICE_TYPE_OPTIONS.map((opt) => (
-                                                <option key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <svg
-                                            width="18"
-                                            height="18"
-                                            viewBox="0 0 18 18"
-                                            fill="none"
-                                            style={{
-                                                position: 'absolute',
-                                                right: 10,
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                pointerEvents: 'none',
-                                                color: '#6B7280',
-                                            }}
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                d="M4.5 6.75L9 11.25l4.5-4.5"
-                                                stroke="currentColor"
-                                                strokeWidth="1.6"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            />
-                                        </svg>
+                                        {practiceTypeChoice === CUSTOM_PRACTICE_TYPE ? (
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    autoFocus
+                                                    value={practiceTypeCustom}
+                                                    onChange={(e) => setPracticeTypeCustom(e.target.value)}
+                                                    placeholder="Enter custom practice type"
+                                                    autoComplete="off"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    style={{
+                                                        ...selectField,
+                                                        paddingRight: 36,
+                                                        ...(practiceTypeCustom.trim() === ''
+                                                            ? { border: '1px solid #f97316' }
+                                                            : {}),
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPracticeTypeChoice('');
+                                                        setPracticeTypeCustom('');
+                                                    }}
+                                                    title="Back to list"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        right: 10,
+                                                        top: '50%',
+                                                        transform: 'translateY(-50%)',
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        color: '#6B7280',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        padding: 0,
+                                                    }}
+                                                >
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                                        <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                                    </svg>
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <select
+                                                    style={selectField}
+                                                    value={practiceTypeChoice}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        setPracticeTypeChoice(v);
+                                                        if (v !== CUSTOM_PRACTICE_TYPE)
+                                                            setPracticeTypeCustom('');
+                                                    }}
+                                                >
+                                                    <option value="" disabled>
+                                                        Select practice type
+                                                    </option>
+                                                    {PRACTICE_TYPE_OPTIONS.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <svg
+                                                    width="18"
+                                                    height="18"
+                                                    viewBox="0 0 18 18"
+                                                    fill="none"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        right: 10,
+                                                        top: '50%',
+                                                        transform: 'translateY(-50%)',
+                                                        pointerEvents: 'none',
+                                                        color: '#6B7280',
+                                                    }}
+                                                    aria-hidden="true"
+                                                >
+                                                    <path
+                                                        d="M4.5 6.75L9 11.25l4.5-4.5"
+                                                        stroke="currentColor"
+                                                        strokeWidth="1.6"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    />
+                                                </svg>
+                                            </>
+                                        )}
                                     </div>
-
-                                    {/* ── Custom practice type: inline input only, no extra label ── */}
-                                    {practiceTypeChoice === CUSTOM_PRACTICE_TYPE && (
-                                        <input
-                                            id="host-practice-type-custom"
-                                            type="text"
-                                            value={practiceTypeCustom}
-                                            placeholder="Enter practice type"
-                                            onChange={(e) => setPracticeTypeCustom(e.target.value)}
-                                            autoComplete="off"
-                                            style={{
-                                                ...fieldInput,
-                                                marginTop: 8,
-                                                ...(practiceTypeCustom.trim() === ''
-                                                    ? { border: '1px solid #f97316' }
-                                                    : {}),
-                                            }}
-                                        />
-                                    )}
                                 </div>
 
                                 <div
