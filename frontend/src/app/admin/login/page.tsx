@@ -59,11 +59,17 @@ function AdminLoginInner() {
         setFormError(msg);
         return;
       }
-      window.location.assign(
-        typeof data.redirect === 'string' && data.redirect.startsWith('http')
-          ? data.redirect
-          : nextPath,
-      );
+      let target = nextPath;
+      if (typeof data.redirect === 'string' && data.redirect.startsWith('http')) {
+        try {
+          if (new URL(data.redirect).origin === window.location.origin) {
+            target = data.redirect;
+          }
+        } catch {
+          /* use nextPath */
+        }
+      }
+      window.location.assign(target);
     } catch {
       setFormError('Could not reach the server. Is the API running?');
     } finally {

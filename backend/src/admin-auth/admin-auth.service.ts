@@ -81,7 +81,7 @@ export class AdminAuthService {
   }
 
   getFrontendRedirectUrl() {
-    return this.config.get<string>('ADMIN_FRONTEND_REDIRECT_URL', 'http://localhost:3002/admin/dashboard');
+    return this.config.get<string>('ADMIN_FRONTEND_REDIRECT_URL', 'http://localhost:3001/admin');
   }
 
   /** Origin derived from ADMIN_FRONTEND_REDIRECT_URL so login links stay in sync. */
@@ -90,7 +90,7 @@ export class AdminAuthService {
       return new URL(this.getFrontendRedirectUrl()).origin;
     }
     catch {
-      return 'http://localhost:3002';
+      return 'http://localhost:3001';
     }
   }
 
