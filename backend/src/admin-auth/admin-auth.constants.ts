@@ -11,7 +11,8 @@ export const ADMIN_AUTH_COOKIE_OPTS = {
   path: '/',
 };
 
-const DEFAULT_ADMIN_FRONTEND = 'http://localhost:3002/admin/dashboard';
+/** Matches `npm run dev` (Next on 3001). Use port 3002 only if you run `npm run dev:3002 -w frontend`. */
+const DEFAULT_ADMIN_FRONTEND = 'http://localhost:3001/admin';
 
 /**
  * Google OAuth redirect URI sent to Google. Derived from ADMIN_FRONTEND_REDIRECT_URL
@@ -26,7 +27,7 @@ export function resolveAdminGoogleCallbackUrl(config: ConfigService): string {
   try {
     derived = `${new URL(frontend).origin}/api/admin-auth/google/callback`;
   } catch {
-    derived = 'http://localhost:3002/api/admin-auth/google/callback';
+    derived = 'http://localhost:3001/api/admin-auth/google/callback';
   }
 
   const explicit = config.get<string>('GOOGLE_ADMIN_CALLBACK_URL', '').trim();

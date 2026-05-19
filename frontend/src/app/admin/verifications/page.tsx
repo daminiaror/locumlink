@@ -157,7 +157,9 @@ export default function AdminVerificationsPage() {
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1 className="page-title">Credential Verification Queue</h1>
           <p className="page-description">
-            Review and verify locum physician credentials (Target: 48h turnaround)
+            New locum and host profiles appear here until you approve their CPSNS.
+            They are not verified automatically — use Review, then Verify &amp; Approve
+            (Target: 48h turnaround).
           </p>
         </div>
         <div className="header-actions">
@@ -173,8 +175,9 @@ export default function AdminVerificationsPage() {
         <table>
           <thead>
             <tr>
-              <th>Physician</th>
+              <th>Physician / clinic</th>
               <th>CPSNS #</th>
+              <th>Status</th>
               <th>Submitted</th>
               <th>Documents</th>
               <th>Wait Time</th>
@@ -184,13 +187,13 @@ export default function AdminVerificationsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-muted">
+                <td colSpan={7} className="text-muted">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-muted">
+                <td colSpan={7} className="text-muted">
                   No pending verifications.
                 </td>
               </tr>
@@ -208,7 +211,26 @@ export default function AdminVerificationsPage() {
                       </div>
                     </td>
                     <td>
-                      <code>{r.cpsns}</code>
+                      <code>{r.cpsns && r.cpsns !== '—' ? r.cpsns : 'Not provided'}</code>
+                    </td>
+                    <td>
+                      <span
+                        className="tag"
+                        style={{
+                          background:
+                            r.verificationStatus === 'PENDING_REVIEW'
+                              ? 'rgba(59, 79, 216, 0.12)'
+                              : 'rgba(234, 179, 8, 0.15)',
+                          color:
+                            r.verificationStatus === 'PENDING_REVIEW'
+                              ? '#1B31D2'
+                              : '#92400e',
+                        }}
+                      >
+                        {r.verificationStatus === 'PENDING_REVIEW'
+                          ? 'Awaiting review'
+                          : 'Not verified'}
+                      </span>
                     </td>
                     <td className="text-muted">{fmtDate(r.submittedAt)}</td>
                     <td>

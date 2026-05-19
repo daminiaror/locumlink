@@ -33,7 +33,10 @@ export async function GET(req: Request) {
     db.hostProfile.count({
       where: {
         cpsnsVerificationStatus: { in: ['UNVERIFIED', 'PENDING_REVIEW'] },
-        cpsnsNumber: { not: null },
+        OR: [
+          { cpsnsNumber: { not: null } },
+          { practiceName: { not: '' } },
+        ],
       },
     }),
     db.jobPosting.count({
