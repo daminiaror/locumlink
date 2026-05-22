@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getAdminSession } from '@/lib/admin-auth-server';
 import {
+  adminCpsnsNumberOrEmpty,
   credentialReviewDataOnProfileSave,
-  isCpsnsNineDigitsFormat,
-  isInCredentialQueue,
+  isEligibleForCredentialQueueHost,
+  isEligibleForCredentialQueueLocum,
   normalizeCpsns,
 } from '@/lib/cpsnsVerify';
 
@@ -97,44 +98,27 @@ export async function GET(req: Request) {
   );
 
   const locumItems = locumProfiles
-    .filter((p) => {
-      if (!isInCredentialQueue(p.cpsnsVerificationStatus))
-        return false;
-      const hasCpsns = isCpsnsNineDigitsFormat(p.cpsnsId);
-      const hasProfile = Boolean(
-        p.licenseFileName?.trim()
-        || p.resumeFileName?.trim()
-        || p.firstName?.trim()
-        || p.lastName?.trim(),
-      );
-      return hasCpsns || hasProfile;
-    })
+    .filter((p) => isEligibleForCredentialQueueLocum(p))
     .map((p) => ({
     id: p.id,
     profileType: 'locum' as const,
     userId: p.userId,
     email: p.user.email,
     name: [p.firstName, p.lastName].filter(Boolean).join(' ') || p.user.email,
-    cpsns: p.cpsnsId ?? '',
+    cpsns: adminCpsnsNumberOrEmpty(p.cpsnsId),
     submittedAt: p.updatedAt.toISOString(),
     cpsnsVerificationStatus: p.cpsnsVerificationStatus,
   }));
 
   const hostItems = hostProfiles
-    .filter((p) => {
-      if (!isInCredentialQueue(p.cpsnsVerificationStatus)) return false;
-      const hasCpsns = isCpsnsNineDigitsFormat(p.cpsnsNumber);
-      const hasClinicProfile = Boolean(p.practiceName?.trim());
-      const hasDocs = Boolean(p.licenseFile?.trim() || p.photoIdFile?.trim());
-      return hasCpsns || hasClinicProfile || hasDocs;
-    })
+    .filter((p) => isEligibleForCredentialQueueHost(p))
     .map((p) => ({
       id: p.id,
       profileType: 'host' as const,
       userId: p.userId,
       email: p.user.email,
       name: p.practiceName || p.user.email,
-      cpsns: normalizeCpsns(p.cpsnsNumber) || '—',
+      cpsns: adminCpsnsNumberOrEmpty(p.cpsnsNumber),
       submittedAt: p.updatedAt.toISOString(),
       cpsnsVerificationStatus: p.cpsnsVerificationStatus,
     }));

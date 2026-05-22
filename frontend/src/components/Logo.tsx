@@ -3,11 +3,17 @@ import Image from 'next/image';
 interface LogoProps {
     white?: boolean;
     size?: 'sm' | 'md' | 'lg';
+    /** Second word in the wordmark (default: Link). */
+    accentLabel?: string;
 }
 // Match HomeLandingView branding by default.
 const sizes = { sm: 20, md: 27, lg: 32 };
 const imgPx = { sm: 28, md: 36, lg: 44 };
-export default function Logo({ white = false, size = 'md' }: LogoProps) {
+export default function Logo({
+    white = false,
+    size = 'md',
+    accentLabel = 'Link',
+}: LogoProps) {
     const fs = sizes[size];
     const color = white ? '#fff' : '#0F2A7A';
     const accent = white ? '#fff' : '#38C6C6';
@@ -21,7 +27,7 @@ export default function Logo({ white = false, size = 'md' }: LogoProps) {
             letterSpacing: 0,
         }}>
         <span style={{ color }}>Locum </span>
-        <span style={{ color: accent }}>Link</span>
+        <span style={{ color: accent }}>{accentLabel}</span>
       </span>
     </div>);
 }

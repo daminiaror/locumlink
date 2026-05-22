@@ -18,6 +18,10 @@ import type { AdminJwtPayload } from '../admin-auth/admin-auth.types.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { AdminUpdateUserDto } from './dto/admin-update-user.dto.js';
 import type { AdminUpdateVerificationDto } from './dto/admin-update-verification.dto.js';
+import {
+  isEligibleForCredentialQueueHost,
+  isEligibleForCredentialQueueLocum,
+} from '../cpsns/cpsns-verified.js';
 
 const VERIFICATION_PENDING_FILTER: VerificationStatus[] = [
   VerificationStatus.UNVERIFIED,
@@ -208,6 +212,25 @@ export class AdminService {
           lastLoginAt: true,
           suspensionNote: true,
           suspendedAt: true,
+          locumProfile: {
+            select: {
+              cpsnsVerificationStatus: true,
+              cpsnsId: true,
+              licenseFileName: true,
+              resumeFileName: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          hostProfile: {
+            select: {
+              cpsnsVerificationStatus: true,
+              cpsnsNumber: true,
+              practiceName: true,
+              licenseFile: true,
+              photoIdFile: true,
+            },
+          },
         },
       }),
     ]);
@@ -215,14 +238,34 @@ export class AdminService {
       total,
       page: params.page,
       pageSize: params.pageSize,
-      users: users.map((u) => ({
-        ...u,
-        createdAt: u.createdAt.toISOString(),
-        lastLoginAt: u.lastLoginAt
-          ? u.lastLoginAt.toISOString().slice(0, 10)
-          : null,
-        suspendedAt: u.suspendedAt ? u.suspendedAt.toISOString() : null,
-      })),
+      users: users.map((u) => {
+        const cpsnsVerificationStatus =
+          u.role === Role.LOCUM
+            ? (u.locumProfile?.cpsnsVerificationStatus ?? null)
+            : u.role === Role.HOST
+              ? (u.hostProfile?.cpsnsVerificationStatus ?? null)
+              : null;
+        const inCredentialQueue =
+          u.role === Role.LOCUM && u.locumProfile
+            ? isEligibleForCredentialQueueLocum(u.locumProfile)
+            : u.role === Role.HOST && u.hostProfile
+              ? isEligibleForCredentialQueueHost(u.hostProfile)
+              : false;
+
+        return {
+          id: u.id,
+          email: u.email,
+          role: u.role,
+          status: u.status,
+          cpsnsVerificationStatus,
+          inCredentialQueue,
+          createdAt: u.createdAt.toISOString(),
+          lastLoginAt: u.lastLoginAt
+            ? u.lastLoginAt.toISOString().slice(0, 10)
+            : null,
+          suspendedAt: u.suspendedAt ? u.suspendedAt.toISOString() : null,
+        };
+      }),
     };
   }
 
@@ -366,7 +409,16 @@ export class AdminService {
       }),
     ]);
 
-    const locumRows = locums.map((p) => ({
+    const eligibleLocums =
+      params.filter === 'PENDING_TAB'
+        ? locums.filter((p) => isEligibleForCredentialQueueLocum(p))
+        : locums;
+    const eligibleHosts =
+      params.filter === 'PENDING_TAB'
+        ? hosts.filter((p) => isEligibleForCredentialQueueHost(p))
+        : hosts;
+
+    const locumRows = eligibleLocums.map((p) => ({
       id: p.id,
       userId: p.userId,
       email: p.user.email,
@@ -381,7 +433,7 @@ export class AdminService {
       profileType: 'locum' as const,
     }));
 
-    const hostRows = hosts.map((p) => ({
+    const hostRows = eligibleHosts.map((p) => ({
       id: p.id,
       userId: p.userId,
       email: p.user.email,

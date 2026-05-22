@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Outfit, Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
@@ -22,10 +22,23 @@ const outfit = Outfit({
 export const metadata: Metadata = {
     title: 'Locum Link - Connect. Cover. Care.',
     description: 'Find a Locum within 2 days, without agencies or endless calls.',
-    icons: {
-        icon: '/logo1.png',
-        apple: '/logo1.png',
+    manifest: '/manifest.json',
+    applicationName: 'Locum Link',
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: 'default',
+        title: 'Locum Link',
     },
+    other: {
+        'mobile-web-app-capable': 'yes',
+    },
+    icons: {
+        icon: [{ url: '/logo.png', sizes: '192x192', type: 'image/png' }],
+        apple: [{ url: '/apple.png', sizes: '180x180', type: 'image/png' }],
+    },
+};
+export const viewport: Viewport = {
+    themeColor: '#1a56db',
 };
 export default function RootLayout({ children, }: {
     children: React.ReactNode;

@@ -78,3 +78,73 @@ export function credentialReviewPatchOnProfileSave(
     }
     return {};
 }
+
+/** Profiles that may appear in the admin credential queue (by status only). */
+export function isInCredentialQueue(
+    status: VerificationStatus | null | undefined,
+): boolean {
+    return (
+        status === VerificationStatus.UNVERIFIED
+        || status === VerificationStatus.PENDING_REVIEW
+        || status === VerificationStatus.REJECTED
+    );
+}
+
+export function isEligibleForCredentialQueueLocum(profile: {
+    cpsnsVerificationStatus: VerificationStatus | null | undefined;
+    cpsnsId: string | null | undefined;
+    licenseFileName?: string | null;
+    resumeFileName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+}): boolean {
+    if (!isInCredentialQueue(profile.cpsnsVerificationStatus)) return false;
+    const hasCpsns = isCpsnsNineDigitsFormat(profile.cpsnsId);
+    const hasProfile = Boolean(
+        profile.licenseFileName?.trim()
+        || profile.resumeFileName?.trim()
+        || profile.firstName?.trim()
+        || profile.lastName?.trim(),
+    );
+    return hasCpsns || hasProfile;
+}
+
+/** After signup (account still PENDING), push completed profiles into the review queue. */
+export function mergeCredentialReviewPatchForAccountPending(
+    existing: CpsnsProfileVerification | null,
+    basePatch: Pick<
+        { cpsnsVerificationStatus: VerificationStatus; cpsnsVerifiedAt: Date | null },
+        'cpsnsVerificationStatus' | 'cpsnsVerifiedAt'
+    > | Record<string, never>,
+    profileSubmittedForReview: boolean,
+    accountStatusPending: boolean,
+): Pick<
+    { cpsnsVerificationStatus: VerificationStatus; cpsnsVerifiedAt: Date | null },
+    'cpsnsVerificationStatus' | 'cpsnsVerifiedAt'
+> | Record<string, never> {
+    if (Object.keys(basePatch).length > 0) return basePatch;
+    if (!accountStatusPending || !profileSubmittedForReview) return basePatch;
+    if (existing?.cpsnsVerificationStatus === VerificationStatus.VERIFIED) {
+        return basePatch;
+    }
+    return {
+        cpsnsVerificationStatus: VerificationStatus.PENDING_REVIEW,
+        cpsnsVerifiedAt: null,
+    };
+}
+
+export function isEligibleForCredentialQueueHost(profile: {
+    cpsnsVerificationStatus: VerificationStatus | null | undefined;
+    cpsnsNumber: string | null | undefined;
+    practiceName?: string | null;
+    licenseFile?: string | null;
+    photoIdFile?: string | null;
+}): boolean {
+    if (!isInCredentialQueue(profile.cpsnsVerificationStatus)) return false;
+    const hasCpsns = isCpsnsNineDigitsFormat(profile.cpsnsNumber);
+    const hasClinicProfile = Boolean(profile.practiceName?.trim());
+    const hasDocs = Boolean(
+        profile.licenseFile?.trim() || profile.photoIdFile?.trim(),
+    );
+    return hasCpsns || hasClinicProfile || hasDocs;
+}

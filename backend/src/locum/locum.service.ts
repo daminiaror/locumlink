@@ -12,6 +12,7 @@ import {
     isCpsnsVerificationApproved,
     normalizeCpsns,
     credentialReviewPatchOnProfileSave,
+    mergeCredentialReviewPatchForAccountPending,
 } from '../cpsns/cpsns-verified.js';
 import type { SaveLocumProfileDto } from './locum.dto.js';
 function mapSpecialty(raw?: string): Specialty {
@@ -190,25 +191,41 @@ export class LocumService {
         const summary = dto.professionalSummary?.trim() || null;
         const specializationText = dto.specialization?.trim() || null;
         const yearsOfExperience = dto.yearsOfExperience === undefined ? null : dto.yearsOfExperience;
-        const existing = await this.prisma.locumProfile.findUnique({
-            where: { userId },
-            select: { cpsnsId: true, cpsnsVerificationStatus: true },
-        });
+        const [existing, account] = await Promise.all([
+            this.prisma.locumProfile.findUnique({
+                where: { userId },
+                select: { cpsnsId: true, cpsnsVerificationStatus: true },
+            }),
+            this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { status: true },
+            }),
+        ]);
         const profileSubmittedForReview = Boolean(
             dto.licenseFileName?.trim()
             || dto.resumeFileName?.trim()
             || dto.firstName?.trim()
             || dto.lastName?.trim(),
         );
-        const verificationPatch = credentialReviewPatchOnProfileSave(
+        const verificationPatch = mergeCredentialReviewPatchForAccountPending(
             existing
                 ? {
                       cpsnsNumber: existing.cpsnsId,
                       cpsnsVerificationStatus: existing.cpsnsVerificationStatus,
                   }
                 : null,
-            cpsnsDigits,
+            credentialReviewPatchOnProfileSave(
+                existing
+                    ? {
+                          cpsnsNumber: existing.cpsnsId,
+                          cpsnsVerificationStatus: existing.cpsnsVerificationStatus,
+                      }
+                    : null,
+                cpsnsDigits,
+                profileSubmittedForReview,
+            ),
             profileSubmittedForReview,
+            account?.status === UserStatus.PENDING,
         );
         const profile = await this.prisma.locumProfile.upsert({
             where: { userId },

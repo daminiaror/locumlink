@@ -17,6 +17,7 @@ type Row = {
   role: 'LOCUM' | 'HOST' | 'ADMIN';
   status: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'DEACTIVATED';
   cpsnsVerificationStatus: CpsnsVerificationStatus | null;
+  inCredentialQueue?: boolean;
   createdAt: string;
   lastLoginAt: string | null;
 };
@@ -29,6 +30,7 @@ function roleLabel(role: Row['role']): string {
   return 'Admin';
 }
 
+/** Credential + account status for the User Management table. */
 function displayStatus(row: Row): DisplayStatus {
   if (row.status === 'SUSPENDED') {
     return { label: 'Suspended', className: 'status-suspended' };
@@ -36,16 +38,25 @@ function displayStatus(row: Row): DisplayStatus {
   if (row.status === 'DEACTIVATED') {
     return { label: 'Deactivated', className: 'status-deactivated' };
   }
-  if (row.status === 'PENDING') {
-    return { label: 'Pending', className: 'status-pending' };
-  }
   if (row.cpsnsVerificationStatus === 'VERIFIED') {
     return { label: 'Verified', className: 'status-verified' };
   }
   if (row.cpsnsVerificationStatus === 'REJECTED') {
     return { label: 'Rejected', className: 'status-rejected' };
   }
-  return { label: 'Pending review', className: 'status-pending' };
+  if (row.inCredentialQueue) {
+    return { label: 'Under review', className: 'status-under-review' };
+  }
+  if (row.status === 'PENDING') {
+    return { label: 'Setup incomplete', className: 'status-pending' };
+  }
+  if (row.cpsnsVerificationStatus === 'PENDING_REVIEW') {
+    return { label: 'Incomplete profile', className: 'text-muted' };
+  }
+  if (!row.cpsnsVerificationStatus) {
+    return { label: 'No profile', className: 'text-muted' };
+  }
+  return { label: 'Not submitted', className: 'text-muted' };
 }
 
 function matchesStatusFilter(row: Row, filter: string): boolean {
@@ -53,7 +64,8 @@ function matchesStatusFilter(row: Row, filter: string): boolean {
   const { label } = displayStatus(row);
   if (filter === 'verified') return label === 'Verified';
   if (filter === 'rejected') return label === 'Rejected';
-  if (filter === 'pending') return label === 'Pending' || label === 'Pending review';
+  if (filter === 'under_review') return label === 'Under review';
+  if (filter === 'pending') return label === 'Setup incomplete';
   if (filter === 'suspended') return label === 'Suspended';
   if (filter === 'deactivated') return label === 'Deactivated';
   return true;
@@ -229,7 +241,8 @@ export default function AdminUsersPage() {
           <option value="all">All Statuses</option>
           <option value="verified">Verified</option>
           <option value="rejected">Rejected</option>
-          <option value="pending">Pending review</option>
+          <option value="under_review">Under review</option>
+          <option value="pending">Setup incomplete</option>
           <option value="suspended">Suspended</option>
           <option value="deactivated">Deactivated</option>
         </select>

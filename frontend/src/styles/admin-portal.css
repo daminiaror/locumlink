@@ -36,17 +36,10 @@
   border-bottom: 1px solid #1e293b;
 }
 
-.admin-portal .sidebar-header h1 {
-  color: white;
-  font-size: 20px;
-  font-weight: bold;
-  margin: 0;
-}
-
 .admin-portal .sidebar-header p {
   color: #94a3b8;
   font-size: 14px;
-  margin: 4px 0 0;
+  margin: 8px 0 0;
 }
 
 .admin-portal .sidebar-nav {
@@ -413,6 +406,12 @@
   background-color: #fef3c7;
   color: #92400e;
   border-color: #fcd34d;
+}
+
+.admin-portal .status-under-review {
+  background-color: rgba(59, 79, 216, 0.12);
+  color: #1b31d2;
+  border-color: rgba(59, 79, 216, 0.35);
 }
 
 .admin-portal .status-suspended {
