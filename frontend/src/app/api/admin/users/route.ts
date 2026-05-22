@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getAdminSession } from '@/lib/admin-auth-server';
+import {
+  isEligibleForCredentialQueueHost,
+  isEligibleForCredentialQueueLocum,
+} from '@/lib/cpsnsVerify';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -31,8 +35,25 @@ export async function GET(req: Request) {
       status: true,
       createdAt: true,
       lastLoginAt: true,
-      locumProfile: { select: { cpsnsVerificationStatus: true } },
-      hostProfile: { select: { cpsnsVerificationStatus: true } },
+      locumProfile: {
+        select: {
+          cpsnsVerificationStatus: true,
+          cpsnsId: true,
+          licenseFileName: true,
+          resumeFileName: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      hostProfile: {
+        select: {
+          cpsnsVerificationStatus: true,
+          cpsnsNumber: true,
+          practiceName: true,
+          licenseFile: true,
+          photoIdFile: true,
+        },
+      },
     },
   });
 
@@ -48,6 +69,12 @@ export async function GET(req: Request) {
           : u.role === 'HOST'
             ? u.hostProfile?.cpsnsVerificationStatus ?? null
             : null,
+      inCredentialQueue:
+        u.role === 'LOCUM' && u.locumProfile
+          ? isEligibleForCredentialQueueLocum(u.locumProfile)
+          : u.role === 'HOST' && u.hostProfile
+            ? isEligibleForCredentialQueueHost(u.hostProfile)
+            : false,
       createdAt: u.createdAt.toISOString(),
       lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
     })),

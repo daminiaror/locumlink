@@ -19,6 +19,7 @@ import {
     isCpsnsVerificationApproved,
     normalizeCpsns,
     credentialReviewPatchOnProfileSave,
+    mergeCredentialReviewPatchForAccountPending,
 } from '../cpsns/cpsns-verified.js';
   
   export type HostProfileApi = {
@@ -157,24 +158,40 @@ import {
       void _userIdInData;
       const rawCpsns = dto.cpsnsNumber?.trim() ?? '';
       const cpsnsDigits = rawCpsns ? normalizeCpsns(rawCpsns) : '';
-      const existing = await this.prisma.hostProfile.findUnique({
-        where: { userId },
-        select: { cpsnsNumber: true, cpsnsVerificationStatus: true },
-      });
+      const [existing, account] = await Promise.all([
+        this.prisma.hostProfile.findUnique({
+          where: { userId },
+          select: { cpsnsNumber: true, cpsnsVerificationStatus: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { status: true },
+        }),
+      ]);
       const profileSubmittedForReview = Boolean(
         dto.licenseFile
         || dto.photoIdFile
         || dto.clinicName?.trim(),
       );
-      const verificationPatch = credentialReviewPatchOnProfileSave(
+      const verificationPatch = mergeCredentialReviewPatchForAccountPending(
         existing
           ? {
               cpsnsNumber: existing.cpsnsNumber,
               cpsnsVerificationStatus: existing.cpsnsVerificationStatus,
             }
           : null,
-        cpsnsDigits,
+        credentialReviewPatchOnProfileSave(
+          existing
+            ? {
+                cpsnsNumber: existing.cpsnsNumber,
+                cpsnsVerificationStatus: existing.cpsnsVerificationStatus,
+              }
+            : null,
+          cpsnsDigits,
+          profileSubmittedForReview,
+        ),
         profileSubmittedForReview,
+        account?.status === UserStatus.PENDING,
       );
       const profile = await this.prisma.hostProfile.upsert({
         where: { userId },
@@ -693,8 +710,12 @@ import {
           role: Role.HOST,
           status: { in: [UserStatus.ACTIVE, UserStatus.PENDING] },
           hostProfile: { isNot: null },
+          OR: [
+            { avatarStoragePath: { not: null } },
+            { hostProfile: { photoIdFile: { not: null } } },
+          ],
         },
-        orderBy: { hostProfile: { updatedAt: 'desc' } },
+        orderBy: { updatedAt: 'desc' },
         take: 50,
         select: {
           id: true,

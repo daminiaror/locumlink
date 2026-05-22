@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { adminApiBase } from '@/lib/adminApi';
 import { useAdminStats } from '@/components/AdminStatsContext';
+import Logo from '@/components/Logo';
 import '@/styles/admin-portal.css';
 
 type NavItem = {
@@ -91,7 +92,7 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
       <div className="admin-container">
         <aside className="sidebar">
           <div className="sidebar-header">
-            <h1>LocumLink</h1>
+            <Logo white size="md" />
             <p>Admin Portal</p>
           </div>
 

@@ -67,18 +67,6 @@ function readStoredMessagesListWidth(): number {
         return MESSAGES_LIST_DEFAULT;
     return Math.min(MESSAGES_LIST_MAX, Math.max(MESSAGES_LIST_MIN, n));
 }
-const QUICK_EMOJIS = [
-    '👍',
-    '❤️',
-    '😊',
-    '👋',
-    '🙏',
-    '✅',
-    '🎉',
-    '😂',
-    '💬',
-    '👏',
-] as const;
 type AnyUser = {
     id: string;
     email: string;
@@ -204,14 +192,6 @@ function SearchIcon() {
     return (<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
       <circle cx="6.5" cy="6.5" r="4.5" stroke="#9CA3AF" strokeWidth="1.4"/>
       <path d="M10 10l3.5 3.5" stroke="#9CA3AF" strokeWidth="1.4" strokeLinecap="round"/>
-    </svg>);
-}
-function EmojiIcon() {
-    return (<svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <circle cx="10" cy="10" r="8" stroke="#6B7280" strokeWidth="1.4"/>
-      <circle cx="7.5" cy="8.5" r="1" fill="#6B7280"/>
-      <circle cx="12.5" cy="8.5" r="1" fill="#6B7280"/>
-      <path d="M6.5 12.5c.8 1.5 2.1 2 3.5 2s2.7-.5 3.5-2" stroke="#6B7280" strokeWidth="1.4" strokeLinecap="round"/>
     </svg>);
 }
 function AttachFileIcon() {
@@ -412,8 +392,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const filePickRef = useRef<HTMLInputElement>(null);
     const imagePickRef = useRef<HTMLInputElement>(null);
-    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-    const emojiPickerRef = useRef<HTMLDivElement>(null);
     const threadSinceRef = useRef<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -427,17 +405,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         document.addEventListener('mousedown', onClickOutside);
         return () => document.removeEventListener('mousedown', onClickOutside);
     }, [menuOpenId]);
-    useEffect(() => {
-        if (!emojiPickerOpen)
-            return;
-        function onDocMouseDown(e: MouseEvent) {
-            const el = emojiPickerRef.current;
-            if (el && !el.contains(e.target as Node))
-                setEmojiPickerOpen(false);
-        }
-        document.addEventListener('mousedown', onDocMouseDown);
-        return () => document.removeEventListener('mousedown', onDocMouseDown);
-    }, [emojiPickerOpen]);
     useEffect(() => {
         const t = window.setTimeout(() => setDebouncedSearchQuery(search.trim()), 280);
         return () => window.clearTimeout(t);
@@ -634,24 +601,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         finally {
             setSending(false);
             inputRef.current?.focus();
-        }
-    }
-    function insertEmoji(emoji: string) {
-        const ta = inputRef.current;
-        if (ta) {
-            const start = ta.selectionStart;
-            const end = ta.selectionEnd;
-            setMessageText((prev) => prev.slice(0, start) + emoji + prev.slice(end));
-            setEmojiPickerOpen(false);
-            requestAnimationFrame(() => {
-                ta.focus();
-                const pos = start + [...emoji].length;
-                ta.setSelectionRange(pos, pos);
-            });
-        }
-        else {
-            setMessageText((prev) => prev + emoji);
-            setEmojiPickerOpen(false);
         }
     }
     function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -1165,9 +1114,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 {conversations.length === 0 &&
                 filteredLocumAppRows.length === 0 && (<div style={{ padding: '48px 24px', textAlign: 'center' }}>
                       {urlPartnerId ? (<>
-                          <div style={{ fontSize: 40, marginBottom: 12 }}>
-                            👋
-                          </div>
                           <div style={{
                         fontSize: 14,
                         fontWeight: 600,
@@ -1180,9 +1126,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                             Type a message below to reach out
                           </div>
                         </>) : debouncedSearchQuery ? (<>
-                          <div style={{ fontSize: 40, marginBottom: 12 }}>
-                            🔍
-                          </div>
                           <div style={{
                         fontSize: 14,
                         fontWeight: 600,
@@ -1197,9 +1140,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         </>) : role === 'locum' &&
                     locumApplicationSidebarRows.length === 0 &&
                     myApplications.length > 0 ? (<>
-                          <div style={{ fontSize: 40, marginBottom: 12 }}>
-                            💬
-                          </div>
                           <div style={{
                         fontSize: 14,
                         fontWeight: 600,
@@ -1212,9 +1152,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                             Confirmed or closed applications are not listed here
                           </div>
                         </>) : role === 'locum' ? (<>
-                          <div style={{ fontSize: 40, marginBottom: 12 }}>
-                            💬
-                          </div>
                           <div style={{
                         fontSize: 14,
                         fontWeight: 600,
@@ -1227,9 +1164,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                             
                           </div>
                         </>) : (<>
-                          <div style={{ fontSize: 40, marginBottom: 12 }}>
-                            💬
-                          </div>
                           <div style={{
                         fontSize: 14,
                         fontWeight: 600,
@@ -1468,7 +1402,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                     color: '#9CA3AF',
                     paddingTop: 40,
                 }}>
-                  No messages yet. Say hello! 👋
+                  No messages yet. Say hello!
                 </div>) : (thread.map((msg, idx) => {
                 const isMine = msg.senderId !== selectedPartnerId;
                 const isDeleted = !!msg.deletedAt;
@@ -1728,7 +1662,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                                     overflow: 'hidden',
                                 }} title={a.storagePath}>
                                       <span style={{ fontSize: 12, color: '#6B7280' }}>
-                                        {isImageMime(a.mimeType) ? '🖼️' : '📄'}
+                                        {isImageMime(a.mimeType) ? 'Image' : 'File'}
                                       </span>
                                       <span style={{
                                     fontSize: 12,
@@ -1791,7 +1725,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                         maxWidth: '100%',
                     }}>
                       <span style={{ fontSize: 12, color: '#6B7280' }}>
-                        {isImageMime(f.type) ? '🖼️' : '📄'}
+                        {isImageMime(f.type) ? 'Image' : 'File'}
                       </span>
                       <span style={{
                         fontSize: 12,
@@ -1835,7 +1769,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 alignItems: 'center',
                 justifyContent: 'space-between',
             }}>
-                <div ref={emojiPickerRef} style={{ position: 'relative', display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12 }}>
                   <button type="button" title="Attach PDF or Word documents" aria-label="Attach PDF or Word documents" onClick={() => filePickRef.current?.click()} style={{
                 background: 'none',
                 border: '1px solid #E5E7EB',
@@ -1853,17 +1787,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                     appendPendingAttachments(files);
                 e.target.value = '';
             }}/>
-                  <button type="button" title="Add emoji" aria-expanded={emojiPickerOpen} aria-haspopup="dialog" onClick={() => setEmojiPickerOpen((o) => !o)} style={{
-                background: emojiPickerOpen ? '#EEF0FB' : 'none',
-                border: '1px solid #E5E7EB',
-                borderRadius: 8,
-                cursor: 'pointer',
-                padding: '4px 8px',
-                display: 'flex',
-                alignItems: 'center',
-            }}>
-                    <EmojiIcon />
-                  </button>
                   <button type="button" title="Add images" aria-label="Add images" onClick={() => imagePickRef.current?.click()} style={{
                 background: 'none',
                 border: '1px solid #E5E7EB',
@@ -1881,34 +1804,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                     appendPendingAttachments(files);
                 e.target.value = '';
             }}/>
-                  {emojiPickerOpen && (<div role="dialog" aria-label="Quick emoji" style={{
-                    position: 'absolute',
-                    left: 0,
-                    bottom: '100%',
-                    marginBottom: 8,
-                    padding: 10,
-                    background: '#fff',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: 10,
-                    boxShadow: '0 10px 30px rgba(15, 23, 42, 0.12)',
-                    zIndex: 200,
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(5, 1fr)',
-                    gap: 6,
-                    minWidth: 200,
-                }}>
-                      {QUICK_EMOJIS.map((emoji) => (<button key={emoji} type="button" onClick={() => insertEmoji(emoji)} style={{
-                        fontSize: 22,
-                        lineHeight: 1,
-                        padding: '6px 4px',
-                        border: 'none',
-                        borderRadius: 8,
-                        background: '#F9FAFB',
-                        cursor: 'pointer',
-                    }}>
-                          {emoji}
-                        </button>))}
-                    </div>)}
                 </div>
                 <button type="button" onClick={() => void handleSend()} disabled={sending || (!messageText.trim() && pendingFiles.length === 0)} style={{
                 padding: '9px 28px',

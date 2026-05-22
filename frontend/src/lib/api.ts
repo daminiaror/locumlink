@@ -300,7 +300,7 @@ export const landingApi = {
     getRecentHostAvatars: async (): Promise<{
         avatars: string[];
     }> => {
-        const res = await trackedFetch(`${NEST_BASE}/api/public/recent-host-avatars`, {
+        const res = await trackedFetch('/api/public/recent-host-avatars', {
             cache: 'no-store',
             headers: nestHeaders(false),
         });
@@ -347,7 +347,7 @@ export const locumApi = {
     getBrowseOpportunitiesCount: async (): Promise<{
         count: number;
     }> => {
-        const res = await trackedFetch(`${NEST_BASE}/api/locum/jobs/browse-count`, {
+        const res = await trackedFetch('/api/locum/jobs/browse-count', {
             cache: 'no-store',
             headers: nestHeaders(false),
         });

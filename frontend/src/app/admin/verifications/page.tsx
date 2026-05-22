@@ -10,7 +10,10 @@ import {
 } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import { adminFetchJson } from '@/lib/adminApi';
-import { adminVerificationStatusTag } from '@/lib/cpsnsVerify';
+import {
+  adminVerificationStatusTag,
+  formatAdminCpsnsDisplay,
+} from '@/lib/cpsnsVerify';
 
 type VerificationRow = {
   id: string;
@@ -242,7 +245,7 @@ export default function AdminVerificationsPage() {
                       </div>
                     </td>
                     <td>
-                      <code>{r.cpsns && r.cpsns !== '—' ? r.cpsns : 'Not provided'}</code>
+                      <code>{formatAdminCpsnsDisplay(r.cpsns)}</code>
                     </td>
                     <td>
                       <span
@@ -300,7 +303,7 @@ export default function AdminVerificationsPage() {
               <div>
                 <h2 className="modal-title">{review.name}</h2>
                 <p className="modal-subtitle">
-                  CPSNS: <span>{review.cpsns}</span>
+                  CPSNS: <span>{formatAdminCpsnsDisplay(review.cpsns)}</span>
                 </p>
               </div>
               <button

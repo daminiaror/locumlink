@@ -22,10 +22,14 @@ function footerAvatarSources(hostUrls: string[]): string[] {
 export type HomeLandingViewProps = {
     interactive?: boolean;
     rootStyle?: React.CSSProperties;
+    /** Server-provided count of ACTIVE job postings; avoids "—" before client fetch. */
+    initialActiveJobCount?: number;
 };
-export function HomeLandingView({ interactive = true, rootStyle, }: HomeLandingViewProps) {
+export function HomeLandingView({ interactive = true, rootStyle, initialActiveJobCount, }: HomeLandingViewProps) {
     const router = useRouter();
-    const [browseOpportunityCount, setBrowseOpportunityCount] = useState<number | null>(null);
+    const [browseOpportunityCount, setBrowseOpportunityCount] = useState<number | null>(
+        initialActiveJobCount ?? null,
+    );
     const [recentHostAvatars, setRecentHostAvatars] = useState<string[]>([]);
 
     const goToAuth = (href: string) => {
@@ -42,7 +46,7 @@ export function HomeLandingView({ interactive = true, rootStyle, }: HomeLandingV
         })
             .catch(() => {
             if (!cancelled)
-                setBrowseOpportunityCount(null);
+                setBrowseOpportunityCount(initialActiveJobCount ?? null);
         });
         landingApi
             .getRecentHostAvatars()
@@ -226,7 +230,7 @@ export function HomeLandingView({ interactive = true, rootStyle, }: HomeLandingV
               <span style={{ fontWeight: 700, fontSize: 22 }}>{opportunityCountLabel}</span>
               <span style={{ fontWeight: 400 }}>
                 {' '}
-                active Locum opportunities across
+                active job postings across Nova Scotia
               </span>
             </p>
             <span style={{
@@ -321,7 +325,7 @@ export function HomeLandingView({ interactive = true, rootStyle, }: HomeLandingV
         }}>
               <span style={{ fontWeight: 600, color: '#0B0F1F' }}>{opportunityCountLabel}</span>
               {' '}
-              doctors covered shifts this month
+              active job postings on Locum Link
             </span>
           </div>
 

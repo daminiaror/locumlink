@@ -66,6 +66,41 @@ export function isInCredentialQueue(
     );
 }
 
+export function isEligibleForCredentialQueueLocum(profile: {
+    cpsnsVerificationStatus: CpsnsVerificationStatus | null | undefined;
+    cpsnsId: string | null | undefined;
+    licenseFileName?: string | null;
+    resumeFileName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+}): boolean {
+    if (!isInCredentialQueue(profile.cpsnsVerificationStatus)) return false;
+    const hasCpsns = isCpsnsNineDigitsFormat(profile.cpsnsId);
+    const hasProfile = Boolean(
+        profile.licenseFileName?.trim()
+        || profile.resumeFileName?.trim()
+        || profile.firstName?.trim()
+        || profile.lastName?.trim(),
+    );
+    return hasCpsns || hasProfile;
+}
+
+export function isEligibleForCredentialQueueHost(profile: {
+    cpsnsVerificationStatus: CpsnsVerificationStatus | null | undefined;
+    cpsnsNumber: string | null | undefined;
+    practiceName?: string | null;
+    licenseFile?: string | null;
+    photoIdFile?: string | null;
+}): boolean {
+    if (!isInCredentialQueue(profile.cpsnsVerificationStatus)) return false;
+    const hasCpsns = isCpsnsNineDigitsFormat(profile.cpsnsNumber);
+    const hasClinicProfile = Boolean(profile.practiceName?.trim());
+    const hasDocs = Boolean(
+        profile.licenseFile?.trim() || profile.photoIdFile?.trim(),
+    );
+    return hasCpsns || hasClinicProfile || hasDocs;
+}
+
 /** Promote to review queue when profile/docs were saved (mirrors backend save). */
 export function credentialReviewDataOnProfileSave(
     existing: { cpsnsNumber: string | null; cpsnsVerificationStatus: CpsnsVerificationStatus } | null,
@@ -94,6 +129,21 @@ function hasSubmittedCpsnsValue(cpsns: string | null | undefined): boolean {
     if (!raw || raw === '—')
         return false;
     return !/^pending-/i.test(raw);
+}
+
+/** Nine-digit CPSNS when present; empty when missing or placeholder. */
+export function adminCpsnsNumberOrEmpty(
+    cpsns: string | null | undefined,
+): string {
+    if (!hasSubmittedCpsnsValue(cpsns))
+        return '';
+    const digits = normalizeCpsns(cpsns);
+    return isCpsnsNineDigitsFormat(digits) ? digits : '';
+}
+
+/** Admin tables: show CPSNS digits or "Not provided". */
+export function formatAdminCpsnsDisplay(cpsns: string | null | undefined): string {
+    return adminCpsnsNumberOrEmpty(cpsns) || 'Not provided';
 }
 
 /** Admin verifications table: label + colors for the Status column. */
