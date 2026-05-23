@@ -1,17 +1,20 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-primary: #3b4fd8;
-  --color-primary-hover: #2f41c4;
-  --color-primary-light: #eef0fb;
-  --color-teal: #2dd4bf;
+  --color-primary: #0F2A7A;
+  --color-primary-hover: #1E3FAF;
+  --color-primary-light: #E8EDF8;
+  --color-teal: #38C6C6;
+  --color-gradient-start: #0F2A7A;
+  --color-gradient-end: #1E3FAF;
+  --gradient-brand: linear-gradient(135deg, #0F2A7A 0%, #1E3FAF 100%);
   --color-app-bg: #f7f8fa;
   --color-border: #e2e5ee;
   --color-input-border: #d0d4e4;
   --color-text-primary: #0f1523;
   --color-text-secondary: #5a6478;
-  --color-text-muted: #8892a4;
-  --font-family-display: 'Outfit', sans-serif;
+  --color-text-muted: #B8C4D6;
+  --font-family-display: 'Inter', sans-serif;
   --font-family-body: 'DM Sans', sans-serif;
   --font-heading: 0.9375rem;
   --font-body: 0.875rem;
@@ -61,8 +64,8 @@
   }
 }
 .btn-outline-blue {
-  border: 1px solid #1b31d2 !important;
-  color: #1b31d2 !important;
+  border: 1px solid #0F2A7A !important;
+  color: #0F2A7A !important;
   background: #ffffff !important;
   transition:
     background 0.15s,
@@ -84,8 +87,8 @@
 }
 
 .btn-outline-gray:hover {
-  border-color: #1b31d2 !important;
-  color: #1b31d2 !important;
+  border-color: #0F2A7A !important;
+  color: #0F2A7A !important;
 }
 
 
@@ -438,7 +441,7 @@
   padding: 10px 22px;
   min-width: 108px;
   height: 44px;
-  border: 1px solid #1c32d2;
+  border: 1px solid #0F2A7A;
   border-radius: 8px;
   background: #ffffff;
   font-family: 'Inter', sans-serif;
@@ -446,7 +449,7 @@
   font-size: 16px;
   line-height: 140%;
   letter-spacing: 0.02em;
-  color: #1c32d2;
+  color: #0F2A7A;
   cursor: pointer;
   box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(28, 50, 210, 0.08);
@@ -495,7 +498,7 @@
   height: 44px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #1c32d2 0%, #3a65db 100%);
+  background: linear-gradient(135deg, #0F2A7A 0%, #1E3FAF 100%);
   font-family: 'Inter', sans-serif;
   font-weight: 600;
   font-size: 16px;
@@ -541,7 +544,7 @@
   height: 59px;
   border: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, #1c32d2 0%, #3a65db 100%);
+  background: linear-gradient(135deg, #0F2A7A 0%, #1E3FAF 100%);
   font-family: 'Inter', sans-serif;
   font-weight: 600;
   font-size: 20px;
@@ -604,7 +607,7 @@
     background 0.15s;
 }
 .home-admin-login-btn:hover {
-  color: #1b31d2;
+  color: #0F2A7A;
   border-color: #c7d2fe;
   background: #fff;
   box-shadow: 0 2px 10px rgba(27, 49, 210, 0.12);
