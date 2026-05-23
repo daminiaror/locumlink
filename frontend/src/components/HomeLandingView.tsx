@@ -180,10 +180,10 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             gap: 32,
         }}>
             {interactive ? (<>
-                <Link href="/auth?role=clinic" className="btn-landing-cta">
+                <Link href="/auth?role=clinic&locked=true" className="btn-landing-cta">
                   Post a Locum Request
                 </Link>
-                <Link href="/locum/browse" className="btn-landing-cta">
+                <Link href="/auth?role=locum&locked=true" className="btn-landing-cta">
                   Browse Locum Shifts
                 </Link>
               </>) : (<>
@@ -286,49 +286,6 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             gap: 24,
             marginTop: 'auto',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {footerAvatarSources(recentHostAvatars).map((src, index, list) => (<div
-                key={`${src}-${index}`}
-                style={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            border: '3px solid #F7F8FA',
-            marginRight: index < list.length - 1 ? -7 : 0,
-            overflow: 'hidden',
-            position: 'relative',
-            zIndex: list.length - index,
-            flexShrink: 0,
-            background: '#E5E7EB',
-        }}>
-                {src.startsWith('http') ? (
-                  <img
-                    src={src}
-                    alt=""
-                    width={56}
-                    height={56}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
-                ) : (
-                  <Image src={src} alt="" fill sizes="56px" style={{ objectFit: 'cover' }}/>
-                )}
-              </div>))}
-            </div>
-
-            <span style={{
-            fontFamily: 'Inter, sans-serif',
-            fontWeight: 400,
-            fontSize: 18,
-            color: '#606061',
-            marginLeft: 5,
-        }}>
-              <span style={{ fontWeight: 600, color: '#0B0F1F' }}>{opportunityCountLabel}</span>
-              {' '}
-              active job postings on Locum Link
-            </span>
-          </div>
-
           <div style={{
             display: 'flex',
             flexDirection: 'row',

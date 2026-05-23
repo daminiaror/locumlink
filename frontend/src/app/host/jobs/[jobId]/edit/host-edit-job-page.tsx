@@ -58,6 +58,7 @@ export default function HostEditJobPage(props: {
     const router = useRouter();
     const { profile, loading: profileLoading } = useHostProfile();
     const verified = isCpsnsVerificationApproved(profile?.cpsnsVerificationStatus);
+    const [sidebarWidth, setSidebarWidth] = useState(480);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [respBySection, setRespBySection] = useState<Record<string, Set<string>>>(() => emptyResponsibilitySelection());
@@ -83,6 +84,7 @@ export default function HostEditJobPage(props: {
     const [err, setErr] = useState('');
     const [loadBusy, setLoadBusy] = useState(true);
     const [jobLoaded, setJobLoaded] = useState(false);
+    const [jobStatus, setJobStatus] = useState<string>("");
     const [overlayMounted, setOverlayMounted] = useState(false);
     useLayoutEffect(() => {
         setOverlayMounted(true);
@@ -134,6 +136,7 @@ export default function HostEditJobPage(props: {
         hostApi
             .getJob(jobId)
             .then(({ job }) => {
+            setJobStatus((job as { status?: string }).status ?? "");
             if (cancelled)
                 return;
             setTitle(job.title ?? '');
@@ -304,7 +307,7 @@ export default function HostEditJobPage(props: {
             position: 'fixed',
             top: 0,
             right: 0,
-            width: 480,
+            width: sidebarWidth,
             height: '100vh',
             background: '#fff',
             zIndex: 201,
@@ -313,6 +316,35 @@ export default function HostEditJobPage(props: {
             fontFamily: 'Inter, sans-serif',
             boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
         }}>
+        {/* Drag handle */}
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startW = sidebarWidth;
+            const onMove = (ev: MouseEvent) => {
+              const delta = startX - ev.clientX;
+              const newW = Math.min(900, Math.max(320, startW + delta));
+              setSidebarWidth(newW);
+            };
+            const onUp = () => {
+              window.removeEventListener('mousemove', onMove);
+              window.removeEventListener('mouseup', onUp);
+            };
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+          }}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: 6,
+            height: '100%',
+            cursor: 'ew-resize',
+            zIndex: 10,
+            background: 'transparent',
+          }}
+        />
         <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -551,6 +583,58 @@ export default function HostEditJobPage(props: {
             }}>
                   {busy ? 'Saving…' : 'Save changes'}
                 </button>
+                {jobStatus === 'DRAFT' && (
+                <button type="button" disabled={busy} onClick={async () => {
+                  setErr('');
+                  const t = title.trim();
+                  setBusy(true);
+                  try {
+                    const startIso = parseMmDdYyyyToIso(startDateInput);
+                    const endIso = parseMmDdYyyyToIso(endDateInput);
+                    const rateNum = ratePerDay.trim() ? Number(ratePerDay) : NaN;
+                    const yearsNum = yearsExp.trim() ? Number(yearsExp) : NaN;
+                    const servicesRequired = servicesRaw.split(',').map((s) => s.trim()).filter(Boolean);
+                    await hostApi.updateJob(jobId, {
+                      title: t,
+                      description: description.trim() || undefined,
+                      keyResponsibilities: buildKeyResponsibilitiesPayload(respBySection, respCustom),
+                      location: location.trim() || undefined,
+                      startDate: startIso || undefined,
+                      endDate: endIso || undefined,
+                      startTime: startTime || undefined,
+                      endTime: endTime || undefined,
+                      payPerDay: Number.isFinite(rateNum) ? rateNum : undefined,
+                      minYearsExperience: yearsExp.trim() && Number.isFinite(yearsNum) ? yearsNum : undefined,
+                      requiredCredentials: credentials,
+                      travelRequired: travelReq,
+                      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+                      servicesRequired: servicesRequired.length ? servicesRequired : [],
+                      isRural,
+                      accommodationProvided,
+                      status: 'ACTIVE',
+                    });
+                    beforeClientNavigation('/host/dashboard');
+                    router.push('/host/dashboard');
+                  } catch (e: unknown) {
+                    const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : 'Could not post job.';
+                    setErr(msg);
+                  } finally {
+                    setBusy(false);
+                  }
+                }} style={{
+                  padding: '12px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: busy ? '#9ca3af' : 'linear-gradient(270deg,#22C55E 0%,#16A34A 100%)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 15,
+                  cursor: busy ? 'default' : 'pointer',
+                  fontFamily: 'inherit',
+                }}>
+                  {busy ? 'Posting…' : 'Post Job'}
+                </button>
+                )}
                 <button type="button" onClick={() => {
                 beforeClientNavigation('/host/dashboard');
                 router.push('/host/dashboard');

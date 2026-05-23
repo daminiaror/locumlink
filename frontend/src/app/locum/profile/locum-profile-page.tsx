@@ -176,6 +176,7 @@ export default function LocumProfilePage(props: {
 
   /* ── step 2 – contact details ───────────────────────────────────────── */
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState(getEmail() ?? '');
 
   /* ── step 3 – location ──────────────────────────────────────────────── */
   const [addr1,    setAddr1]    = useState('');
@@ -272,7 +273,7 @@ export default function LocumProfilePage(props: {
         const p = typed.profile;
         setFirstName(p.firstName ?? '');
         setLastName(p.lastName ?? '');
-        setCpsns(p.cpsnsNumber ?? '');
+        setCpsns(p.cpsnsNumber?.startsWith('pending-') ? '' : (p.cpsnsNumber ?? ''));
         setCpsnsVerificationStatus(p.cpsnsVerificationStatus);
         setYearsOfExperience(
           typeof (p as { yearsOfExperience?: unknown }).yearsOfExperience === 'number'
@@ -694,9 +695,9 @@ export default function LocumProfilePage(props: {
           <div>
             <label style={lbl}>Email</label>
             <input
-              style={{ ...inp, background: '#F9FAFB', color: '#4B5563' }}
-              value={getEmail() ?? ''} readOnly tabIndex={-1}
-              onClick={(e) => e.stopPropagation()} placeholder="Your sign-in email"
+              style={{ ...inp }}
+value={email} onChange={(e) => setEmail(e.target.value)}
+onClick={(e) => e.stopPropagation()} placeholder="Your email address"
             />
           </div>
         </div>
