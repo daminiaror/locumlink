@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Outfit, Inter } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { AuthSync } from '@/components/AuthSync';
@@ -12,11 +12,6 @@ import { Suspense } from 'react';
 const inter = Inter({
     subsets: ['latin'],
     variable: '--font-inter',
-    display: 'swap',
-});
-const outfit = Outfit({
-    subsets: ['latin'],
-    variable: '--font-display',
     display: 'swap',
 });
 export const metadata: Metadata = {
@@ -43,7 +38,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children, }: {
     children: React.ReactNode;
 }) {
-    return (<html lang="en" className={`app-html ${inter.variable} ${outfit.variable}`} suppressHydrationWarning>
+    return (<html lang="en" className={`app-html ${inter.variable}`} suppressHydrationWarning>
       <body className="app-body" suppressHydrationWarning>
         <div id="app-root">
           <TopLoadingBar />
