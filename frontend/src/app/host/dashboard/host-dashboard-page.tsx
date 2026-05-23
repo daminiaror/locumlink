@@ -8,7 +8,7 @@ import { getToken } from '@/lib/auth';
 import { useAuth } from '@/providers/AuthProvider';
 import { hostProfileCompletionPct } from '@/lib/hostProfileCompletion';
 import { isCpsnsVerificationApproved } from '@/lib/cpsnsVerify';
-import { ApiHttpError, hostApi, isActiveJob, isDraftJob, type Job, type ApplicationRecord, type CreateJobPayload, } from '@/lib/api';
+import { ApiHttpError, hostApi, isActiveJob, isDraftJob, type Job, type ApplicationRecord, type CreateJobPayload, type DashboardStats} from '@/lib/api';
 import { beforeClientNavigation } from '@/lib/topLoader';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import type { HostProfile } from '@/types';
@@ -2118,6 +2118,7 @@ export default function HostDashboard(props: {
     const [dataLoadError, setDataLoadError] = useState<string | null>(null);
     const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
     const [jobApplications, setJobApplications] = useState<Record<string, ApplicationRecord[]>>({});
+    const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
     const [loadingAppsFor, setLoadingAppsFor] = useState<string | null>(null);
     const [reopenTarget, setReopenTarget] = useState<Job | null>(null);
     const [profile, setProfile] = useState<HostProfile | null>(null);
@@ -2137,10 +2138,11 @@ export default function HostDashboard(props: {
         setDataLoadError(null);
         try {
             const errs: string[] = [];
-            const [profileResult, jobsResult, deletedJobsResult] = await Promise.allSettled([
+            const [profileResult, jobsResult, deletedJobsResult, statsResult] = await Promise.allSettled([
                 hostApi.getProfile(),
                 hostApi.getJobs(),
                 hostApi.getJobs({ deleted: true }),
+                hostApi.getDashboardStats(),
             ]);
             if (profileResult.status === 'fulfilled') {
                 setProfile(profileResult.value);
@@ -2173,6 +2175,9 @@ export default function HostDashboard(props: {
             }
             else {
                 setDeletedJobs([]);
+            }
+            if (statsResult.status === 'fulfilled') {
+                setDashStats(statsResult.value);
             }
             if (errs.length)
                 setDataLoadError([...new Set(errs)].join(' '));
@@ -2226,9 +2231,7 @@ export default function HostDashboard(props: {
                 : activeTab === 'recent'
                     ? recentJobs
                     : draftJobs;
-    const totalLocumShiftsPosted = jobs.filter(
-        (j) => jobStatus(j) !== 'DRAFT',
-    ).length;
+    const totalLocumShiftsPosted = dashStats?.totalJobsPosted ?? jobs.filter((j) => jobStatus(j) !== 'DRAFT').length;
     const statsDisplay = [
         {
             label: 'Total Locum Shifts Posted',

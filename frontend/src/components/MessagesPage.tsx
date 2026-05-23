@@ -1,4 +1,5 @@
 'use client';
+import EmojiPicker from 'emoji-picker-react';
 import { useEffect, useState, useRef, useCallback, useMemo, Suspense, type MouseEvent as ReactMouseEvent, } from 'react';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
@@ -331,6 +332,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const [loadingThread, setLoadingThread] = useState(false);
     const [sending, setSending] = useState(false);
     const [sendError, setSendError] = useState<string | null>(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editBody, setEditBody] = useState('');
     const [savingEdit, setSavingEdit] = useState(false);
@@ -1804,6 +1806,12 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                     appendPendingAttachments(files);
                 e.target.value = '';
             }}/>
+                  <div style={{position:'relative'}}>
+                    <button type='button' title='Add emoji' onClick={()=>setShowEmojiPicker((v)=>!v)} style={{background:'none',border:'1px solid #E5E7EB',borderRadius:8,cursor:'pointer',padding:'4px 8px',display:'flex',alignItems:'center'}}>
+                      <span style={{fontSize:18}}>{String.fromCodePoint(0x1F60A)}</span>
+                    </button>
+                    {showEmojiPicker && <div style={{position:'absolute',bottom:44,right:0,zIndex:100}}><EmojiPicker onEmojiClick={(ed)=>{setMessageText((p)=>p+ed.emoji);setShowEmojiPicker(false);}}/></div>}
+                  </div>
                 </div>
                 <button type="button" onClick={() => void handleSend()} disabled={sending || (!messageText.trim() && pendingFiles.length === 0)} style={{
                 padding: '9px 28px',

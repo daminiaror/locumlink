@@ -28,7 +28,7 @@ export const tourSteps: DriveStep[] = [
         element: '#nav-messages',
         popover: {
             title: 'Messages',
-            description: 'Chat with clinics about your shifts.',
+            description: 'Start your conversation here.',
             side: 'right',
         },
     },
@@ -51,7 +51,7 @@ export const tourSteps: DriveStep[] = [
     {
         element: '#empty-state-browse-opportunities',
         popover: {
-            title: 'Get started',
+            title: 'Find your first shift',
             description: 'Start here if you haven’t applied yet.',
             side: 'top',
         },

@@ -91,10 +91,10 @@ function applicationStatusPresentation(app: MyApplication): {
             };
         case 'SHORTLISTED':
             return {
-                label: 'Shortlisted',
-                bg: '#ECFDF5',
-                border: '#A7F3D0',
-                color: '#059669',
+                label: 'Applied',
+                bg: '#F9FAFB',
+                border: '#BFDBFE',
+                color: '#3B4FD8',
             };
         case 'REJECTED':
             return {
@@ -211,7 +211,7 @@ export default function LocumDashboard(props: {
             ? new Date(app.jobPosting.endDate)
             : null;
         if (tab === 'recent')
-            return app.status === 'APPLIED' || app.status === 'CONFIRMED' || app.locumResponse === 'ACCEPTED' || app.locumResponse === 'REJECTED';
+            return app.status === 'APPLIED' || app.status === 'SHORTLISTED' || app.status === 'CONFIRMED' || app.locumResponse === 'ACCEPTED' || app.locumResponse === 'REJECTED';
         if (tab === 'upcoming')
             return app.status === 'CONFIRMED' &&
                 !!app.locumAcceptedAt &&

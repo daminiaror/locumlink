@@ -247,7 +247,7 @@ import {
         prevQtrCompleted,
         prevQtrApps,
       ] = await Promise.all([
-        this.prisma.jobPosting.count({ where: { hostProfileId } }),
+        this.prisma.jobPosting.count({ where: { hostProfileId, status: { not: 'DRAFT' } } }),
         this.prisma.jobPosting.count({
           where: { hostProfileId, status: 'ACTIVE' },
         }),

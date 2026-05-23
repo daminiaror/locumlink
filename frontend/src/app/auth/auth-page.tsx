@@ -31,6 +31,8 @@ export default function AuthPage() {
     const { sendOtp, signInWithOAuth } = useAuth();
     const [mode, setMode] = useState<Mode>(() => params.get('mode') === 'signin' ? 'signin' : 'create');
     const [role, setRole] = useState<Role>(() => params.get('role') === 'clinic' ? 'clinic' : 'locum');
+    const roleLocked = params.get('locked') === 'true';
+    const [lockWarning, setLockWarning] = useState<string | null>(null);
     const [email, setEmail] = useState('');
     const [error, setError] = useState(() => params.get('error') ?? '');
     const [busyAction, setBusyAction] = useState<null | 'email' | 'google' | 'azure'>(null);
@@ -170,7 +172,7 @@ export default function AuthPage() {
             role="group"
             aria-label={mode === 'create' ? 'Account type' : 'Sign in role'}
         >
-            {(['clinic', 'locum'] as Role[]).map((r) => (<button key={r} type="button" onClick={() => setRole(r)} aria-pressed={role === r} suppressHydrationWarning style={{
+            {(['clinic', 'locum'] as Role[]).map((r) => (<button key={r} type="button" onClick={() => { if (roleLocked && r !== role) { setLockWarning(role === 'clinic' ? 'You are posting a job — your role is set to Host.' : 'You are exploring opportunities — your role is set to Locum.'); return; } setLockWarning(null); setRole(r); }} aria-pressed={role === r} suppressHydrationWarning style={{
                     flex: 1,
                     padding: '10px',
                     border: 'none',
@@ -186,6 +188,7 @@ export default function AuthPage() {
               </button>))}
         </div>
 
+        {lockWarning && <div style={{fontSize:12,color:'#B45309',background:'#FFFBEB',border:'1px solid #FDE68A',borderRadius:6,padding:'8px 12px',marginTop:4}}>{lockWarning}</div>}
         
         <div style={{ display: 'flex', gap: 24, width: '100%' }}>
           {[
