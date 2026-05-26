@@ -23,7 +23,7 @@ import {
   getLocumAccountNotice,
   locumCanApplyToJobs,
 } from '@/lib/locumAccountNotice';
-import { relativeHoursOrDaysAgo } from '@/lib/relativeTime';
+import { relativeHoursOrDaysAgo, toLocalDateTime, toLocalTime } from '@/lib/relativeTime';
 import {
   CANADIAN_PROVINCE_NAMES,
   filterCanadianCities,
@@ -927,7 +927,7 @@ export default function LocumBrowsePage(props: {
                         marginLeft: 6,
                       }}
                     >
-                      {daysAgo(j.createdAt)}d ago
+                      <span title={toLocalDateTime(j.createdAt)} style={{ cursor: 'help', borderBottom: '1px dotted currentColor' }}>{daysAgo(j.createdAt)}d ago</span>
                     </span>
                   </div>
                   <div
@@ -1104,7 +1104,7 @@ export default function LocumBrowsePage(props: {
                   }}
                 >
                   {job.hostProfile.city}, {job.hostProfile.province} ·{' '}
-                  {relativeHoursOrDaysAgo(job.createdAt)} ·{' '}
+                  {' '}<span title={toLocalDateTime(job.createdAt)} style={{ cursor: 'help', borderBottom: '1px dotted currentColor' }}>{relativeHoursOrDaysAgo(job.createdAt)}</span> ·{' '}
                   {job.applicationsCount} applicant
                   {job.applicationsCount !== 1 ? 's' : ''}
                 </p>

@@ -963,7 +963,8 @@ export const messageApi = {
 };
 export type NotificationItem = {
     id: string;
-    type: 'message' | 'application' | 'shortlisted';
+    type: 'message' | 'application' | 'shortlisted' | 'reminder' | 'account' | 'cancellation' | 'registration' | 'credential' | 'flagged';
+    category?: 'messages' | 'applications' | 'reminders' | 'account' | 'cancellations';
     title: string;
     body: string;
     href: string;
@@ -989,5 +990,26 @@ export const notificationsApi = {
             });
         }
         return res.json() as Promise<NotificationsResponse>;
+    },
+    getVapidKey: async (): Promise<string> => {
+        const res = await trackedFetch(`${NEST_BASE}/api/notifications/push/vapid-public-key`, {
+            cache: 'no-store', headers: nestHeaders(false), skipTopLoader: true,
+        });
+        if (!res.ok) throw new Error('Failed to get VAPID key');
+        const data = await res.json() as { key: string };
+        return data.key;
+    },
+    subscribe: async (sub: PushSubscriptionJSON): Promise<void> => {
+        const res = await trackedFetch(`${NEST_BASE}/api/notifications/push/subscribe`, {
+            method: 'POST', cache: 'no-store', headers: nestHeaders(true), skipTopLoader: true,
+            body: JSON.stringify(sub),
+        });
+        if (!res.ok) throw new Error('Failed to save push subscription');
+    },
+    unsubscribe: async (endpoint: string): Promise<void> => {
+        await trackedFetch(`${NEST_BASE}/api/notifications/push/unsubscribe`, {
+            method: 'DELETE', cache: 'no-store', headers: nestHeaders(true), skipTopLoader: true,
+            body: JSON.stringify({ endpoint }),
+        });
     },
 };

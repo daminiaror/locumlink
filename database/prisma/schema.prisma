@@ -131,6 +131,7 @@ model User {
   auditLogs          AuditLog[]         @relation("AuditSubject")
   auditActorLogs     AuditLog[]         @relation("AuditActor")
   notifications      NotificationEvent[]
+  pushSubscriptions  PushSubscription[]
 
   @@map("users")
 }
@@ -461,4 +462,14 @@ model Admin {
   auditLogs AuditLog[]
 
   @@map("admins")
+}
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("push_subscriptions")
 }

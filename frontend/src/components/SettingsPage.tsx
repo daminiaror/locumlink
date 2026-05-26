@@ -32,12 +32,24 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
   const nav = role === 'host' ? HOST_NAV : LOCUM_NAV;
   const activeHref = role === 'host' ? '/host/settings' : '/locum/settings';
 
-  const [notifEnabled, setNotifEnabled] = useState(true);
+  const NOTIF_KEYS = ['messages', 'applications', 'reminders', 'account'] as const;
+  type NotifKey = typeof NOTIF_KEYS[number];
+  const loadPrefs = () => {
+    const saved = localStorage.getItem('notifPrefs');
+    if (saved) return JSON.parse(saved) as Record<NotifKey, boolean>;
+    return { messages: true, applications: true, reminders: true, account: true };
+  };
+  const [notifPrefs, setNotifPrefs] = useState<Record<NotifKey, boolean>>(loadPrefs);
+  const toggleNotif = (key: NotifKey) => {
+    setNotifPrefs(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('notifPrefs', JSON.stringify(next));
+      return next;
+    });
+  };
   const [deactivateModal, setDeactivateModal] = useState<DeactivateModal>(null);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
-  const [emailBusy, setEmailBusy] = useState(false);
-  const [emailMsg, setEmailMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     authApi.getMe().then((me) => setEmail(me.email ?? '')).catch(() => {});
@@ -98,7 +110,7 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
 
   return (
     <DashLayout navItems={nav} activeHref={activeHref}>
-      <div style={{ maxWidth: 560, margin: '0 auto', paddingBottom: 48 }}>
+      <div style={{ maxWidth: 720, margin: '0', padding: "0 24px 48px" }}>
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0B0F1F', margin: 0 }}>Settings</h1>
           <p style={{ fontSize: 14, color: '#6B7280', margin: '4px 0 0' }}>Manage your account preferences</p>
@@ -123,25 +135,124 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
         {section('Notifications', <>
           {row(<>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#0B0F1F' }}>Push notifications</div>
-              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Receive alerts for messages and updates</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0B0F1F' }}>Messages</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>New messages from hosts or locums</div>
+              
             </div>
             <button
               role="switch"
-              aria-checked={notifEnabled}
-              onClick={() => setNotifEnabled(v => !v)}
+              aria-checked={notifPrefs.messages}
+              onClick={() => toggleNotif("messages")}
+              disabled={false}
               style={{
                 position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
-                background: notifEnabled ? 'linear-gradient(270deg,#3A65DB,#1B31D2)' : '#D1D5DB',
+                background: notifPrefs.messages ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
                 cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
+                opacity: {'1' if not disabled else '0.6'},
               }}>
               <span style={{
-                position: 'absolute', top: 3, left: notifEnabled ? 23 : 3,
+                position: 'absolute', top: 3, left: notifPrefs.messages ? 23 : 3,
                 width: 18, height: 18, borderRadius: '50%', background: '#fff',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
               }} />
             </button>
           </>, false)}
+          {row(<>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0B0F1F' }}>Applications & opportunities</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Application updates and new matching opportunities</div>
+              
+            </div>
+            <button
+              role="switch"
+              aria-checked={notifPrefs.applications}
+              onClick={() => toggleNotif("applications")}
+              disabled={false}
+              style={{
+                position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
+                background: notifPrefs.applications ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
+                cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
+                opacity: {'1' if not disabled else '0.6'},
+              }}>
+              <span style={{
+                position: 'absolute', top: 3, left: notifPrefs.applications ? 23 : 3,
+                width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+              }} />
+            </button>
+          </>, true)}
+          {row(<>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0B0F1F' }}>Shift reminders</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>48h, evening before, and morning of shift reminders</div>
+              
+            </div>
+            <button
+              role="switch"
+              aria-checked={notifPrefs.reminders}
+              onClick={() => toggleNotif("reminders")}
+              disabled={false}
+              style={{
+                position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
+                background: notifPrefs.reminders ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
+                cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
+                opacity: {'1' if not disabled else '0.6'},
+              }}>
+              <span style={{
+                position: 'absolute', top: 3, left: notifPrefs.reminders ? 23 : 3,
+                width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+              }} />
+            </button>
+          </>, true)}
+          {row(<>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0B0F1F' }}>Account updates</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Verification, approval and account status changes</div>
+              
+            </div>
+            <button
+              role="switch"
+              aria-checked={notifPrefs.account}
+              onClick={() => toggleNotif("account")}
+              disabled={false}
+              style={{
+                position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
+                background: notifPrefs.account ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
+                cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
+                opacity: {'1' if not disabled else '0.6'},
+              }}>
+              <span style={{
+                position: 'absolute', top: 3, left: notifPrefs.account ? 23 : 3,
+                width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+              }} />
+            </button>
+          </>, true)}
+          {row(<>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#0B0F1F' }}>Cancellation alerts</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>Last-minute shift cancellations</div>
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Cannot be disabled</div>
+            </div>
+            <button
+              role="switch"
+              aria-checked={true}
+              onClick={() => {}}
+              disabled={true}
+              style={{
+                position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
+                background: "linear-gradient(270deg,#3A65DB,#1B31D2)",
+                cursor: 'default', flexShrink: 0, transition: 'background 0.2s',
+                opacity: {'1' if not disabled else '0.6'},
+              }}>
+              <span style={{
+                position: 'absolute', top: 3, left: 23,
+                width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+              }} />
+            </button>
+          </>, true)}
         </>)}
 
         {/* Danger Zone */}

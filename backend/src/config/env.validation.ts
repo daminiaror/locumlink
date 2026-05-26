@@ -100,7 +100,7 @@ class EnvironmentVariables {
 
     @IsString()
     @IsOptional()
-    ADMIN_ALLOWED_EMAIL: string = 'aroradamini873@gmail.com';
+    ADMIN_ALLOWED_EMAIL: string = '';
 }
 export function validate(config: Record<string, unknown>) {
     const validatedConfig = plainToInstance(EnvironmentVariables, config, {

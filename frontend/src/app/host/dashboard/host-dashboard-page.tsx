@@ -26,7 +26,7 @@ const HOST_DASH_NAV = [
 ];
 const TABS = [
     { id: 'active', label: 'Active Posts' },
-    { id: 'ongoing', label: 'Ongoing Locum Shifts' },
+    { id: 'ongoing', label: 'Confirmed Locum Shifts' },
     { id: 'recent', label: 'Completed Locum Shifts' },
     { id: 'draft', label: 'Draft Locum Shifts' },
     { id: 'deleted', label: 'Deleted Locum Shifts' },
@@ -802,7 +802,7 @@ function canHostShowReopenJob(job: Job): boolean {
 }
 const JOB_ACTIONS_MENU_W = 196;
 const JOB_ACTIONS_MENU_EST_H = 168;
-function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApplicants, onViewAll, onReOpen, onEdit, onJobDeleted, }: {
+function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApplicants, onViewAll, onReOpen, onEdit, onPublish, onJobDeleted, }: {
     job: Job;
     expandedJobId: string | null;
     applications: Record<string, ApplicationRecord[]>;
@@ -811,6 +811,7 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
     onViewAll: (jobId: string) => void;
     onReOpen: (job: Job) => void;
     onEdit: (job: Job) => void;
+    onPublish: (job: Job) => void;
     onJobDeleted: () => void;
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -1057,6 +1058,17 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
                         Edit job
                       </span>
                     </button>
+                    {isDraft && (<button type="button" role="menuitem" style={menuItemBase} onClick={() => {
+                        onPublish(job);
+                        setMenuOpen(false);
+                    }} onMouseDown={(e) => e.preventDefault()}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path d="M5 12l5 5L20 7" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Post job
+                        </span>
+                      </button>)}
                     {canHostShowReopenJob(job) && (<button type="button" role="menuitem" style={menuItemBase} onClick={() => {
                         onReOpen(job);
                         setMenuOpen(false);
@@ -2015,7 +2027,7 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                 color: '#fff',
                 cursor: submitting ? 'default' : 'pointer',
             }}>
-              {submitting ? 'Publishing…' : 'Done'}
+              {submitting ? 'Posting…' : 'Done'}
             </button>)}
         </div>
       </div>
@@ -2532,7 +2544,7 @@ export default function HostDashboard(props: {
             justifyContent: 'space-between',
             height: 52,
         }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#3B4FD8 #E5E7EB', WebkitOverflowScrolling: 'touch', flexShrink: 1, minWidth: 0, paddingBottom: 4 }}>
                   {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (<button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} style={{
@@ -2642,12 +2654,44 @@ export default function HostDashboard(props: {
                       {activeTab === 'active' &&
                 'You have not posted any locum shifts yet'}
                       {activeTab === 'ongoing' &&
-                'No locum shifts are currently ongoing'}
+                'No confirmed locum shifts yet'}
                       {activeTab === 'recent' && 'No completed locum shifts'}
                       {activeTab === 'draft' && 'No draft locum shifts saved'}
                       {activeTab === 'deleted' &&
                 'Locum shifts you delete from the dashboard appear here'}
                     </span>
+                    {activeTab === 'draft' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!verified) {
+                            window.alert('Your CPSNS number is not verified. Please complete verification before posting a shift.');
+                            return;
+                          }
+                          setShowJobOverlay(true);
+                        }}
+                        style={{
+                          marginTop: 8,
+                          padding: '10px 24px',
+                          background: verified ? 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)' : '#9CA3AF',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 8,
+                          fontFamily: 'Inter, sans-serif',
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
+                        </svg>
+                        Post Job
+                      </button>
+                    )}
                   </div>)}
 
                 {!loadingData &&
@@ -2659,6 +2703,18 @@ export default function HostDashboard(props: {
                     const href = `/host/jobs/${j.id}/edit`;
                     beforeClientNavigation(href);
                     router.push(href);
+                }} onPublish={async (j) => {
+                    if (!verified) {
+                      window.alert('Your CPSNS number is not verified. Please complete verification before posting a shift.');
+                      return;
+                    }
+                    try {
+                      await hostApi.updateJob(j.id, { status: 'ACTIVE' });
+                      void loadDashboardFromApi({ silent: true });
+                      setActiveTab('active');
+                    } catch (e) {
+                      window.alert(e instanceof Error ? e.message : 'Could not post job.');
+                    }
                 }} onJobDeleted={loadDashboardFromApi}/>))}
               </div>
             </div>

@@ -11,6 +11,10 @@ import {
   Users,
 } from 'lucide-react';
 import { adminApiBase } from '@/lib/adminApi';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { notificationsApi, type NotificationItem } from '@/lib/api';
+import { getToken } from '@/lib/auth';
+import { notifCategory } from '@/lib/relativeTime';
 import { useAdminStats } from '@/components/AdminStatsContext';
 import Logo from '@/components/Logo';
 import '@/styles/admin-portal.css';
@@ -87,6 +91,47 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
     ? `Admin (${adminEmail.split('@')[0]})`
     : 'Admin User';
 
+  const [adminNotifs, setAdminNotifs] = useState<NotificationItem[]>([]);
+  const [adminNotifTotal, setAdminNotifTotal] = useState(0);
+  const [adminBellOpen, setAdminBellOpen] = useState(false);
+  const adminBellRef = useRef<HTMLDivElement>(null);
+  const prevAdminTotal = useRef(0);
+  const fetchAdminNotifs = useCallback(async () => {
+    if (!getToken()) return;
+    try {
+      const data = await notificationsApi.get({ skipTopLoader: true });
+      setAdminNotifs(data.notifications);
+      setAdminNotifTotal(data.total);
+    } catch {}
+  }, []);
+  useEffect(() => { void fetchAdminNotifs(); }, [fetchAdminNotifs]);
+  useEffect(() => {
+    const id = setInterval(() => void fetchAdminNotifs(), 12000);
+    return () => clearInterval(id);
+  }, [fetchAdminNotifs]);
+  useEffect(() => {
+    if (adminNotifTotal > prevAdminTotal.current && prevAdminTotal.current !== 0) {
+      const ctx = new AudioContext();
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      o.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+      g.gain.setValueAtTime(0.3, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      o.start(); o.stop(ctx.currentTime + 0.4);
+    }
+    prevAdminTotal.current = adminNotifTotal;
+  }, [adminNotifTotal]);
+  useEffect(() => {
+    if (!adminBellOpen) return;
+    function onMouseDown(e: MouseEvent) {
+      if (adminBellRef.current?.contains(e.target as Node)) return;
+      setAdminBellOpen(false);
+    }
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [adminBellOpen]);
+
   return (
     <div className="admin-portal">
       <div className="admin-container">
@@ -131,7 +176,41 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
           </div>
         </aside>
 
-        <main className="main-content">{children}</main>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+          <div style={{ height: 56, borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 24px', background: '#fff', gap: 16 }}>
+            <div ref={adminBellRef} style={{ position: 'relative' }}>
+              <button onClick={() => setAdminBellOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#38C6C6', position: 'relative' }} title="Notifications">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                {adminNotifTotal > 0 && <span style={{ position: 'absolute', top: 0, right: 0, background: '#DC2626', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #fff' }}>{adminNotifTotal > 9 ? '9+' : adminNotifTotal}</span>}
+              </button>
+              {adminBellOpen && (
+                <div style={{ position: 'absolute', top: 40, right: 0, width: 340, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 100, overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6', fontWeight: 700, fontSize: 14 }}>Notifications {adminNotifTotal > 0 && <span style={{ color: '#6B7280', fontWeight: 400 }}>· {adminNotifTotal} unread</span>}</div>
+                  <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                    {adminNotifs.length === 0 ? (
+                      <div style={{ padding: '36px 20px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
+                        <div style={{ fontSize: 14, color: '#9CA3AF' }}>No new notifications</div>
+                      </div>
+                    ) : adminNotifs.map(notif => (
+                      <div key={notif.id} style={{ padding: '12px 16px', borderBottom: '1px solid #F9FAFB', cursor: 'pointer', display: 'flex', gap: 10 }}
+                        onClick={() => { setAdminBellOpen(false); window.location.href = notif.href; }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0B0F1F' }}>{notif.title}</div>
+                          <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{notif.body}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <main className="main-content">{children}</main>
+        </div>
       </div>
     </div>
   );

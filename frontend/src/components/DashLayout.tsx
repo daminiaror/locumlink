@@ -8,6 +8,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { computeAvatarInitials, initialsFromSupabaseUser, } from '@/lib/avatarInitials';
 import { clearProfileCompleteCookies, getRole, getToken } from '@/lib/auth';
 import { authApi, hostApi, locumApi, notificationsApi, uploadFile, type NotificationItem, } from '@/lib/api';
+import { notifCategory } from '@/lib/relativeTime';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useTrackLastPath } from '../hooks/useTrackLastPath';
 import { beforeClientNavigation } from '@/lib/topLoader';
@@ -174,6 +175,45 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     useEffect(() => {
         void fetchNotifications();
     }, [fetchNotifications]);
+    const prevNotifTotal = useRef(0);
+    useEffect(() => {
+        if (notifTotal > prevNotifTotal.current && prevNotifTotal.current !== 0) {
+            const ctx = new AudioContext();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.frequency.setValueAtTime(880, ctx.currentTime);
+            o.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+            g.gain.setValueAtTime(0.3, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            o.start(); o.stop(ctx.currentTime + 0.4);
+        }
+        prevNotifTotal.current = notifTotal;
+    }, [notifTotal]);
+    useEffect(() => {
+        if (!getToken() || typeof window === 'undefined') return;
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const existing = await reg.pushManager.getSubscription();
+                if (existing) {
+                    if (!cancelled) await notificationsApi.subscribe(existing.toJSON());
+                    return;
+                }
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted' || cancelled) return;
+                const vapidKey = await notificationsApi.getVapidKey();
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: vapidKey,
+                });
+                if (!cancelled) await notificationsApi.subscribe(sub.toJSON());
+            } catch {}
+        })();
+        return () => { cancelled = true; };
+    }, [userId]);
     useVisibilityPolling(() => {
         void fetchNotifications();
     }, 12_000, Boolean(getToken()));
@@ -267,10 +307,10 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             border: 'none',
             cursor: 'pointer',
             padding: 4,
-            color: '#1B31D2',
+            color: '#38C6C6',
             position: 'relative',
         }} title="Notifications">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
               </svg>
@@ -330,12 +370,15 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
 
                 
                 <div style={{ overflowY: 'auto', flex: 1 }}>
-                  {notifications.length === 0 ? (<div style={{ padding: '36px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
-                      <div style={{ fontSize: 'var(--font-body)', color: '#9CA3AF' }}>
-                        No new notifications
-                      </div>
-                    </div>) : (notifications.map((notif) => (<div key={notif.id} onClick={() => handleNotifClick(notif)} style={{
+                  ((() => {
+                    const prefs = (() => { try { const s = localStorage.getItem('notifPrefs'); return s ? JSON.parse(s) : null; } catch { return null; } })();
+                    const visible = prefs ? notifications.filter(n => {
+                      const cat = n.category ?? notifCategory(n.type);
+                      if (cat === 'cancellations') return true;
+                      return prefs[cat] !== false;
+                    }) : notifications;
+                    if (visible.length === 0) return <div style={{ padding: '36px 20px', textAlign: 'center' }}><div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div><div style={{ fontSize: 'var(--font-body)', color: '#9CA3AF' }}>No new notifications</div></div>;
+                    return visible.map((notif) => (<div key={notif.id} onClick={() => handleNotifClick(notif)} style={{
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 10,
@@ -525,7 +568,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     e.currentTarget.style.background = '#F3F4F6';
             }} onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <rect x="3" y="3" width="24" height="24" rx="2" ry="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <path d="M21 15l-5-5L5 21"/>
                   </svg>
@@ -593,36 +636,6 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 </button>) : null}
                 <button type="button" disabled={avatarRemoveBusy || avatarUploadBusy || deactivateBusy} onClick={() => {
                 setAvatarMenuOpen(false);
-                setDeactivateConfirmOpen(true);
-            }} style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: 'transparent',
-                border: 'none',
-                borderRadius: 8,
-                padding: '10px 10px',
-                cursor: avatarRemoveBusy || avatarUploadBusy || deactivateBusy ? 'default' : 'pointer',
-                color: '#b45309',
-                fontSize: 'var(--font-body)',
-                fontWeight: 'var(--font-weight-bold)',
-                textAlign: 'left',
-                borderTop: '1px solid #F3F4F6',
-                opacity: avatarRemoveBusy || avatarUploadBusy || deactivateBusy ? 0.55 : 1,
-                fontFamily: 'inherit',
-            }} onMouseOver={(e) => {
-                if (!avatarRemoveBusy && !avatarUploadBusy && !deactivateBusy)
-                    e.currentTarget.style.background = '#FFFBEB';
-            }} onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                  </svg>
-                  Deactivate account
-                </button>
-                <button type="button" disabled={avatarRemoveBusy || avatarUploadBusy || deactivateBusy} onClick={() => {
-                setAvatarMenuOpen(false);
                 handleLogout();
             }} style={{
                 width: '100%',
@@ -654,72 +667,6 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 </button>
               </div>)}
           </div>
-
-          {deactivateConfirmOpen ? (<div role="dialog" aria-modal="true" aria-labelledby="deactivate-account-title" style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 200,
-            background: 'rgba(15, 23, 42, 0.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
-        }} onMouseDown={(e) => {
-            if (e.target === e.currentTarget && !deactivateBusy)
-                setDeactivateConfirmOpen(false);
-        }}>
-              <div style={{
-                width: '100%',
-                maxWidth: 420,
-                background: '#fff',
-                borderRadius: 12,
-                padding: 24,
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.28)',
-            }}>
-                <h2 id="deactivate-account-title" style={{
-                margin: '0 0 8px',
-                fontSize: 20,
-                fontWeight: 700,
-                color: '#0f1523',
-            }}>
-                  Deactivate account?
-                </h2>
-                <p style={{
-                margin: '0 0 20px',
-                fontSize: 15,
-                lineHeight: 1.5,
-                color: 'rgba(11, 15, 31, 0.75)',
-            }}>
-                  Are you sure? Your profile data will be kept for 30 days. Sign in again within that time to restore everything. After 30 days, signing in or registering with the same email starts a new account.
-                </p>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                  <button type="button" disabled={deactivateBusy} onClick={() => setDeactivateConfirmOpen(false)} style={{
-                padding: '10px 16px',
-                borderRadius: 8,
-                border: '1px solid #e2e5ee',
-                background: '#fff',
-                cursor: deactivateBusy ? 'default' : 'pointer',
-                fontFamily: 'inherit',
-                fontWeight: 600,
-            }}>
-                    Cancel
-                  </button>
-                  <button type="button" disabled={deactivateBusy} onClick={() => void handleDeactivateAccount()} style={{
-                padding: '10px 16px',
-                borderRadius: 8,
-                border: 'none',
-                background: '#b45309',
-                color: '#fff',
-                cursor: deactivateBusy ? 'default' : 'pointer',
-                fontFamily: 'inherit',
-                fontWeight: 600,
-                opacity: deactivateBusy ? 0.7 : 1,
-            }}>
-                    {deactivateBusy ? 'Deactivating…' : 'Yes, deactivate'}
-                  </button>
-                </div>
-              </div>
-            </div>) : null}
         </div>
       </header>
 
