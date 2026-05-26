@@ -1,3 +1,4 @@
+import { PushService } from '../notifications/push.service.js';
 import { Injectable, NotFoundException, ForbiddenException, } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GcsService } from '../gcs/gcs.service.js';
@@ -18,7 +19,7 @@ const userSelect = {
 const CONVERSATION_SCAN_LIMIT = 400;
 @Injectable()
 export class MessageService {
-    constructor(private readonly prisma: PrismaService, private readonly gcs: GcsService) { }
+    constructor(private readonly prisma: PrismaService, private readonly pushService: PushService, private readonly gcs: GcsService) { }
     private async signAttachments<T extends {
         attachments?: {
             storagePath: string;
@@ -267,6 +268,19 @@ export class MessageService {
             include: { sender: { select: userSelect }, attachments: true },
         });
         const [signed] = await this.signAttachments([message]);
+        // Fire push notification to recipient
+        try {
+            const senderName = message.sender?.locumProfile?.firstName
+                ? `Dr ${message.sender.locumProfile.firstName}`
+                : message.sender?.hostProfile?.contactFirstName
+                    ? `Dr ${message.sender.hostProfile.contactFirstName}`
+                    : 'Someone';
+            await this.pushService.sendToUser(recipientId, {
+                title: `New message from ${senderName}`,
+                body: trimmed.slice(0, 80) || 'Sent an attachment',
+                url: '/messages',
+            });
+        } catch {}
         return { message: signed };
     }
     async editMessage(userId: string, messageId: string, body: string) {

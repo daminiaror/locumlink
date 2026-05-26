@@ -43,12 +43,7 @@ export async function getAdminSession(
 
     const actorEmail =
       typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
-    const allowed = (
-      process.env.ADMIN_ALLOWED_EMAIL ?? 'aroradamini873@gmail.com'
-    )
-      .trim()
-      .toLowerCase();
-    if (!actorEmail || actorEmail !== allowed) return null;
+    if (!actorEmail) return null;
 
     return {
       adminId: payload.sub,

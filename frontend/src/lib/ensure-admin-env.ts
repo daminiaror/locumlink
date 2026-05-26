@@ -9,7 +9,6 @@ const BACKEND_SYNC_KEYS = [
   'DATABASE_URL',
   'JWT_SECRET',
   'ADMIN_JWT_SECRET',
-  'ADMIN_ALLOWED_EMAIL',
 ] as const;
 
 function resolveBackendDir(): string | null {

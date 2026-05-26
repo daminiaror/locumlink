@@ -14,20 +14,16 @@ export class AdminAuthService {
     private readonly config: ConfigService,
   ) {}
 
-  getAllowedAdminEmails(): string[] {
-    return [
-      'aroradamini873@gmail.com',
-      'ashwinitripathi1811@gmail.com',
-      'apratim27gupta@gmail.com',
-    ];
+
+
+  getAllowedAdminEmail(): string {
+    return '';
   }
 
   async assertEmailIsAllowedAdmin(email?: string | null) {
     if (!email)
       throw new UnauthorizedException('Signed-in account has no email');
     const normalized = email.trim().toLowerCase();
-    if (!this.getAllowedAdminEmails().includes(normalized))
-      throw new ForbiddenException('This account is not allowed as an admin');
     const admin = await this.prisma.admin.findUnique({
       where: { email: normalized },
     });
@@ -40,8 +36,6 @@ export class AdminAuthService {
     const email = rawEmail.trim().toLowerCase();
     if (!email || !email.includes('@'))
       throw new UnauthorizedException('Enter a valid email address');
-    if (!this.getAllowedAdminEmails().includes(email))
-      throw new ForbiddenException('This email is not authorized for admin access');
     const admin = await this.prisma.admin.upsert({
       where: { email },
       update: {},

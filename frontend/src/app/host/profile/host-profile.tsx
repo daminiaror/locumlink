@@ -1440,7 +1440,7 @@ export default function HostProfilePage(props: {
                                 </div>
                                 <div
                                     style={{
-                                        width: 412,
+                                        width: 524,
                                         maxWidth: '100%',
                                         display: 'flex',
                                         flexDirection: 'column',
