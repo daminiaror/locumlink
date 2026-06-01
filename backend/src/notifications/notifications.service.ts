@@ -1,149 +1,135 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { PushService } from './push.service.js';
+
+export type NotifEventType =
+  // Host
+  | 'H_001_LOCUM_APPLIED'
+  | 'H_002_LOCUM_ACCEPTED'
+  | 'H_003_LOCUM_DECLINED'
+  | 'H_004_NEW_MESSAGE'
+  | 'H_005_ACCOUNT_VERIFIED'
+  | 'H_006_ACCOUNT_REJECTED'
+  | 'H_007_ACCOUNT_SUSPENDED'
+  | 'H_008_POSTING_EXPIRING'
+  | 'H_009_SHIFT_CANCELLED'
+  // Locum
+  | 'L_001_NEW_OPPORTUNITY'
+  | 'L_002_HOST_CONFIRMED'
+  | 'L_003_APPLICATION_ACCEPTED'
+  | 'L_004_APPLICATION_DECLINED'
+  | 'L_005_SHIFT_REMINDER_48H'
+  | 'L_006_SHIFT_REMINDER_EVENING'
+  | 'L_007_SHIFT_REMINDER_2H'
+  | 'L_008_NEW_MESSAGE'
+  | 'L_009_ACCOUNT_VERIFIED'
+  | 'L_010_ACCOUNT_REJECTED'
+  | 'L_011_ACCOUNT_SUSPENDED'
+  // Admin
+  | 'A_001_NEW_HOST_REGISTRATION'
+  | 'A_002_NEW_LOCUM_REGISTRATION'
+  | 'A_003_CREDENTIAL_UPLOADED'
+  | 'A_004_ACCOUNT_FLAGGED';
+
 export type NotificationItem = {
-    id: string;
-    type: 'message' | 'application' | 'shortlisted';
+  id: string;
+  type: 'message' | 'application' | 'shortlisted' | 'reminder' | 'account' | 'cancellation' | 'registration' | 'credential' | 'flagged';
+  category?: 'messages' | 'applications' | 'reminders' | 'account' | 'cancellations';
+  title: string;
+  body: string;
+  href: string;
+  read: boolean;
+  createdAt: string;
+};
+
+function eventTypeToCategory(eventType: string): NotificationItem['type'] {
+  if (eventType.includes('MESSAGE')) return 'message';
+  if (eventType.includes('APPLIED') || eventType.includes('ACCEPTED') || eventType.includes('DECLINED') || eventType.includes('CONFIRMED')) return 'application';
+  if (eventType.includes('REMINDER') || eventType.includes('EXPIRING')) return 'reminder';
+  if (eventType.includes('CANCELLED')) return 'cancellation';
+  if (eventType.includes('REGISTRATION')) return 'registration';
+  if (eventType.includes('CREDENTIAL')) return 'credential';
+  if (eventType.includes('FLAGGED')) return 'flagged';
+  if (eventType.includes('VERIFIED') || eventType.includes('REJECTED') || eventType.includes('SUSPENDED')) return 'account';
+  return 'application';
+}
+
+@Injectable()
+export class NotificationsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
+
+  async create(params: {
+    recipientId: string;
+    eventType: NotifEventType;
     title: string;
     body: string;
     href: string;
-    createdAt: Date;
-};
-@Injectable()
-export class NotificationsService {
-    constructor(private readonly prisma: PrismaService) { }
-    async getNotifications(userId: string, role: string): Promise<{
-        total: number;
-        notifications: NotificationItem[];
-    }> {
-        const notifications: NotificationItem[] = [];
-        const unreadGroups = await this.prisma.message.groupBy({
-            by: ['senderId'],
-            where: { recipientId: userId, readAt: null, deletedAt: null },
-            _count: { id: true },
-            _max: { sentAt: true },
-        });
-        if (unreadGroups.length > 0) {
-            const senderIds = unreadGroups.map((g) => g.senderId);
-            const unreadCountBySender = new Map(unreadGroups.map((g) => [g.senderId, g._count.id]));
-            const latestUnread = await this.prisma.message.findMany({
-                where: {
-                    recipientId: userId,
-                    readAt: null,
-                    deletedAt: null,
-                    senderId: { in: senderIds },
-                },
-                orderBy: { sentAt: 'desc' },
-                distinct: ['senderId'],
-                include: {
-                    sender: {
-                        select: {
-                            id: true,
-                            locumProfile: { select: { firstName: true, lastName: true } },
-                            hostProfile: { select: { contactFirstName: true, contactLastName: true, practiceName: true } },
-                        },
-                    },
-                },
-            });
-            for (const msg of latestUnread) {
-                const s = msg.sender;
-                const senderName = s.locumProfile?.firstName
-                    ? `Dr ${s.locumProfile.firstName} ${s.locumProfile.lastName ?? ''}`.trim()
-                    : s.hostProfile?.contactFirstName
-                        ? `Dr ${s.hostProfile.contactFirstName} ${s.hostProfile.contactLastName ?? ''}`.trim()
-                        : s.hostProfile?.practiceName ?? 'Someone';
-                const unreadCount = unreadCountBySender.get(msg.senderId) ?? 1;
-                const href = role === 'HOST'
-                    ? `/host/messages?partnerId=${msg.senderId}`
-                    : `/locum/messages?partnerId=${msg.senderId}`;
-                notifications.push({
-                    id: `msg-${msg.senderId}`,
-                    type: 'message',
-                    title: `${unreadCount > 1 ? `${unreadCount} new messages` : 'New message'} from ${senderName}`,
-                    body: msg.deletedAt ? 'Message deleted' : msg.body.slice(0, 80),
-                    href,
-                    createdAt: msg.sentAt,
-                });
-            }
-        }
-        if (role === 'HOST') {
-            const hostProfile = await this.prisma.hostProfile.findUnique({
-                where: { userId },
-                select: { id: true },
-            });
-            if (hostProfile) {
-                const newApps = await this.prisma.application.findMany({
-                    where: {
-                        jobPosting: { hostProfileId: hostProfile.id },
-                        status: 'APPLIED',
-                    },
-                    orderBy: { appliedAt: 'desc' },
-                    include: {
-                        locumProfile: { select: { firstName: true, lastName: true } },
-                        jobPosting: { select: { id: true, title: true } },
-                    },
-                });
-                const byJob = new Map<string, typeof newApps>();
-                for (const app of newApps) {
-                    const key = app.jobPosting.id;
-                    if (!byJob.has(key))
-                        byJob.set(key, []);
-                    byJob.get(key)!.push(app);
-                }
-                for (const [, apps] of byJob) {
-                    const first = apps[0];
-                    const count = apps.length;
-                    const name = first.locumProfile.firstName
-                        ? `Dr ${first.locumProfile.firstName} ${first.locumProfile.lastName ?? ''}`.trim()
-                        : 'A locum';
-                    notifications.push({
-                        id: `app-${first.jobPosting.id}`,
-                        type: 'application',
-                        title: count > 1
-                            ? `${count} new applications for "${first.jobPosting.title}"`
-                            : `${name} applied to "${first.jobPosting.title}"`,
-                        body: count > 1
-                            ? `${name} and ${count - 1} other${count > 2 ? 's' : ''} applied`
-                            : 'Tap to review applicants',
-                        href: `/host/applicants/${first.jobPosting.id}`,
-                        createdAt: first.appliedAt,
-                    });
-                }
-            }
-        }
-        if (role === 'LOCUM') {
-            const locumProfile = await this.prisma.locumProfile.findUnique({
-                where: { userId },
-                select: { id: true },
-            });
-            if (locumProfile) {
-                const shortlisted = await this.prisma.application.findMany({
-                    where: {
-                        locumProfileId: locumProfile.id,
-                        status: 'SHORTLISTED',
-                    },
-                    orderBy: { appliedAt: 'desc' },
-                    include: {
-                        jobPosting: {
-                            include: {
-                                hostProfile: { select: { practiceName: true, contactFirstName: true, contactLastName: true, id: true, userId: true } },
-                            },
-                        },
-                    },
-                });
-                for (const app of shortlisted) {
-                    const clinic = app.jobPosting.hostProfile.practiceName;
-                    notifications.push({
-                        id: `short-${app.id}`,
-                        type: 'shortlisted',
-                        title: `You've been shortlisted! 🎉`,
-                        body: `${clinic} shortlisted you for "${app.jobPosting.title}"`,
-                        href: `/locum/messages?partnerId=${app.jobPosting.hostProfile.userId}`,
-                        createdAt: app.appliedAt,
-                    });
-                }
-            }
-        }
-        notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        return { total: notifications.length, notifications };
-    }
+    referenceId?: string;
+    referenceType?: string;
+    pushTitle?: string;
+    pushBody?: string;
+  }): Promise<void> {
+    await this.prisma.notificationEvent.create({
+      data: {
+        recipientId: params.recipientId,
+        eventType: params.eventType,
+        referenceId: params.referenceId,
+        referenceType: params.referenceType,
+        payload: { title: params.title, body: params.body, href: params.href },
+        deliveryStatus: 'DELIVERED',
+        deliveredAt: new Date(),
+      },
+    });
+
+    // Send push notification
+    await this.push.sendToUser(params.recipientId, {
+      title: params.pushTitle ?? params.title,
+      body: params.pushBody ?? params.body,
+      url: params.href,
+    });
+  }
+
+  async getNotifications(userId: string, _role: string): Promise<{
+    total: number;
+    notifications: NotificationItem[];
+  }> {
+    const events = await this.prisma.notificationEvent.findMany({
+      where: { recipientId: userId },
+      orderBy: { sentAt: 'desc' },
+      take: 50,
+    });
+
+    const notifications: NotificationItem[] = events.map((e) => {
+      const payload = (e.payload ?? {}) as { title?: string; body?: string; href?: string };
+      return {
+        id: e.id,
+        type: eventTypeToCategory(e.eventType),
+        title: payload.title ?? e.eventType,
+        body: payload.body ?? '',
+        href: payload.href ?? '/',
+        read: e.deliveryStatus === 'READ',
+        createdAt: e.sentAt.toISOString(),
+      };
+    });
+
+    const unread = notifications.filter((n) => !n.read).length;
+    return { total: unread, notifications };
+  }
+
+  async markAllRead(userId: string): Promise<void> {
+    await this.prisma.notificationEvent.updateMany({
+      where: { recipientId: userId, deliveryStatus: { not: 'READ' } },
+      data: { deliveryStatus: 'READ' },
+    });
+  }
+
+  async markRead(userId: string, notifId: string): Promise<void> {
+    await this.prisma.notificationEvent.updateMany({
+      where: { id: notifId, recipientId: userId },
+      data: { deliveryStatus: 'READ' },
+    });
+  }
 }

@@ -27,7 +27,7 @@ interface Props {
     children: ReactNode;
 }
 const ICON: Record<string, string> = {
-    browse: 'M10 21C15.5228 21 20 16.5228 20 11C20 5.47715 15.5228 1 10 1C4.47715 1 0 5.47715 0 11C0 16.5228 4.47715 21 10 21ZM20.9142 18.5L24.7071 22.2929',
+    browse: 'M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19ZM21 21L16.65 16.65',
     postings: 'M4 6h16M4 10h16M4 14h10',
     profile: 'M12 12c2.7 0 4-1.79 4-4s-1.3-4-4-4-4 1.79-4 4 1.3 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4z',
     messages: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
@@ -45,11 +45,41 @@ function NavIcon({ name }: {
 function NotifIcon({ type }: {
     type: NotificationItem['type'];
 }) {
-    if (type === 'message')
-        return <span style={{ fontSize: 16 }}>💬</span>;
-    if (type === 'application')
-        return <span style={{ fontSize: 16 }}>📋</span>;
-    return <span style={{ fontSize: 16 }}>🎉</span>;
+    if (type === 'message') return (
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F2A7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+        </span>
+    );
+    if (type === 'application') return (
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#F0FDFC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F2A7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+            </svg>
+        </span>
+    );
+    if (type === 'reminder') return (
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C2410C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </span>
+    );
+    if (type === 'cancellation') return (
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+        </span>
+    );
+    return (
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F2A7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+        </span>
+    );
 }
 function fmtNotifTime(iso: string): string {
     const d = new Date(iso);
@@ -74,6 +104,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     const NAV_ITEM_H = 44;
     const NAV_GAP = 18;
     const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const avatarMenuRef = useRef<HTMLDivElement>(null);
     const avatarFileInputRef = useRef<HTMLInputElement>(null);
     const [avatarPhotoUrl, setAvatarPhotoUrl] = useState<string | null>(null);
@@ -287,15 +318,25 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            height: 76,
-            padding: '0 24px',
+            height: 56,
+            padding: '0 14px',
             background: '#fff',
             borderBottom: '1px solid #e2e5ee',
             flexShrink: 0,
+            boxSizing: 'border-box',
         }}>
-        <Link href="/home" style={{ textDecoration: 'none' }}>
-          <Logo size="md" />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            className="dash-hamburger"
+            onClick={() => setMobileNavOpen(v => !v)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#0F2A7A' }}
+            aria-label="Toggle menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <Link href="/home" style={{ textDecoration: 'none' }}>
+            <Logo size="md" />
+          </Link>
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {topbarRight}
@@ -307,7 +348,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             border: 'none',
             cursor: 'pointer',
             padding: 4,
-            color: '#38C6C6',
+            color: '#0F2A7A',
             position: 'relative',
         }} title="Notifications">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -370,7 +411,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
 
                 
                 <div style={{ overflowY: 'auto', flex: 1 }}>
-                  ((() => {
+                  {(() => {
                     const prefs = (() => { try { const s = localStorage.getItem('notifPrefs'); return s ? JSON.parse(s) : null; } catch { return null; } })();
                     const visible = prefs ? notifications.filter(n => {
                       const cat = n.category ?? notifCategory(n.type);
@@ -444,7 +485,8 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     flexShrink: 0,
                     marginTop: 4,
                 }}/>
-                      </div>)))}
+                      </div>));
+                  })()} 
                 </div>
 
                 
@@ -568,9 +610,8 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     e.currentTarget.style.background = '#F3F4F6';
             }} onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="24" height="24" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <path d="M21 15l-5-5L5 21"/>
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
                   </svg>
                   {avatarUploadBusy
                 ? 'Uploading…'
@@ -672,18 +713,21 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
 
       
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <aside className="dash-sidebar" style={{
+        {mobileNavOpen && (
+          <div onClick={() => setMobileNavOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 39 }} />
+        )}
+        <aside className={mobileNavOpen ? 'dash-sidebar dash-sidebar--open' : 'dash-sidebar'} style={{
             position: 'relative',
-            width: 232,
+            width: 242,
             flexShrink: 0,
-            background: '#F4F6FB',
-            boxShadow: 'inset 0px 4px 22px rgba(0,0,0,0.02)',
+            background: 'linear-gradient(180deg, #0F2A7A 0%, #1E3FAF 100%)',
+            boxShadow: '4px 0 24px rgba(15,42,122,0.18)',
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
             overflowY: 'auto',
             boxSizing: 'border-box',
-            padding: '8px 10px 28px',
+            padding: '8px 12px 28px',
             gap: 14,
         }}>
           <div style={{
@@ -694,7 +738,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 activeNavIndex * (NAV_ITEM_H + NAV_GAP),
             width: 6,
             height: NAV_ITEM_H,
-            background: 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+            background: '#0F2A7A',
             borderRadius: '0px 8px 8px 0px',
             transition: 'top 0.2s ease',
         }}/>
@@ -709,6 +753,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             const isProfile = href === '/locum/profile' || href === '/host/profile' || label === 'Profile';
             const isMessages = href === '/locum/messages' || href === '/host/messages' || label === 'Messages';
             const isResources = href === '/locum/resources' || href === '/host/resources' || label === 'Resources';
+            const isSettings = href === '/settings' || label === 'Settings';
             const sidebarIconName = isBrowseOpportunities
                 ? 'browse'
                 : isLocumDashboard || isHostPostings
@@ -732,7 +777,9 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                                 ? 'nav-messages'
                                 : isResources
                                     ? 'nav-resources'
-                                    : undefined;
+                                    : isSettings
+                                        ? 'nav-settings'
+                                        : undefined;
             return (<Link key={href} href={href} style={{ textDecoration: 'none' }}>
                     <div id={navId} style={{
                     boxSizing: 'border-box',
@@ -745,11 +792,12 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     height: 44,
                     padding: '10px 12px 10px 8px',
                     background: active
-                        ? 'rgba(130,173,237,0.2)'
+                        ? 'rgba(56,198,198,0.15)'
                         : 'transparent',
-                    borderRadius: active ? 4 : 16,
+                    borderRadius: 10,
                     cursor: 'pointer',
-                    color: active ? '#1B31D2' : 'rgba(2,7,27,0.9)',
+                    color: active ? '#0F2A7A' : 'rgba(255,255,255,0.85)',
+                    transition: 'background 0.15s, color 0.15s',
                 }}>
                       <span style={{
                     width: 20,
@@ -763,18 +811,12 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                       </span>
                       <span style={{
                     fontFamily: 'Gilroy-Medium, Inter, sans-serif',
-                    fontWeight: 'var(--font-weight-normal)',
                     fontSize: 'var(--font-heading)',
                     lineHeight: '20px',
                     textTransform: 'capitalize',
                     whiteSpace: 'nowrap',
-                    ...(active
-                        ? {
-                            background: 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                        }
-                        : { color: 'inherit' }),
+                    color: active ? '#0F2A7A' : 'rgba(255,255,255,0.85)',
+                    fontWeight: active ? 600 : 400,
                 }}>
                         {label}
                       </span>
@@ -793,15 +835,16 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             height: '100%',
             overflow: 'hidden',
         }}>
-          <main style={{
+          <main className="dash-main-content" style={{
             flex: 1,
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
-            padding: '24px',
+            padding: '28px 28px 28px 28px',
             overflowY: 'auto',
             overflowX: 'hidden',
-            background: '#fff',
+            background: '#F7F8FA',
+            boxSizing: 'border-box',
         }}>
             {children}
           </main>

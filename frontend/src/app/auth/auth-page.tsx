@@ -12,7 +12,7 @@ type Mode = 'create' | 'signin';
 const BRAND = {
     primary: '#0F2A7A',
     primaryHover: '#1E3FAF',
-    teal: '#38C6C6',
+    teal: '#0F2A7A',
     border: '#e2e5ee',
     textPrimary: '#0A0A0A',
     textSecondary: '#4A4A4A',

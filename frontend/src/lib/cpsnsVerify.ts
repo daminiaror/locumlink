@@ -155,7 +155,7 @@ export function adminVerificationStatusTag(
         return {
             label: 'Awaiting review',
             background: 'rgba(59, 79, 216, 0.12)',
-            color: '#1B31D2',
+            color: '#0F2A7A',
         };
     }
     if (status === 'REJECTED') {
@@ -176,7 +176,7 @@ export function adminVerificationStatusTag(
         return {
             label: 'Awaiting review',
             background: 'rgba(59, 79, 216, 0.12)',
-            color: '#1B31D2',
+            color: '#0F2A7A',
         };
     }
     return {

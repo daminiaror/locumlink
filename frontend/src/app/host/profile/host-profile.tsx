@@ -110,7 +110,7 @@ const textareaField: React.CSSProperties = {
 const stepNavLabel: React.CSSProperties = {
     fontFamily: 'Inter, sans-serif',
     fontWeight: 500,
-    fontSize: 20,
+    fontSize: 13,
     lineHeight: '124%',
     color: '#0B0F1F',
 };
@@ -216,7 +216,7 @@ function sectionCard(
         alignItems: 'flex-start',
         padding: '32px 24px',
         gap: opts?.gap ?? 24,
-        width: 1180,
+        width: '100%',
         ...(opts?.height != null ? { height: opts.height } : { height: 'auto' }),
         border: '1px solid #D9D9D9',
         borderRadius: opts?.borderRadius ?? 10,
@@ -553,7 +553,35 @@ export default function HostProfilePage(props: {
             topbarFirstName={profile?.contactFirstName}
             topbarLastName={profile?.contactLastName}
         >
+            <>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .host-profile-inner {
+            padding: 16px 14px 60px !important;
+          }
+          .host-step-nav-outer {
+            height: auto !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .host-step-nav-outer::-webkit-scrollbar { display: none; }
+          .host-step-nav-inner {
+            gap: 4px !important;
+          }
+          .host-step-nav-inner > div[role="button"] {
+            width: 160px !important;
+            min-width: 140px !important;
+          }
+          .host-profile-inner > div[style] {
+            width: 100% !important;
+          }
+        }
+      `}</style>
             <div
+                className="host-profile-inner"
                 style={{
                     padding: '28px 36px 60px',
                     maxWidth: 1180,
@@ -587,23 +615,17 @@ export default function HostProfilePage(props: {
                 <div
                     style={{
                         width: '100%',
-                        height: 104,
                         background: 'rgba(209, 213, 219, 0.3)',
                         borderRadius: 10,
                         marginBottom: 16,
-                        position: 'relative',
-                        overflow: 'hidden',
+                        padding: '20px 16px',
+                        boxSizing: 'border-box',
                     }}
                 >
                     <div
                         style={{
-                            position: 'absolute',
-                            left: 24,
-                            right: 24,
-                            top: 26,
-                            height: 52,
                             display: 'flex',
-                            alignItems: 'flex-start',
+                            alignItems: 'center',
                             justifyContent: 'space-between',
                             gap: 24,
                         }}
@@ -620,9 +642,8 @@ export default function HostProfilePage(props: {
                                         fontSize: 15,
                                         lineHeight: '124%',
                                         color: '#0f1523',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'normal',
+                                        overflow: 'visible',
                                     }}
                                 >
                                     {completionTitle}
@@ -642,29 +663,32 @@ export default function HostProfilePage(props: {
                                 </div>
                             </div>
                         </div>
-                        <div style={{ width: 1, height: 1 }} />
                     </div>
                 </div>
 
                 {/* ── Step nav ── */}
                 <div
+                    className="host-step-nav-outer"
                     style={{
-                        width: 1142,
+                        width: '100%',
                         height: 70,
                         opacity: 1,
                         transform: 'rotate(0deg)',
                         boxSizing: 'border-box',
-                        overflowX: 'hidden',
+                        overflowX: 'auto',
                         overflowY: 'hidden',
                         background: 'transparent',
                         position: 'relative',
                         marginBottom: 24,
-                    }}
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                    } as React.CSSProperties}
                 >
                     <div
+                        className="host-step-nav-inner"
                         style={{
                             position: 'relative',
-                            width: 1132,
+                            width: 'max-content',
                             height: 48,
                             left: 0,
                             top: 0,
@@ -747,8 +771,8 @@ export default function HostProfilePage(props: {
                                         <div style={labelStyle}>{s.label}</div>
                                     </div>
                                     <svg
-                                        width="18"
-                                        height="18"
+                                        width="12"
+                                        height="12"
                                         viewBox="0 0 24 24"
                                         fill="none"
                                         style={{
@@ -779,7 +803,7 @@ export default function HostProfilePage(props: {
                                 top: 64,
                                 width: 256,
                                 height: 6,
-                                background: 'linear-gradient(270deg, #3A65DB 0%, #1B31D2 100%)',
+                                background: 'linear-gradient(270deg, #3A65DB 0%, #0F2A7A 100%)',
                             }}
                         />
                         <div
@@ -798,8 +822,8 @@ export default function HostProfilePage(props: {
                 {/* ── Form sections ── */}
                 <div
                     style={{
-                        width: 1180,
-                        minHeight: 1905,
+                        width: '100%',
+                        minHeight: 'auto',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'flex-start',
@@ -916,15 +940,15 @@ export default function HostProfilePage(props: {
                                 }}
                             >
                                 <label style={lbl}>Name</label>
-                                <div style={{ display: 'flex', gap: 12 }}>
+                                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                                     <input
-                                        style={{ ...fieldInput, flex: 1, minWidth: 0 }}
+                                        style={{ ...fieldInput, flex: '1 1 120px', minWidth: 0 }}
                                         value={hostFirst}
                                         onChange={(e) => setHostFirst(e.target.value)}
                                         placeholder="First name"
                                     />
                                     <input
-                                        style={{ ...fieldInput, flex: 1, minWidth: 0 }}
+                                        style={{ ...fieldInput, flex: '1 1 120px', minWidth: 0 }}
                                         value={hostLast}
                                         onChange={(e) => setHostLast(e.target.value)}
                                         placeholder="Last name"
@@ -1354,7 +1378,7 @@ export default function HostProfilePage(props: {
                         id="host-profile-step-2"
                         ref={(el) => { stepSectionRefs.current[1] = el; }}
                         style={{
-                            ...sectionCard(activeStep === 2, { gap: 16, height: 500 }),
+                            ...sectionCard(activeStep === 2, { gap: 16 }),
                             scrollMarginTop: 20,
                         }}
                         onClick={() => goToStep(2)}
@@ -1594,7 +1618,8 @@ export default function HostProfilePage(props: {
 
                                 <div
                                     style={{
-                                        flex: 1,
+                                        flex: '1 1 220px',
+                                        minWidth: 0,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: 8,
@@ -1645,7 +1670,7 @@ export default function HostProfilePage(props: {
                         id="host-profile-step-3"
                         ref={(el) => { stepSectionRefs.current[2] = el; }}
                         style={{
-                            ...sectionCard(activeStep === 3, { gap: 24, height: 396 }),
+                            ...sectionCard(activeStep === 3, { gap: 24 }),
                             scrollMarginTop: 20,
                         }}
                         onClick={() => goToStep(3)}
@@ -1703,7 +1728,8 @@ export default function HostProfilePage(props: {
                             >
                                 <div
                                     style={{
-                                        flex: 1,
+                                        flex: '1 1 220px',
+                                        minWidth: 0,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: 8,
@@ -1808,7 +1834,8 @@ export default function HostProfilePage(props: {
 
                                 <div
                                     style={{
-                                        flex: 1,
+                                        flex: '1 1 220px',
+                                        minWidth: 0,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: 8,
@@ -1835,7 +1862,8 @@ export default function HostProfilePage(props: {
                             >
                                 <div
                                     style={{
-                                        flex: 1,
+                                        flex: '1 1 220px',
+                                        minWidth: 0,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: 8,
@@ -1851,7 +1879,8 @@ export default function HostProfilePage(props: {
                                 </div>
                                 <div
                                     style={{
-                                        flex: 1,
+                                        flex: '1 1 220px',
+                                        minWidth: 0,
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: 8,
@@ -2213,6 +2242,39 @@ export default function HostProfilePage(props: {
                     />
                 </div>
             ) : null}
+        </>
         </DashLayout>
     );
+}
+
+// Mobile CSS injected at module level
+if (typeof document !== 'undefined') {
+  const styleId = 'host-profile-mobile-fix';
+  if (!document.getElementById(styleId)) {
+    const s = document.createElement('style');
+    s.id = styleId;
+    s.textContent = `
+      @media (max-width: 768px) {
+        .host-profile-inner {
+          padding: 16px 14px 60px !important;
+        }
+        .host-step-nav-outer {
+          height: auto !important;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .host-step-nav-outer::-webkit-scrollbar { display: none; }
+        .host-step-nav-inner {
+          gap: 4px !important;
+        }
+        .host-step-nav-inner > div[role="button"] {
+          width: 160px !important;
+          min-width: 140px !important;
+        }
+      }
+    `;
+    document.head.appendChild(s);
+  }
 }

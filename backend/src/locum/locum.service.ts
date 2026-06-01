@@ -1,3 +1,4 @@
+import { PushService } from '../notifications/push.service.js';
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, } from '@nestjs/common';
 import {
     DocumentType,
@@ -118,7 +119,7 @@ function parseSaveBody(body: Record<string, unknown>): SaveLocumProfileDto {
 }
 @Injectable()
 export class LocumService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(private readonly prisma: PrismaService, private readonly pushService: PushService) { }
 
     private async assertLocumCanWrite(userId: string): Promise<void> {
         const user = await this.prisma.user.findUnique({
@@ -314,6 +315,29 @@ export class LocumService {
             where: { id: userId },
             select: { status: true, suspensionNote: true, suspendedAt: true },
         });
+
+        // A-003: notify admins when credential uploaded for review
+        if (profileSubmittedForReview) {
+            try {
+                const admins = await this.prisma.user.findMany({
+                    where: { role: 'ADMIN' },
+                    select: { id: true },
+                });
+                const name = [dto.firstName, dto.lastName].filter(Boolean).join(' ').trim() || userId;
+                await Promise.allSettled(admins.map(admin =>
+                    this.notifService.create({
+                        recipientId: admin.id,
+                        eventType: 'A_003_CREDENTIAL_UPLOADED',
+                        title: `Dr ${name} uploaded credentials for review`,
+                        body: `New credential submission requires verification.`,
+                        href: '/admin/verifications',
+                        referenceId: profile.id,
+                        referenceType: 'LocumProfile',
+                    })
+                ));
+            } catch {}
+        }
+
         return { success: true, profile: this.mapProfileToApi(profile, user) };
     }
     async getProfile(userId: string) {
@@ -397,6 +421,29 @@ export class LocumService {
                 coverNote: coverNote ?? null,
             },
         });
+        // H-001: Notify host of new application
+        try {
+            const jobWithHost = await this.prisma.jobPosting.findUnique({
+                where: { id: jobId },
+                select: { title: true, hostProfile: { select: { userId: true } } },
+            });
+            if (jobWithHost?.hostProfile?.userId) {
+                const locum = await this.prisma.locumProfile.findUnique({
+                    where: { userId },
+                    select: { firstName: true, lastName: true },
+                });
+                const name = locum?.firstName ? `Dr ${locum.firstName} ${locum.lastName ?? ''}`.trim() : 'A locum';
+                await this.notifService.create({
+                    recipientId: jobWithHost.hostProfile.userId,
+                    eventType: 'H_001_LOCUM_APPLIED',
+                    title: `New application for "${jobWithHost.title}"`,
+                    body: `${name} has applied to your posting. Review now.`,
+                    href: `/host/applicants/${jobId}`,
+                    referenceId: application.id,
+                    referenceType: 'Application',
+                });
+            }
+        } catch {}
         return { success: true, application };
     }
     async getMyApplications(userId: string) {
@@ -461,6 +508,32 @@ export class LocumService {
                 where: { id: app.jobPostingId },
                 data: { status: 'ONGOING' },
             });
+            // H-002: Notify host that locum accepted
+            try {
+                const jobWithHost = await this.prisma.jobPosting.findUnique({
+                    where: { id: app.jobPostingId },
+                    select: { title: true, startDate: true, hostProfile: { select: { userId: true } } },
+                });
+                const locumProfile = await this.prisma.locumProfile.findUnique({
+                    where: { userId },
+                    select: { firstName: true, lastName: true },
+                });
+                const name = locumProfile?.firstName ? `Dr ${locumProfile.firstName} ${locumProfile.lastName ?? ''}`.trim() : 'The locum';
+                const dateStr = jobWithHost?.startDate
+                    ? new Date(jobWithHost.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                    : '';
+                if (jobWithHost?.hostProfile?.userId) {
+                    await this.notifService.create({
+                        recipientId: jobWithHost.hostProfile.userId,
+                        eventType: 'H_002_LOCUM_ACCEPTED',
+                        title: `Confirmed! ${name} accepted your ${dateStr} shift`,
+                        body: `${name} has accepted your ${jobWithHost.title ?? 'locum'} shift. You can now coordinate details.`,
+                        href: '/host/dashboard',
+                        referenceId: applicationId,
+                        referenceType: 'Application',
+                    });
+                }
+            } catch {}
             return { success: true };
         }
         if (app.locumAcceptedAt)
@@ -477,6 +550,32 @@ export class LocumService {
                 });
             }
         });
+        // H-003: Notify host that locum declined
+        try {
+            const jobWithHost = await this.prisma.jobPosting.findUnique({
+                where: { id: app.jobPostingId },
+                select: { title: true, startDate: true, hostProfile: { select: { userId: true } } },
+            });
+            const locumProfile = await this.prisma.locumProfile.findUnique({
+                where: { userId },
+                select: { firstName: true, lastName: true },
+            });
+            const name = locumProfile?.firstName ? `Dr ${locumProfile.firstName} ${locumProfile.lastName ?? ''}`.trim() : 'The locum';
+            const dateStr = jobWithHost?.startDate
+                ? new Date(jobWithHost.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                : '';
+            if (jobWithHost?.hostProfile?.userId) {
+                await this.notifService.create({
+                    recipientId: jobWithHost.hostProfile.userId,
+                    eventType: 'H_003_LOCUM_DECLINED',
+                    title: `${name} declined your ${dateStr} opportunity`,
+                    body: `${name} has declined your ${jobWithHost?.title ?? 'locum'} opportunity. Browse other available locums.`,
+                    href: '/host/dashboard',
+                    referenceId: applicationId,
+                    referenceType: 'Application',
+                });
+            }
+        } catch {}
         return { success: true };
     }
 }

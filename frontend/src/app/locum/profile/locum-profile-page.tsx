@@ -459,7 +459,7 @@ export default function LocumProfilePage(props: {
         width: '100%', maxWidth: '100%', marginBottom: 20,
         fontFamily: 'Inter, var(--font-family-body, DM Sans), sans-serif',
       }}>
-        <div style={{
+        <div className="locum-step-nav" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 12, flexWrap: 'wrap', minHeight: 48, marginBottom: 10,
         }}>
@@ -473,24 +473,24 @@ export default function LocumProfilePage(props: {
               <div
                 key={s.n}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  flex: '1 1 180px', minWidth: 160, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  flex: '0 0 auto', minWidth: 0, cursor: 'pointer',
                 }}
                 onClick={() => handleStepNavClick(s.n)}
               >
                 <div style={{
-                  width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: isDone ? '#16a34a' : isActive ? '#1522A6' : 'transparent',
                   border: showFilled ? 'none' : '1px solid rgba(21, 20, 20, 0.4)',
                   boxSizing: 'border-box',
                   color: showFilled ? '#fff' : '#6B7280',
-                  fontSize: 18, fontWeight: 500, lineHeight: 1,
+                  fontSize: 13, fontWeight: 600, lineHeight: 1,
                 }}>
                   {isDone ? '✓' : s.n}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
-                  <div style={{ fontSize: 20, fontWeight: 500, lineHeight: 1, color: '#0B0F1F' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1, color: '#0B0F1F' }}>
                     {s.label}
                   </div>
                 </div>
@@ -524,7 +524,7 @@ export default function LocumProfilePage(props: {
               height: '100%', width: `${progressPct}%`, borderRadius: 3,
               background: progressPct === 100
                 ? '#16a34a'
-                : 'linear-gradient(270deg, #3A65DB 0%, #1B31D2 100%)',
+                : 'linear-gradient(270deg, #3A65DB 0%, #0F2A7A 100%)',
               transition: 'width 0.4s ease',
             }} />
           </div>
@@ -542,20 +542,21 @@ export default function LocumProfilePage(props: {
       <div
         ref={(node) => { stepSectionRefs.current[1] = node; }}
         onClick={() => goToStep(1)}
+        className="locum-section-card"
         style={{
           background: '#fff', border: sectionBorder(1),
           borderRadius: 8, padding: 20, marginBottom: 16, cursor: 'pointer',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <div className="locum-section-header">
           <div style={{ width: 24, height: 24, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
             <Image src="/basic-information.svg" alt="" width={24} height={24} style={{ objectFit: 'cover' }} />
           </div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#0f1523' }}>Basic Information</span>
+          <span>Basic Information</span>
         </div>
 
         {/* Name row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+        <div className="locum-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
           <div>
             <label style={lbl}>First Name</label>
             <input style={inp} value={firstName} onChange={(e) => setFirstName(e.target.value)}
@@ -569,7 +570,7 @@ export default function LocumProfilePage(props: {
         </div>
 
         {/* CPSNS + years */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+        <div className="locum-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
           <div>
             <label style={lbl}>CPSNS Number</label>
             <input
@@ -599,7 +600,7 @@ export default function LocumProfilePage(props: {
         </div>
 
         {/* Summary */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+        <div className="locum-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
           <div>
             <label style={lbl}>Professional Profile (Career Summary)</label>
             <textarea
@@ -613,7 +614,7 @@ export default function LocumProfilePage(props: {
         </div>
 
         {/* Speciality */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 10 }}>
+        <div className="locum-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 10 }}>
           <div>
             <label style={lbl}>Speciality</label>
             <div style={{ position: 'relative', marginBottom: 8 }}>
@@ -666,6 +667,7 @@ export default function LocumProfilePage(props: {
       <div
         ref={(node) => { stepSectionRefs.current[2] = node; }}
         onClick={() => goToStep(2)}
+        className="locum-section-card"
         style={{
           background: '#fff', border: sectionBorder(2),
           borderRadius: 8, padding: 20, marginBottom: 16, cursor: 'pointer',
@@ -677,7 +679,7 @@ export default function LocumProfilePage(props: {
             flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: '#EEF0FB',
           }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: '#1B31D2' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: '#0F2A7A' }}>
               <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V21c0 .55-.45 1-1 1-9.94 0-18-8.06-18-18 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor" />
             </svg>
           </div>
@@ -710,6 +712,7 @@ onClick={(e) => e.stopPropagation()} placeholder="Your email address"
       <div
         ref={(node) => { stepSectionRefs.current[3] = node; }}
         onClick={() => goToStep(3)}
+        className="locum-section-card"
         style={{
           background: '#fff', border: sectionBorder(3),
           borderRadius: 8, padding: 20, marginBottom: 16, cursor: 'pointer',
@@ -722,7 +725,7 @@ onClick={(e) => e.stopPropagation()} placeholder="Your email address"
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: '#EEF0FB',
           }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: '#1B31D2' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: '#0F2A7A' }}>
               <path
                 d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
                 stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
@@ -734,7 +737,7 @@ onClick={(e) => e.stopPropagation()} placeholder="Your email address"
         </div>
 
         {/* Address Line 1 + 2 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+        <div className="locum-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
           <div>
             <label style={lbl}>Address Line 1</label>
             <input
@@ -752,7 +755,7 @@ onClick={(e) => e.stopPropagation()} placeholder="Your email address"
         </div>
 
         {/* City (with autocomplete) + Province */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+        <div className="locum-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
           {/* City */}
           <div style={{ position: 'relative' }}>
             <label htmlFor="locum-profile-city" style={lbl}>City</label>
@@ -854,6 +857,7 @@ onClick={(e) => e.stopPropagation()} placeholder="Your email address"
       <div
         ref={(node) => { stepSectionRefs.current[4] = node; }}
         onClick={() => goToStep(4)}
+        className="locum-section-card"
         style={{
           background: '#fff', border: sectionBorder(4),
           borderRadius: 8, padding: 20, marginBottom: 16, cursor: 'pointer',

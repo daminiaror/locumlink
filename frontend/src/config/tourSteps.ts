@@ -41,6 +41,14 @@ export const tourSteps: DriveStep[] = [
         },
     },
     {
+        element: '#nav-settings',
+        popover: {
+            title: 'Settings',
+            description: 'Manage your account settings and preferences.',
+            side: 'right',
+        },
+    },
+    {
         element: '#header-notifications',
         popover: {
             title: 'Notifications',

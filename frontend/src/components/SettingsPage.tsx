@@ -35,6 +35,7 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
   const NOTIF_KEYS = ['messages', 'applications', 'reminders', 'account'] as const;
   type NotifKey = typeof NOTIF_KEYS[number];
   const loadPrefs = () => {
+    if (typeof window === 'undefined') return { messages: true, applications: true, reminders: true, account: true };
     const saved = localStorage.getItem('notifPrefs');
     if (saved) return JSON.parse(saved) as Record<NotifKey, boolean>;
     return { messages: true, applications: true, reminders: true, account: true };
@@ -103,14 +104,14 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
   );
 
   const row = (children: React.ReactNode, borderTop = true) => (
-    <div style={{ padding: '16px 20px', borderTop: borderTop ? '1px solid #F3F4F6' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+    <div className="settings-row" style={{ padding: '16px 20px', borderTop: borderTop ? '1px solid #F3F4F6' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
       {children}
     </div>
   );
 
   return (
     <DashLayout navItems={nav} activeHref={activeHref}>
-      <div style={{ maxWidth: 720, margin: '0', padding: "0 24px 48px" }}>
+      <div style={{ maxWidth: 720, margin: '0', padding: "0 0 48px" }}>
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0B0F1F', margin: 0 }}>Settings</h1>
           <p style={{ fontSize: 14, color: '#6B7280', margin: '4px 0 0' }}>Manage your account preferences</p>
@@ -148,7 +149,7 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
                 position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
                 background: notifPrefs.messages ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
                 cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
-                opacity: {'1' if not disabled else '0.6'},
+                opacity: 1,
               }}>
               <span style={{
                 position: 'absolute', top: 3, left: notifPrefs.messages ? 23 : 3,
@@ -172,7 +173,7 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
                 position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
                 background: notifPrefs.applications ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
                 cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
-                opacity: {'1' if not disabled else '0.6'},
+                opacity: 1,
               }}>
               <span style={{
                 position: 'absolute', top: 3, left: notifPrefs.applications ? 23 : 3,
@@ -196,7 +197,7 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
                 position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
                 background: notifPrefs.reminders ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
                 cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
-                opacity: {'1' if not disabled else '0.6'},
+                opacity: 1,
               }}>
               <span style={{
                 position: 'absolute', top: 3, left: notifPrefs.reminders ? 23 : 3,
@@ -220,7 +221,7 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
                 position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
                 background: notifPrefs.account ? "linear-gradient(270deg,#3A65DB,#1B31D2)" : "#D1D5DB",
                 cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s',
-                opacity: {'1' if not disabled else '0.6'},
+                opacity: 1,
               }}>
               <span style={{
                 position: 'absolute', top: 3, left: notifPrefs.account ? 23 : 3,
@@ -244,7 +245,7 @@ export default function SettingsPage({ role }: { role: 'host' | 'locum' }) {
                 position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none',
                 background: "linear-gradient(270deg,#3A65DB,#1B31D2)",
                 cursor: 'default', flexShrink: 0, transition: 'background 0.2s',
-                opacity: {'1' if not disabled else '0.6'},
+                opacity: 1,
               }}>
               <span style={{
                 position: 'absolute', top: 3, left: 23,

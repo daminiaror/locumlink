@@ -79,7 +79,7 @@ export default function HostResourcesPage(props: {
 
     return (
         <DashLayout navItems={NAV} activeHref="/host/resources" topbarFirstName={profile?.contactFirstName} topbarLastName={profile?.contactLastName}>
-            <div style={{ padding: 24, maxWidth: 720 }}>
+            <div style={{ maxWidth: 720 }}>
                 <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 24 }}>Resources</h1>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -26,6 +26,7 @@ export default function GuidedTour() {
                 box-shadow: 0 8px 40px rgba(28,50,210,0.35) !important;
                 padding: 22px 24px !important;
                 min-width: 280px !important;
+                font-family: Inter, sans-serif !important;
             }
             .driver-popover-title {
                 color: #fff !important;
@@ -50,22 +51,31 @@ export default function GuidedTour() {
                 gap: 8px !important;
             }
             .driver-popover-prev-btn, .driver-popover-next-btn, .driver-popover-close-btn, .driver-popover-done-btn {
-                background: rgba(255,255,255,0.15) !important;
-                border: 1px solid rgba(255,255,255,0.3) !important;
+                background: rgba(255,255,255,0.18) !important;
+                border: 1.5px solid rgba(255,255,255,0.55) !important;
                 color: #fff !important;
                 border-radius: 8px !important;
-                padding: 7px 16px !important;
+                padding: 7px 18px !important;
                 font-size: 13px !important;
                 font-weight: 600 !important;
                 font-family: Inter, sans-serif !important;
                 cursor: pointer !important;
                 transition: background 0.15s !important;
+                letter-spacing: 0.01em !important;
+                text-shadow: none !important;
+                box-shadow: none !important;
+                outline: none !important;
+                will-change: auto !important;
+            }
+            .driver-popover-next-btn:hover, .driver-popover-done-btn:hover,
+            .driver-popover-prev-btn:hover {
+                background: rgba(255,255,255,0.28) !important;
             }
             .driver-popover-next-btn, .driver-popover-done-btn {
-                background: rgba(255,255,255,0.25) !important;
+                background: #2a44e0 !important;
             }
             .driver-popover-next-btn:hover, .driver-popover-done-btn:hover {
-                background: rgba(255,255,255,0.4) !important;
+                background: #3d5af1 !important;
             }
             .driver-popover-arrow-side-left .driver-popover-arrow { border-right-color: #1C32D2 !important; }
             .driver-popover-arrow-side-right .driver-popover-arrow { border-left-color: #1C32D2 !important; }

@@ -241,7 +241,7 @@ export default function HostPostJobPage(props: {
             background: busy
                 ? '#9ca3af'
                 : verified
-                    ? 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)'
+                    ? 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)'
                     : '#6B7280',
             color: '#fff',
             fontWeight: 600,

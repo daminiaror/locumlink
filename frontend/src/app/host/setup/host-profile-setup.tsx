@@ -560,7 +560,7 @@ export default function HostSetupPage(props: {
         </div>
       )}
 
-      <div style={hostSetupModalCardBase}>
+      <div className="setup-modal" style={hostSetupModalCardBase}>
         {/* ── Header ── */}
         <div
           style={{
@@ -897,7 +897,7 @@ export default function HostSetupPage(props: {
                             style={{
                               padding: '0 14px',
                               height: 38,
-                              background: '#1B31D2',
+                              background: '#0F2A7A',
                               color: '#fff',
                               border: 'none',
                               borderRadius: 8,
@@ -1443,7 +1443,7 @@ function NavButtons({
         fontSize: 20,
         background: disabled
           ? '#D1D5DB'
-          : 'linear-gradient(270deg, #3A65DB 0%, #1B31D2 100%)',
+          : 'linear-gradient(270deg, #3A65DB 0%, #0F2A7A 100%)',
         color: disabled ? 'rgba(107, 114, 128, 0.7)' : '#FFFFFF',
       }
     : {

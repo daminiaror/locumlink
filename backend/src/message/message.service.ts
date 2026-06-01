@@ -1,4 +1,5 @@
 import { PushService } from '../notifications/push.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { Injectable, NotFoundException, ForbiddenException, } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GcsService } from '../gcs/gcs.service.js';
@@ -19,7 +20,7 @@ const userSelect = {
 const CONVERSATION_SCAN_LIMIT = 400;
 @Injectable()
 export class MessageService {
-    constructor(private readonly prisma: PrismaService, private readonly pushService: PushService, private readonly gcs: GcsService) { }
+    constructor(private readonly prisma: PrismaService, private readonly pushService: PushService, private readonly gcs: GcsService, private readonly notifService: NotificationsService) { }
     private async signAttachments<T extends {
         attachments?: {
             storagePath: string;
@@ -268,17 +269,30 @@ export class MessageService {
             include: { sender: { select: userSelect }, attachments: true },
         });
         const [signed] = await this.signAttachments([message]);
-        // Fire push notification to recipient
+        // H-004 / L-008: notify recipient of new message
         try {
             const senderName = message.sender?.locumProfile?.firstName
-                ? `Dr ${message.sender.locumProfile.firstName}`
+                ? `Dr ${message.sender.locumProfile.firstName} ${message.sender.locumProfile.lastName ?? ''}`.trim()
                 : message.sender?.hostProfile?.contactFirstName
-                    ? `Dr ${message.sender.hostProfile.contactFirstName}`
+                    ? `Dr ${message.sender.hostProfile.contactFirstName} ${message.sender.hostProfile.contactLastName ?? ''}`.trim()
                     : 'Someone';
-            await this.pushService.sendToUser(recipientId, {
+            const recipient = await this.prisma.user.findUnique({
+                where: { id: recipientId },
+                select: { role: true },
+            });
+            const isRecipientHost = recipient?.role === 'HOST';
+            const eventType = isRecipientHost ? 'H_004_NEW_MESSAGE' : 'L_008_NEW_MESSAGE';
+            const href = isRecipientHost
+                ? `/host/messages?partnerId=${senderId}`
+                : `/locum/messages?partnerId=${senderId}`;
+            await this.notifService.create({
+                recipientId,
+                eventType,
                 title: `New message from ${senderName}`,
                 body: trimmed.slice(0, 80) || 'Sent an attachment',
-                url: '/messages',
+                href,
+                referenceId: message.id,
+                referenceType: 'Message',
             });
         } catch {}
         return { message: signed };

@@ -1,3 +1,5 @@
+import { PushService } from '../notifications/push.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import {
   BadRequestException,
   ConflictException,
@@ -66,6 +68,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly gcs: GcsService,
+    private readonly pushService: PushService,
+    private readonly notifService: NotificationsService,
   ) {}
 
   private profileField(label: string, value: unknown): { label: string; value: string } | null {
@@ -367,6 +371,21 @@ export class AdminService {
         outcome: 'SUCCESS',
         actorRole: 'admin',
       });
+      // Notify user of account status change
+      try {
+        if (dto.status === 'SUSPENDED') {
+          const eventType = updated.role === 'HOST' ? 'H_007_ACCOUNT_SUSPENDED' : 'L_011_ACCOUNT_SUSPENDED';
+          await this.notifService.create({
+            recipientId: updated.id,
+            eventType,
+            title: 'Your account has been suspended',
+            body: dto.suspensionNote ?? 'Your account has been suspended. Contact support for assistance.',
+            href: '/settings',
+            referenceId: updated.id,
+            referenceType: 'User',
+          });
+        }
+      } catch {}
       return {
         id: updated.id,
         email: updated.email,
@@ -690,6 +709,31 @@ export class AdminService {
       [updated.firstName, updated.lastName].filter(Boolean).join(' ').trim() ||
       '—';
 
+    // L-009 / L-010: notify locum of verification result
+    try {
+      if (nextStatus === 'VERIFIED') {
+        await this.notifService.create({
+          recipientId: profile.userId,
+          eventType: 'L_009_ACCOUNT_VERIFIED',
+          title: 'Account Verified — Welcome to LocumLink!',
+          body: 'Your credentials have been verified. You can now apply for locum opportunities.',
+          href: '/locum/browse',
+          referenceId: profile.id,
+          referenceType: 'LocumProfile',
+        });
+      } else if (nextStatus === 'REJECTED') {
+        await this.notifService.create({
+          recipientId: profile.userId,
+          eventType: 'L_010_ACCOUNT_REJECTED',
+          title: 'Action Required: Account Verification',
+          body: `Additional documentation required. Reason: ${rejectionReason ?? 'See admin panel'}.`,
+          href: '/locum/profile',
+          referenceId: profile.id,
+          referenceType: 'LocumProfile',
+        });
+      }
+    } catch {}
+
     return {
       id: updated.id,
       userId: updated.userId,
@@ -763,6 +807,31 @@ export class AdminService {
       outcome: 'SUCCESS',
       actorRole: 'admin',
     });
+
+    // H-005 / H-006: notify host of verification result
+    try {
+      if (nextStatus === 'VERIFIED') {
+        await this.notifService.create({
+          recipientId: profile.userId,
+          eventType: 'H_005_ACCOUNT_VERIFIED',
+          title: 'Account Verified — Welcome to LocumLink!',
+          body: 'Your credentials have been verified. You can now post locum opportunities.',
+          href: '/host/dashboard',
+          referenceId: profile.id,
+          referenceType: 'HostProfile',
+        });
+      } else if (nextStatus === 'REJECTED') {
+        await this.notifService.create({
+          recipientId: profile.userId,
+          eventType: 'H_006_ACCOUNT_REJECTED',
+          title: 'Action Required: Account Verification',
+          body: `Additional documentation required. Reason: ${rejectionReason ?? 'See admin panel'}.`,
+          href: '/host/profile',
+          referenceId: profile.id,
+          referenceType: 'HostProfile',
+        });
+      }
+    } catch {}
 
     return {
       id: updated.id,

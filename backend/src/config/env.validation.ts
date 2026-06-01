@@ -98,9 +98,6 @@ class EnvironmentVariables {
     @IsOptional()
     ADMIN_FRONTEND_REDIRECT_URL: string = 'http://localhost:3001/admin';
 
-    @IsString()
-    @IsOptional()
-    ADMIN_ALLOWED_EMAIL: string = '';
 }
 export function validate(config: Record<string, unknown>) {
     const validatedConfig = plainToInstance(EnvironmentVariables, config, {

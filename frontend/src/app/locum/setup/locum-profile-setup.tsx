@@ -396,7 +396,7 @@ export default function LocumSetupPage() {
         }}/>
 
       
-      <div style={locumModalCardBase}>
+      <div className="setup-modal" style={locumModalCardBase}>
         
         <div style={{
             position: 'relative',
@@ -679,7 +679,7 @@ export default function LocumSetupPage() {
                 }} style={{
                     padding: '0 14px',
                     height: 44,
-                    background: '#1B31D2',
+                    background: '#0F2A7A',
                     color: '#fff',
                     border: 'none',
                     borderRadius: 8,
@@ -1233,7 +1233,7 @@ function NavButtons({ onBack, onNext, nextLabel = 'Next', disabled = false, next
             fontSize: 20,
             background: disabled
                 ? '#D1D5DB'
-                : 'linear-gradient(270deg, #3A65DB 0%, #1B31D2 100%)',
+                : 'linear-gradient(270deg, #3A65DB 0%, #0F2A7A 100%)',
             color: disabled ? 'rgba(107, 114, 128, 0.7)' : '#FFFFFF',
         }
         : {

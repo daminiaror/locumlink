@@ -574,7 +574,7 @@ export default function HostEditJobPage(props: {
                 border: 'none',
                 background: busy
                     ? '#9ca3af'
-                    : 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+                    : 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
                 color: '#fff',
                 fontWeight: 600,
                 fontSize: 15,

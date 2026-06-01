@@ -314,7 +314,7 @@ function MessageBtn({ active, onClick }: { active: boolean; onClick?: () => void
             fontWeight: 500,
             ...(active
                 ? {
-                    background: 'linear-gradient(270deg, #3A65DB 0%, #1B31D2 100%)',
+                    background: 'linear-gradient(270deg, #3A65DB 0%, #0F2A7A 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                 }
@@ -763,7 +763,7 @@ export default function HostApplicantsPage(props: {
                 border: 'none',
                 background: composeSending || !composeText.trim()
                     ? '#D1D5DB'
-                    : 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+                    : 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: composeSending || !composeText.trim() ? 'default' : 'pointer',
@@ -1092,7 +1092,7 @@ export default function HostApplicantsPage(props: {
                         padding: '10px 12px',
                         height: 44,
                         background: jobId && selected.status === 'APPLIED' && !actioning.has(selected.id)
-                            ? 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)'
+                            ? 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)'
                             : '#E5E7EB',
                         borderRadius: 8,
                     }}>

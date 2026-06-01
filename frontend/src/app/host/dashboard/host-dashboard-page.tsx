@@ -607,7 +607,7 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
             padding: '9px 24px',
             border: 'none',
             borderRadius: 8,
-            background: 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+            background: 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
             color: '#fff',
             fontWeight: 600,
             fontSize: 14,
@@ -1115,7 +1115,7 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
                     padding: '6px 16px',
                     background: isExpanded
                         ? '#EEF0FB'
-                        : 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+                        : 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
                     border: 'none',
                     borderRadius: 6,
                     color: isExpanded ? '#1C32D2' : '#fff',
@@ -2363,7 +2363,8 @@ export default function HostDashboard(props: {
             </div>)}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -2402,6 +2403,34 @@ export default function HostDashboard(props: {
         }}>
                   {clinicName}
                 </h1>
+              </div>
+              <button onClick={() => { setShowJobOverlay(true); }} style={{
+                all: 'unset',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                padding: '10px 12px',
+                height: 45,
+                width: 172,
+                background: 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
+                borderRadius: 8,
+                flexShrink: 0,
+              }}>
+                <PlusIcon />
+                <span style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontWeight: 'var(--font-weight-bold)',
+                  fontSize: 'var(--font-body)',
+                  lineHeight: '140%',
+                  color: '#fff',
+                  whiteSpace: 'nowrap',
+                }}>
+                  Post New Job
+                </span>
+              </button>
               </div>
 
               {dataLoadError && (<div role="alert" style={{
@@ -2575,35 +2604,8 @@ export default function HostDashboard(props: {
                       </button>);
         })}
                 </div>
-                <button onClick={() => {
-            setShowJobOverlay(true);
-        }} style={{
-            all: 'unset',
-            cursor: 'pointer',
-            boxSizing: 'border-box',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            padding: '10px 12px',
-            height: 45,
-            width: 172,
-            background: 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
-            borderRadius: 8,
-            flexShrink: 0,
-        }}>
-                  <PlusIcon />
-                  <span style={{
-            fontFamily: 'Inter, sans-serif',
-            fontWeight: 'var(--font-weight-bold)',
-            fontSize: 'var(--font-body)',
-            lineHeight: '140%',
-            color: '#fff',
-            whiteSpace: 'nowrap',
-        }}>
-                    Post New Job
-                  </span>
-                </button>
+
+
               </div>
               <div style={{ width: 428, height: 1, background: '#A7A8AA' }}/>
 
@@ -2673,7 +2675,7 @@ export default function HostDashboard(props: {
                         style={{
                           marginTop: 8,
                           padding: '10px 24px',
-                          background: verified ? 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)' : '#9CA3AF',
+                          background: verified ? 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)' : '#9CA3AF',
                           color: '#fff',
                           border: 'none',
                           borderRadius: 8,

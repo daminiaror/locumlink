@@ -1,3 +1,4 @@
+import { PushService } from "../notifications/push.service.js";
 import {
     BadRequestException,
     ConflictException,
@@ -53,7 +54,8 @@ import {
       private readonly config: ConfigService,
       private readonly audit: AuditService,
       private readonly gcs: GcsService,
-    ) {}
+    private readonly pushService: PushService,
+  ) {}
   
     async register(
       dto: RegisterDto,
@@ -138,9 +140,24 @@ import {
         ...meta,
       });
   
+      // A-001/A-002: notify admin of new registration (push only - no circular dep)
+      try {
+        const admins = await this.prisma.user.findMany({
+          where: { role: 'ADMIN' },
+          select: { id: true },
+        });
+        const isHost = dto.role === 'HOST';
+        const title = isHost ? 'New Host Registration — Action Required' : 'New Locum Registration — Action Required';
+        const body = isHost
+          ? `New host physician ${dto.email} has registered. Credentials require verification.`
+          : `New locum physician ${dto.email} has registered. Credentials require verification.`;
+        await Promise.allSettled(admins.map(admin =>
+          this.pushService.sendToUser(admin.id, { title, body, url: '/admin/users' })
+        ));
+      } catch {}
       return this.issueTokens(user);
     }
-  
+
     async login(
       dto: LoginDto,
       meta: { ip?: string; userAgent?: string },

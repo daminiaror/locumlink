@@ -136,10 +136,7 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
     <div className="admin-portal">
       <div className="admin-container">
         <aside className="sidebar">
-          <div className="sidebar-header">
-            <Logo white size="md" />
-            <p>Admin Portal</p>
-          </div>
+
 
           <nav className="sidebar-nav">
             {nav.map((item) => {
@@ -177,9 +174,14 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
         </aside>
 
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-          <div style={{ height: 56, borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 24px', background: '#fff', gap: 16 }}>
+          <div style={{ height: 64, borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px', background: '#ffffff', gap: 16, boxShadow: '0 1px 4px rgba(15,42,122,0.06)', flexShrink: 0, position: 'sticky', top: 0, zIndex: 30 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Logo size="md" />
+              <div style={{ width: 1, height: 24, background: '#E5E7EB' }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#0F2A7A', fontFamily: 'Inter, sans-serif', letterSpacing: '0.02em' }}>Admin Portal</span>
+            </div>
             <div ref={adminBellRef} style={{ position: 'relative' }}>
-              <button onClick={() => setAdminBellOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#38C6C6', position: 'relative' }} title="Notifications">
+              <button onClick={() => setAdminBellOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#0F2A7A', position: 'relative' }} title="Notifications">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -192,7 +194,7 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
                   <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                     {adminNotifs.length === 0 ? (
                       <div style={{ padding: '36px 20px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#B8C4D6" strokeWidth="1.5" strokeLinecap="round" style={{marginBottom:8}}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                         <div style={{ fontSize: 14, color: '#9CA3AF' }}>No new notifications</div>
                       </div>
                     ) : adminNotifs.map(notif => (
@@ -209,7 +211,7 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
               )}
             </div>
           </div>
-          <main className="main-content">{children}</main>
+          <main className="main-content" style={{ background: '#F7F8FA' }}>{children}</main>
         </div>
       </div>
     </div>

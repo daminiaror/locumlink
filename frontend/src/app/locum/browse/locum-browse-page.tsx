@@ -343,7 +343,7 @@ export default function LocumBrowsePage(props: {
     try {
       const { jobs: data } = await locumApi.browseJobs();
       setJobs(data);
-      if (data.length > 0) setSelectedId(data[0].id);
+      if (data.length > 0 && window.innerWidth > 768) setSelectedId(data[0].id);
     } catch {
     } finally {
       setLoading(false);
@@ -440,7 +440,7 @@ export default function LocumBrowsePage(props: {
       filteredJobs.length > 0 &&
       !filteredJobs.find((j) => j.id === selectedId)
     ) {
-      setSelectedId(filteredJobs[0].id);
+      if (window.innerWidth > 768) setSelectedId(filteredJobs[0].id);
     }
   }, [filteredJobs, selectedId]);
   const job = filteredJobs.find((j) => j.id === selectedId) ?? null;
@@ -568,14 +568,14 @@ export default function LocumBrowsePage(props: {
               <a
                 href="/locum/profile"
                 style={{
-                  color: '#1B31D2',
+                  color: '#0F2A7A',
                   fontWeight: 'var(--font-weight-bold)',
                   textDecoration: 'none',
                 }}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.color = '#3B4FD8')
                 }
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#1B31D2')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#0F2A7A')}
               >
                 CPSNS number
               </a>{' '}
@@ -804,6 +804,7 @@ export default function LocumBrowsePage(props: {
           }}
         >
           <div
+            className={selectedId ? 'browse-list-panel browse-list-panel--hidden-mobile' : 'browse-list-panel'}
             style={{
               width: listPanelWidth,
               flexShrink: 0,
@@ -1013,6 +1014,7 @@ export default function LocumBrowsePage(props: {
 
           {job ? (
             <div
+              className={selectedId ? 'browse-detail-panel browse-detail-panel--open' : 'browse-detail-panel'}
               style={{
                 flex: 1,
                 minHeight: 0,
@@ -1022,6 +1024,30 @@ export default function LocumBrowsePage(props: {
                 overflow: 'hidden',
               }}
             >
+              <button
+                className="browse-back-btn"
+                onClick={() => setSelectedId(null)}
+                style={{
+                  display: 'none',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: '#fff',
+                  border: 'none',
+                  borderBottom: '1px solid #E5E7EB',
+                  cursor: 'pointer',
+                  padding: '12px 16px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#0F2A7A',
+                  fontFamily: 'inherit',
+                  width: '100%',
+                  textAlign: 'left',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+                Back to Opportunities
+              </button>
               <div
                 style={{
                   flex: 1,
@@ -1065,13 +1091,13 @@ export default function LocumBrowsePage(props: {
                   >
                     <path
                       d="M12 3.25 19 5.9v5.25c0 4.45-2.82 7.95-7 9.6-4.18-1.65-7-5.15-7-9.6V5.9l7-2.65Z"
-                      stroke="#1B31D2"
+                      stroke="#0F2A7A"
                       strokeWidth="1.8"
                       strokeLinejoin="round"
                     />
                     <path
                       d="M8.6 12.1 10.9 14.4 15.7 9.6"
-                      stroke="#1B31D2"
+                      stroke="#0F2A7A"
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1098,9 +1124,12 @@ export default function LocumBrowsePage(props: {
                     borderRadius: 6,
                     background: LOGO_TEAL_BG,
                     border: `1px solid ${LOGO_TEAL_BORDER}`,
-                    display: 'inline-block',
-                    width: 'fit-content',
+                    display: 'block',
+                    width: '100%',
                     maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
                   }}
                 >
                   {job.hostProfile.city}, {job.hostProfile.province} ·{' '}

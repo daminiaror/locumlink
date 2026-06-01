@@ -26,7 +26,8 @@ export class AdminGoogleStrategy extends PassportStrategy(Strategy, ADMIN_GOOGLE
     profile: Profile,
   ): Promise<{ adminId: string; email: string }> {
     const email = profile.emails?.[0]?.value;
-    const admin = await this.adminAuth.assertEmailIsAllowedAdmin(email);
-    return { adminId: admin.id, email: admin.email };
+    if (!email) throw new Error('No email from Google');
+    const result = await this.adminAuth.loginWithEmail(email);
+    return { adminId: result.adminId, email: result.email };
   }
 }

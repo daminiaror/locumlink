@@ -267,7 +267,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             border: 'none',
             cursor: 'pointer',
             padding: 4,
-            color: '#1B31D2',
+            color: '#0F2A7A',
             position: 'relative',
         }} title="Notifications">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -747,7 +747,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 activeNavIndex * (NAV_ITEM_H + NAV_GAP),
             width: 6,
             height: NAV_ITEM_H,
-            background: 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+            background: 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
             borderRadius: '0px 8px 8px 0px',
             transition: 'top 0.2s ease',
         }}/>
@@ -802,7 +802,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                         : 'transparent',
                     borderRadius: active ? 4 : 16,
                     cursor: 'pointer',
-                    color: active ? '#1B31D2' : 'rgba(2,7,27,0.9)',
+                    color: active ? '#0F2A7A' : 'rgba(2,7,27,0.9)',
                 }}>
                       <span style={{
                     width: 20,
@@ -823,7 +823,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     whiteSpace: 'nowrap',
                     ...(active
                         ? {
-                            background: 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+                            background: 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                         }

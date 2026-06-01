@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import type { StringValue } from 'ms';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { PushService } from '../notifications/push.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
@@ -27,6 +28,7 @@ import { RolesGuard } from './guards/roles.guard.js';
     ],
     controllers: [AuthController],
     providers: [
+        PushService,
         AuthService,
         JwtStrategy,
         LocalStrategy,

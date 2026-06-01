@@ -351,6 +351,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const [myListPreviewName, setMyListPreviewName] = useState<string | null>(null);
     const [myCpsnsVerified, setMyCpsnsVerified] = useState(false);
     const [listPanelWidth, setListPanelWidth] = useState(readStoredMessagesListWidth);
+    const userClearedRef = useRef(false);
     useEffect(() => {
         setMyListPreviewName(null);
         setMyCpsnsVerified(false);
@@ -431,7 +432,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 q,
             });
             setConversations(data);
-            if (!urlPartnerId && !selectedPartnerId && data.length > 0) {
+            if (!urlPartnerId && !selectedPartnerId && data.length > 0 && window.innerWidth > 768 && !userClearedRef.current) {
                 const first = data[0];
                 setSelectedPartnerId(first.partnerId);
                 setComposeJobPostingId(first.lastMessage.jobPosting?.id ?? null);
@@ -741,9 +742,11 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             return;
         if (locumApplicationSidebarRows.length === 0)
             return;
-        const first = locumApplicationSidebarRows[0];
-        setSelectedPartnerId(first.jobPosting.hostProfile.userId);
-        setComposeJobPostingId(first.jobPosting.id);
+        if (window.innerWidth > 768 && !userClearedRef.current) {
+            const first = locumApplicationSidebarRows[0];
+            setSelectedPartnerId(first.jobPosting.hostProfile.userId);
+            setComposeJobPostingId(first.jobPosting.id);
+        }
     }, [
         authLoading,
         role,
@@ -753,6 +756,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         conversations.length,
         locumApplicationSidebarRows,
     ]);
+    // Mobile: when back button clears selectedPartnerId, don't re-select
     const specializations = getSpecializations(partner);
     const location = getLocation(partner);
     const partnerName = partner ? getDisplayName(partner as AnyUser) : '';
@@ -814,7 +818,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             minHeight: 500,
         }}>
         
-        <div style={{
+        <div className="messages-list-panel" style={{
             width: listPanelWidth,
             flexShrink: 0,
             position: 'relative',
@@ -1217,7 +1221,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             <div style={{ fontSize: 13 }}>
               Select a conversation to start messaging
             </div>
-          </div>) : (<div style={{
+          </div>) : (<div className="messages-chat-panel messages-chat-panel--open" style={{
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
@@ -1225,6 +1229,28 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 minHeight: 0,
                 position: 'relative',
             }}>
+            <button
+              onClick={() => { userClearedRef.current = true; setSelectedPartnerId(null); }}
+              className="messages-back-btn"
+              style={{
+                display: 'none',
+                alignItems: 'center',
+                gap: 8,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '10px 16px',
+                fontSize: 14,
+                fontWeight: 600,
+                color: '#1B31D2',
+                fontFamily: 'inherit',
+                borderBottom: '1px solid #E5E7EB',
+                width: '100%',
+                textAlign: 'left',
+              }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              Back to conversations
+            </button>
             
             <div style={{
                 padding: '12px 16px',

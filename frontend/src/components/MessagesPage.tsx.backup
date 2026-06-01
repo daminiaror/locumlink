@@ -1303,13 +1303,13 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                       >
                         <path
                           d="M12 3.25 19 5.9v5.25c0 4.45-2.82 7.95-7 9.6-4.18-1.65-7-5.15-7-9.6V5.9l7-2.65Z"
-                          stroke="#1B31D2"
+                          stroke="#0F2A7A"
                           strokeWidth="1.8"
                           strokeLinejoin="round"
                         />
                         <path
                           d="M8.6 12.1 10.9 14.4 15.7 9.6"
-                          stroke="#1B31D2"
+                          stroke="#0F2A7A"
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -1828,7 +1828,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 background: sending ||
                     (!messageText.trim() && pendingFiles.length === 0)
                     ? '#D1D5DB'
-                    : 'linear-gradient(270deg,#3A65DB 0%,#1B31D2 100%)',
+                    : 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 8,

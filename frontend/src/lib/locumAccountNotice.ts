@@ -44,7 +44,7 @@ export function getLocumDashboardStatusBadge(
         return {
             label: 'Under verification',
             background: 'rgba(59, 79, 216, 0.12)',
-            color: '#1B31D2',
+            color: '#0F2A7A',
             border: 'rgba(59, 79, 216, 0.25)',
         };
     }

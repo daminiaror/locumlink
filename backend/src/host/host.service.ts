@@ -1,3 +1,5 @@
+import { PushService } from "../notifications/push.service.js";
+import { NotificationsService } from '../notifications/notifications.service.js';
 import {
     Injectable,
     NotFoundException,
@@ -57,6 +59,7 @@ import {
     constructor(
       private readonly prisma: PrismaService,
       private readonly gcs: GcsService,
+      private readonly pushService: PushService,
     ) {}
   
     private async assertHostCanWrite(userId: string): Promise<void> {
@@ -375,6 +378,30 @@ import {
         },
       });
   
+      // L-001: notify active locums of new matching opportunity
+      if (job.status === 'ACTIVE') {
+        try {
+          const activeLocums = await this.prisma.user.findMany({
+            where: { role: 'LOCUM', status: 'ACTIVE' },
+            select: { id: true },
+          });
+          const dateStr = job.startDate
+            ? new Date(job.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+            : '';
+          const payStr = job.payPerDay ? ` Rate: $${Number(job.payPerDay).toLocaleString()}/day.` : '';
+          await Promise.allSettled(activeLocums.map(locum =>
+            this.notifService.create({
+              recipientId: locum.id,
+              eventType: 'L_001_NEW_OPPORTUNITY',
+              title: `New Locum Opportunity${dateStr ? ' — ' + dateStr : ''}`,
+              body: `${job.title} has been posted.${payStr}`,
+              href: '/locum/browse',
+              referenceId: job.id,
+              referenceType: 'JobPosting',
+            })
+          ));
+        } catch {}
+      }
       return {
         success: true,
         job: {
@@ -511,6 +538,31 @@ import {
         where: { id: jobId },
         data: { isDeleted: true },
       });
+      // H-009: notify confirmed locums of cancellation
+      try {
+        const confirmed = await this.prisma.application.findMany({
+          where: { jobPostingId: jobId, status: 'CONFIRMED' },
+          select: { locumProfile: { select: { userId: true } } },
+        });
+        const hostProfile = await this.prisma.hostProfile.findUnique({
+          where: { id: job.hostProfileId },
+          select: { practiceName: true },
+        });
+        const startStr = job.startDate
+          ? new Date(job.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+          : '';
+        await Promise.allSettled(confirmed.map(app =>
+          this.notifService.create({
+            recipientId: app.locumProfile.userId,
+            eventType: 'H_009_SHIFT_CANCELLED',
+            title: 'Last-Minute Cancellation Alert',
+            body: `Shift${startStr ? ' on ' + startStr : ''} at ${hostProfile?.practiceName ?? 'the clinic'} has been cancelled.`,
+            href: '/locum/dashboard',
+            referenceId: jobId,
+            referenceType: 'JobPosting',
+          })
+        ));
+      } catch {}
       return { success: true };
     }
   
@@ -548,7 +600,7 @@ import {
   
       if (!eligible) {
         throw new BadRequestException(
-          'This job cannot be reopened (must be filled, expired, cancelled, past end date, or at applicant limit).',
+          'This job cannot be reopened (must be filled, expired, cancelled, or past end date).',
         );
       }
   
@@ -701,6 +753,61 @@ import {
         },
       });
   
+      // Notify locum of status change (L-002, L-003, L-004)
+      try {
+          const appWithDetails = await this.prisma.application.findUnique({
+              where: { id: appId },
+              select: {
+                  locumProfile: { select: { userId: true } },
+                  jobPosting: { select: { title: true, startDate: true } },
+              },
+          });
+          const locumUserId = appWithDetails?.locumProfile?.userId;
+          const jobTitle = appWithDetails?.jobPosting?.title ?? 'the shift';
+          const jobDate = appWithDetails?.jobPosting?.startDate
+              ? new Date(appWithDetails.jobPosting.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+              : '';
+          if (locumUserId) {
+              if (status === 'CONFIRMED') {
+                  // L-002: Host confirms/books locum
+                  const hostProfile = await this.prisma.hostProfile.findUnique({
+                      where: { id: job.hostProfileId },
+                      select: { practiceName: true, address: true },
+                  });
+                  await this.notifService.create({
+                      recipientId: locumUserId,
+                      eventType: 'L_002_HOST_CONFIRMED',
+                      title: `Confirmed! ${jobTitle}${jobDate ? ' on ' + jobDate : ''}`,
+                      body: `You've been confirmed for ${jobTitle} at ${hostProfile?.practiceName ?? 'the clinic'}.`,
+                      href: '/locum/dashboard',
+                      referenceId: appId,
+                      referenceType: 'Application',
+                  });
+              } else if (status === 'SHORTLISTED') {
+                  // L-003: Application accepted by host
+                  await this.notifService.create({
+                      recipientId: locumUserId,
+                      eventType: 'L_003_APPLICATION_ACCEPTED',
+                      title: 'Application Accepted — Action Required',
+                      body: `Your application for ${jobTitle} was accepted. Please confirm your availability.`,
+                      href: '/locum/dashboard',
+                      referenceId: appId,
+                      referenceType: 'Application',
+                  });
+              } else if (status === 'REJECTED') {
+                  // L-004: Application declined by host
+                  await this.notifService.create({
+                      recipientId: locumUserId,
+                      eventType: 'L_004_APPLICATION_DECLINED',
+                      title: 'Application Update',
+                      body: `Your application for ${jobTitle} was not selected. Browse other opportunities.`,
+                      href: '/locum/browse',
+                      referenceId: appId,
+                      referenceType: 'Application',
+                  });
+              }
+          }
+      } catch {}
       return { success: true, application: updated };
     }
 

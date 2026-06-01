@@ -16,6 +16,7 @@ import { backendDevelopmentEnvPaths } from './config/backend-env-files.js';
 import { validate } from './config/env.validation.js';
 import { AdminAuthModule } from './admin-auth/admin-auth.module.js';
 import { AdminModule } from './admin/admin.module.js';
+import { SchedulerModule } from './scheduler/scheduler.module.js';
 @Module({
     imports: [
         ConfigModule.forRoot({
@@ -36,6 +37,7 @@ import { AdminModule } from './admin/admin.module.js';
         GcsModule,
         AdminAuthModule,
         AdminModule,
+        SchedulerModule,
     ],
     providers: [
         {

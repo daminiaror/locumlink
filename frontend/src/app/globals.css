@@ -4,7 +4,7 @@
   --color-primary: #0F2A7A;
   --color-primary-hover: #1E3FAF;
   --color-primary-light: #E8EDF8;
-  --color-teal: #38C6C6;
+  --color-teal: #0F2A7A;
   --color-gradient-start: #0F2A7A;
   --color-gradient-end: #1E3FAF;
   --gradient-brand: linear-gradient(135deg, #0F2A7A 0%, #1E3FAF 100%);
@@ -72,7 +72,7 @@
     color 0.15s;
 }
 .btn-outline-blue:hover {
-  background: #1b31d2 !important;
+  background: #0F2A7A !important;
   color: #ffffff !important;
 }
 
@@ -325,17 +325,16 @@
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-y: auto;
-  background-color: #1a3a7a;
-  background-image: url('/background-image.png');
+  overflow: hidden;
+  background-color: #ffffff;
+  background-image: none;
   background-size: cover;
-  background-position: center;
+  background-position: center center;
   background-repeat: no-repeat;
   display: flex;
-  align-items: flex-start; 
-  justify-content: flex-start; 
-  padding-top: 184.5px;
-  padding-left: 170px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40px clamp(2rem, 8vw, 120px);
   font-family: var(--font-family-body);
 }
 
@@ -343,7 +342,8 @@
   .auth-bg {
     justify-content: flex-start;
     padding-left: clamp(1.5rem, 8vw, 5rem);
-    padding-right: 1.5rem;
+    padding-right: clamp(1.5rem, 8vw, 5rem);
+    gap: 2rem;
   }
 }
 
@@ -354,10 +354,8 @@
   box-shadow: var(--shadow-modal);
   box-sizing: border-box;
   flex-shrink: 0;
-  position: absolute;
-  left: 170px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: relative;
+  z-index: 2;
 }
 
 
@@ -805,11 +803,26 @@ body.app-body {
 /* ── DashLayout sidebar mobile ───────────────── */
 @media (max-width: 768px) {
   .dash-sidebar {
-    width: 0 !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    border: none !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 232px !important;
+    z-index: 40 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s ease !important;
+    overflow-y: auto !important;
+  }
+  .dash-sidebar--open {
+    transform: translateX(0) !important;
+  }
+  .dash-hamburger {
+    display: flex !important;
+  }
+}
+@media (min-width: 769px) {
+  .dash-hamburger {
+    display: none !important;
   }
 }
 
@@ -836,3 +849,829 @@ body.app-body {
   .landing-stats-card { padding: 14px 16px; margin-top: 20px; }
   .landing-footer-item { font-size: 0.8125rem; text-align: center; }
 }
+
+/* ── Dark sidebar nav hover ──────────────────── */
+.dash-sidebar a > div:hover {
+  background: rgba(56, 198, 198, 0.12) !important;
+  color: #ffffff !important;
+}
+
+/* ── Sidebar nav icon color on dark bg ───────── */
+.dash-sidebar svg {
+  color: inherit;
+  stroke: currentColor;
+}
+
+/* ── Consistent card style ───────────────────── */
+.card {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Section header label ────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9CA3AF;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 767px) {
+  .auth-bg {
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .auth-bg__card--signup,
+  .auth-bg__card--verify {
+  }
+}
+
+/* Auth right panel */
+.auth-bg__right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-left: 3rem;
+}
+.auth-bg__logo {
+  width: clamp(280px, 35vw, 480px);
+  height: auto;
+  object-fit: contain;
+}
+.auth-bg__tagline {
+  margin-top: 1rem;
+  color: rgba(255,255,255,0.55);
+  font-size: 1.1rem;
+  font-family: var(--font-family-body);
+  letter-spacing: 0.03em;
+}
+@media (max-width: 767px) {
+  .auth-bg__right { display: none; }
+}
+
+/* Landing page btn-signin override — match btn-landing-cta size */
+.home-landing-actions .btn-signin {
+  padding: 16px 24px;
+  min-width: 234px;
+  height: 59px;
+  font-size: 20px;
+}
+
+.home-landing-actions .btn-signin {
+  padding: 16px 24px;
+  min-width: 234px;
+  height: 59px;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+
+.auth-bg__right-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 767px) {
+  .auth-bg__right-panel { display: none; }
+}
+
+.auth-bg__right-panel {
+  flex: 1;
+  align-self: stretch;
+  border-radius: 16px 0 0 16px;
+  background-image: url('/auth-bg.png');
+  background-size: cover;
+  background-position: center center;
+  margin-top: -40px;
+  margin-bottom: -40px;
+  margin-right: -5rem;
+}
+@media (max-width: 767px) {
+  .auth-bg__right-panel { display: none; }
+}
+
+.auth-bg__right-panel {
+  flex: 1;
+  height: 100vh;
+  background-image: url('/auth-bg.png');
+  background-size: cover;
+  background-position: center center;
+}
+@media (max-width: 767px) {
+  .auth-bg__right-panel { display: none; }
+}
+
+/* ══════════════════════════════════════════════
+   LAYOUT CONSISTENCY FIXES
+   ══════════════════════════════════════════════ */
+
+/* Dash main content max-width container */
+.dash-page-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Consistent page section spacing */
+.dash-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.dash-page-title {
+  font-size: clamp(18px, 2.5vw, 24px);
+  font-weight: 700;
+  color: #0B0F1F;
+  margin: 0;
+  font-family: Inter, sans-serif;
+}
+
+/* Consistent card grid */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(12px, 2vw, 24px);
+}
+
+/* Prevent content overflow on small screens */
+@media (max-width: 768px) {
+  .dash-page-container {
+    padding: 0;
+  }
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Admin portal responsive header */
+@media (max-width: 768px) {
+  .admin-portal .main-content {
+  }
+}
+
+/* Fix sidebar not overlapping header in DashLayout */
+.dash-sidebar {
+  flex-shrink: 0;
+}
+
+/* Smooth sidebar transitions */
+.dash-sidebar {
+  transition: width 0.25s ease, transform 0.25s ease;
+}
+
+/* ── Consistent page content spacing ─────────── */
+.dash-content-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+/* Ensure every direct child of main has top spacing */
+.dash-sidebar ~ div main > *:first-child {
+  margin-top: 0;
+}
+
+/* Fix sidebar width in mobile CSS too */
+@media (max-width: 768px) {
+  .dash-sidebar {
+    width: 240px !important;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   PROFESSIONAL MOBILE UX — CSS ONLY
+   No desktop changes. Safe surgical mobile fixes.
+   ══════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ── 1. GLOBAL: prevent horizontal overflow ── */
+  html, body, #app-root {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  /* ── 2. MAIN CONTENT: proper mobile padding ── */
+  .dash-sidebar ~ div main {
+    padding: 16px !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  /* ── 3. ALL PAGE WRAPPERS: full width ────────── */
+  .dash-sidebar ~ div main > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* ── 4. HOST PROFILE: remove wide padding ────── */
+  .dash-sidebar ~ div main div[style*="36px"] {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* ── 5. PROFILE PAGES: vertical scroll sections  */
+  /* Each section card stacks and scrolls naturally */
+  .dash-sidebar ~ div main > div > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* ── 6. POST JOB: single column form ─────────── */
+  .dash-sidebar ~ div main div[style*="maxWidth: 560"],
+  .dash-sidebar ~ div main div[style*="max-width: 560"] {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* ── 7. MESSAGES: WhatsApp/LinkedIn style ─────── */
+  /* Conversation list takes full screen by default */
+  .messages-list-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-right: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Chat panel hidden by default on mobile */
+  .messages-chat-panel {
+    display: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100 !important;
+    background: #fff !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Show chat panel when conversation selected */
+  .messages-chat-panel--open {
+    display: flex !important;
+  }
+
+  /* Messages container — full height */
+  .dash-sidebar ~ div main div[style*="calc(100vh - 200px)"] {
+    height: calc(100vh - 160px) !important;
+    flex-direction: column !important;
+  }
+
+  /* ── 8. BROWSE PAGE: list → detail pattern ────── */
+  .browse-page-root > div > div[style*="display: flex"] {
+    flex-direction: column !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Job list panel — full width, fixed height, scrollable */
+  .browse-page-root > div > div > div:first-child {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-height: 45vh !important;
+    overflow-y: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid #E5E7EB !important;
+  }
+
+  /* Job detail panel — full width below list */
+  .browse-page-root > div > div > div:last-child {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-y: auto !important;
+    max-height: 50vh !important;
+  }
+
+  /* ── 9. FILTER TABS: horizontal scroll (no wrap) */
+  .dash-sidebar ~ div main div[style*="overflow"] {
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Tab bars — scroll horizontally, don't wrap */
+  .dash-sidebar ~ div main > div > div:first-child {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* ── 10. TABLES: horizontal scroll container ──── */
+  .dash-sidebar ~ div main table {
+    min-width: 500px !important;
+  }
+  .dash-sidebar ~ div main div:has(> table) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+  }
+
+  /* ── 11. FLEX ROWS: wrap on mobile ───────────── */
+  .dash-sidebar ~ div main div[style*="flex-direction: row"],
+  .dash-sidebar ~ div main div[style*="flexDirection: 'row'"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* ── 12. HEADINGS: smaller on mobile ─────────── */
+  .dash-sidebar ~ div main h1 {
+    font-size: 18px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* ── 13. STEP PROGRESS BAR: wrap properly ─────── */
+  .dash-sidebar ~ div main div[style*="justifyContent: 'space-between'"] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* ── 14. ACTION BUTTONS ROW: stack on mobile ──── */
+  .dash-sidebar ~ div main div[style*="gap: 12"] > button,
+  .dash-sidebar ~ div main div[style*="gap: 16"] > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── Messages: WhatsApp style mobile ─────────── */
+@media (max-width: 768px) {
+
+  /* Back button visible on mobile only */
+  .messages-back-btn {
+    display: flex !important;
+  }
+
+  /* Chat panel: full screen overlay when open */
+  .messages-chat-panel--open {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 50 !important;
+    background: #fff !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* List panel: full width, hide when chat open */
+  .messages-list-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-right: none !important;
+  }
+
+  /* Hide drag handle on mobile */
+  .messages-list-panel + div[style*="ew-resize"] {
+    display: none !important;
+  }
+
+  /* Messages container full height */
+  .dash-sidebar ~ div main div[style*="calc(100vh - 200px)"] {
+    height: calc(100vh - 160px) !important;
+  }
+}
+
+/* ── Browse page: LinkedIn-style mobile ──────── */
+@media (max-width: 768px) {
+
+  /* Two panel container — column on mobile */
+  .browse-list-panel,
+  .browse-detail-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+  }
+
+  /* List panel — full screen by default */
+  .browse-list-panel {
+    border-right: none !important;
+    border-bottom: none !important;
+  }
+
+  /* Hide list when job selected */
+  .browse-list-panel--hidden-mobile {
+    display: none !important;
+  }
+
+  /* Detail panel — hidden by default */
+  .browse-detail-panel {
+    display: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 50 !important;
+    background: #fff !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  /* Show detail panel when job selected */
+  .browse-detail-panel--open {
+    display: flex !important;
+  }
+
+  /* Show back button on mobile */
+  .browse-back-btn {
+    display: flex !important;
+  }
+
+  /* Fix header logo size on mobile */
+  .dash-hamburger {
+    display: flex !important;
+  }
+}
+
+/* Desktop — hide back buttons */
+@media (min-width: 769px) {
+  .browse-back-btn,
+  .messages-back-btn {
+    display: none !important;
+  }
+}
+
+/* ── Header: fix logo on mobile ──────────────── */
+@media (max-width: 768px) {
+  /* Keep header single line */
+  header {
+    height: 56px !important;
+    padding: 0 14px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* Scale down logo */
+  header img,
+  header svg {
+    max-height: 28px !important;
+    width: auto !important;
+  }
+
+  /* Prevent logo text wrapping */
+  header a {
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Right side icons stay compact */
+  header > div:last-child {
+    flex-shrink: 0 !important;
+    gap: 8px !important;
+  }
+}
+
+/* ── Browse: back button mobile only ─────────── */
+@media (max-width: 768px) {
+  .browse-back-btn {
+    display: flex !important;
+  }
+}
+
+/* ── Profile steps: mobile scroll fix ───────── */
+@media (max-width: 768px) {
+
+  /* Locum: stop steps wrapping, scroll horizontally instead */
+  .locum-step-nav {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .locum-step-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .locum-step-nav > div {
+    flex: 0 0 auto !important;
+    min-width: unset !important;
+  }
+
+  /* Host: override hardcoded 1142px width */
+  .host-step-nav-outer {
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+  .host-step-nav-inner {
+    width: max-content !important;
+  }
+}
+
+/* ── Dashboard: profile banner mobile fix ────── */
+@media (max-width: 768px) {
+  .locum-profile-banner {
+    height: auto !important;
+    padding: 12px 16px !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  .locum-profile-banner-text {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+  }
+
+  .locum-profile-banner-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   ALL MOBILE FIXES — max-width: 768px
+   ══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── DashLayout main padding ── */
+  .dash-main-content {
+    padding: 16px 12px 28px !important;
+  }
+
+  /* ── Browse: list/detail panels ── */
+  .browse-list-panel,
+  .browse-detail-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+  }
+  .browse-list-panel {
+    border-right: none !important;
+  }
+  .browse-list-panel--hidden-mobile {
+    display: none !important;
+  }
+  .browse-detail-panel {
+    display: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 50 !important;
+    background: #fff !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .browse-detail-panel--open {
+    display: flex !important;
+  }
+  .browse-back-btn {
+    display: flex !important;
+  }
+  [aria-label="Resize job list"] {
+    display: none !important;
+  }
+
+  /* ── Header ── */
+  header {
+    height: 56px !important;
+    padding: 0 14px !important;
+    flex-wrap: nowrap !important;
+  }
+  header img, header svg {
+    max-height: 28px !important;
+    width: auto !important;
+  }
+  header a {
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  header > div:last-child {
+    flex-shrink: 0 !important;
+    gap: 8px !important;
+  }
+
+  /* ── Landing nav buttons ── */
+  .home-landing-nav {
+    padding: 0 8px !important;
+    gap: 4px !important;
+  }
+  .home-landing-nav__auth {
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+  .home-landing-nav__auth .btn-signin,
+  .home-landing-nav__auth .btn-signup {
+    min-width: unset !important;
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    height: 32px !important;
+    border-radius: 6px !important;
+  }
+
+  /* ── Landing CTA buttons ── */
+  .btn-landing-cta {
+    width: 100% !important;
+    min-width: unset !important;
+    height: 52px !important;
+    font-size: 16px !important;
+    padding: 14px 20px !important;
+  }
+  .home-landing-actions .btn-signin {
+    width: 100% !important;
+    min-width: unset !important;
+    height: 52px !important;
+    font-size: 16px !important;
+    padding: 14px 20px !important;
+  }
+  .home-landing-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 12px !important;
+  }
+
+  /* ── Setup modal ── */
+  .setup-modal {
+    width: 100vw !important;
+    min-width: unset !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    border-radius: 0 !important;
+    padding: 20px 16px !important;
+    overflow-y: auto !important;
+  }
+
+  /* ── Profile step nav ── */
+  .locum-step-nav {
+    padding: 8px 10px !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none !important;
+  }
+  .locum-step-nav::-webkit-scrollbar { display: none; }
+  .locum-step-nav > div[style*="flex:"] {
+    flex: 0 0 auto !important;
+    min-width: unset !important;
+    gap: 6px !important;
+  }
+  .locum-step-nav > div[style*="flex:"] > div:first-child {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 12px !important;
+    min-width: 24px !important;
+  }
+  .locum-step-nav > div[style*="flex:"] > div:last-child > div {
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  /* ── Host step nav ── */
+  .host-step-nav-outer {
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+  .host-step-nav-inner {
+    width: max-content !important;
+  }
+
+  /* ── Profile form cards ── */
+  .locum-section-card {
+    margin-left: 2px !important;
+    margin-right: 2px !important;
+    padding: 16px 16px 20px !important;
+    border-radius: 14px !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+  }
+  .locum-section-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 20px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid #F3F4F6 !important;
+  }
+  .locum-section-header span {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #0B0F1F !important;
+  }
+  .locum-form-row {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+    margin-bottom: 16px !important;
+  }
+  .locum-form-row > div {
+    margin-bottom: 16px !important;
+  }
+  .locum-form-row > div:last-child {
+    margin-bottom: 0 !important;
+  }
+  .locum-section-card label {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    margin-bottom: 6px !important;
+    display: block !important;
+  }
+  .locum-section-card input,
+  .locum-section-card textarea,
+  .locum-section-card select {
+    border: 1.5px solid #E5E7EB !important;
+    border-radius: 8px !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: #FAFAFA !important;
+    min-height: 44px !important;
+  }
+  .locum-section-card input:focus,
+  .locum-section-card textarea:focus {
+    border-color: #3B4FD8 !important;
+    background: #fff !important;
+    box-shadow: 0 0 0 3px rgba(59,79,216,0.08) !important;
+  }
+
+  /* ── Dashboard profile banner ── */
+  .locum-profile-banner {
+    height: auto !important;
+    padding: 12px 16px !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+  .locum-profile-banner-text {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+  }
+  .locum-profile-banner-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* ── Settings toggles ── */
+  .settings-row {
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 14px 16px !important;
+  }
+  .settings-row button[role="switch"] {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    flex-shrink: 0 !important;
+    margin-top: 2px !important;
+  }
+  .settings-row > div:first-child {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  /* ── Messages panels ── */
+  .messages-list-panel {
+    width: 100% !important;
+    border-right: none !important;
+  }
+  .messages-back-btn {
+    display: flex !important;
+  }
+  [aria-label="Resize conversation list"] {
+    display: none !important;
+  }
+
+  /* ── Host profile ── */
+  .host-profile-inner {
+    padding: 16px 12px 40px !important;
+    max-width: 100% !important;
+  }
+
+  /* ── Logo ── */
+  .logo-text {
+    font-size: 16px !important;
+  }
+  .logo-icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
+}
+
+/* ── Desktop: back buttons hidden ── */
+@media (min-width: 769px) {
+  .browse-back-btn,
+  .messages-back-btn {
+    display: none !important;
+  }
+}
+

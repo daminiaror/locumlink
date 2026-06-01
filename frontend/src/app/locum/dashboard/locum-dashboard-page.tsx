@@ -311,7 +311,7 @@ export default function LocumDashboard(props: {
       </div>
 
       
-      <div style={{
+      <div className="locum-profile-banner" style={{
             background: '#F4F6FB',
             border: '1.5px solid #3B4FD8',
             borderRadius: 10,
@@ -345,7 +345,7 @@ export default function LocumDashboard(props: {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 'var(--font-heading)', fontWeight: 'var(--font-weight-bold)', color: '#0f1523' }}>
+            <div className="locum-profile-banner-text" style={{ fontSize: 'var(--font-heading)', fontWeight: 'var(--font-weight-bold)', color: '#0f1523' }}>
               {completionPct < 100
             ? 'Set up your profile to start finding opportunities'
             : cpsnsVerified
@@ -384,7 +384,7 @@ export default function LocumDashboard(props: {
         <button onClick={() => {
             beforeClientNavigation('/locum/profile');
             router.push('/locum/profile');
-        }} style={{
+        }} className="locum-profile-banner-btn" style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,

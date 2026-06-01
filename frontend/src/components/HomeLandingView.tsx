@@ -142,7 +142,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             color: '#0B0F1F',
             textAlign: 'center',
         }}>
-                Find a Locum within 2 days,
+                Find Verified Locums in as Fast as 48 Hours
               </span>
               <span style={{
             fontFamily: 'var(--font-display), Outfit, sans-serif',
@@ -152,7 +152,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             color: '#0B0F1F',
             textAlign: 'center',
         }}>
-                without agencies or endless calls
+                
               </span>
             </div>
 
@@ -166,9 +166,11 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             maxWidth: '100%',
             margin: 0,
         }}>
-              Built for Nova Scotia physicians. Quickly connect with verified
-              Locums or secure coverage for your clinic in minutes
+              Built for Nova Scotia physicians. Post a request and connect directly with qualified locums — without agency fees or endless back-and-forth.
             </p>
+            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
+              {['✓ Verified physicians','✓ Direct clinic-to-doctor matching','✓ No agency fees','✓ Built for Nova Scotia'].map((badge) => (<span key={badge} style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 14px', borderRadius: 999, background: '#EEF2FF', color: '#1B31D2', fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 14 }}>{badge}</span>))}
+            </div>
           </div>
 
           <div style={{
@@ -178,19 +180,19 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             alignItems: 'center',
             justifyContent: 'center',
             gap: 32,
-        }}>
+        }} className="home-landing-actions">
             {interactive ? (<>
                 <Link href="/auth?role=clinic&locked=true" className="btn-landing-cta">
                   Post a Locum Request
                 </Link>
-                <Link href="/auth?role=locum&locked=true" className="btn-landing-cta">
+                <Link href="/auth?role=locum&locked=true" className="btn-signin">
                   Browse Locum Shifts
                 </Link>
               </>) : (<>
                 <span className="btn-landing-cta" style={{ pointerEvents: 'none' }}>
                   Post a Locum Request
                 </span>
-                <span className="btn-landing-cta" style={{ pointerEvents: 'none' }}>
+                <span className="btn-signin" style={{ pointerEvents: 'none' }}>
                   Browse Locum Shifts
                 </span>
               </>)}
