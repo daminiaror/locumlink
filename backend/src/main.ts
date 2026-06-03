@@ -32,6 +32,7 @@ async function bootstrap(): Promise<void> {
       'Authorization',
       'Accept',
       'X-Requested-With',
+      'X-Client-Timezone',
     ],
     exposedHeaders: ['Content-Disposition'],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],

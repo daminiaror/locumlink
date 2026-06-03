@@ -26,6 +26,15 @@ import {
   mergeCredentialReviewPatchForAccountPending,
 } from '../cpsns/cpsns-verified.js';
 
+/** After the full calendar end day (avoids expiring ACTIVE jobs on the end date morning). */
+function isPostingEndDatePassed(endDate: Date | null | undefined): boolean {
+  if (!endDate) return false;
+  const end = new Date(endDate);
+  if (Number.isNaN(end.getTime())) return false;
+  end.setUTCHours(23, 59, 59, 999);
+  return end.getTime() < Date.now();
+}
+
 export type HostProfileApi = {
   clinicName: string;
   contactFirstName: string;
@@ -460,13 +469,25 @@ export class HostService {
       include: {
         _count: { select: { applications: true } },
         shifts: true,
+        applications: {
+          where: {
+            OR: [
+              { locumResponse: 'ACCEPTED' },
+              { locumAcceptedAt: { not: null } },
+            ],
+          },
+          select: { id: true },
+          take: 1,
+        },
       },
     });
 
     if (!deletedOnly) {
-      const now = new Date();
       const toComplete = jobs.filter(
-        (j) => j.status === 'ONGOING' && j.endDate && new Date(j.endDate) < now,
+        (j) =>
+          j.status === 'ONGOING' &&
+          isPostingEndDatePassed(j.endDate) &&
+          j.applications.length > 0,
       );
       if (toComplete.length > 0) {
         await this.prisma.jobPosting.updateMany({
@@ -478,7 +499,7 @@ export class HostService {
         });
       }
       const toExpire = jobs.filter(
-        (j) => j.status === 'ACTIVE' && j.endDate && new Date(j.endDate) < now,
+        (j) => j.status === 'ACTIVE' && isPostingEndDatePassed(j.endDate),
       );
       if (toExpire.length > 0) {
         await this.prisma.jobPosting.updateMany({
@@ -493,11 +514,13 @@ export class HostService {
 
     return {
       jobs: jobs.map((j) => {
-        const { _count, shifts: _shifts, ...rest } = j;
+        const { _count, shifts: _shifts, applications: acceptedApps, ...rest } =
+          j;
         return {
           ...rest,
           status: j.status,
           applicationsCount: _count.applications,
+          hasAcceptedLocum: acceptedApps.length > 0,
           payPerDay: j.payPerDay != null ? Number(j.payPerDay) : null,
         };
       }),
@@ -836,26 +859,50 @@ export class HostService {
               user: { select: { email: true } },
             },
           },
-          jobPosting: { select: { title: true, startDate: true } },
+          jobPosting: {
+            select: {
+              title: true,
+              startTime: true,
+              endTime: true,
+              hostProfile: {
+                select: {
+                  practiceName: true,
+                  address: true,
+                  city: true,
+                  province: true,
+                  postalCode: true,
+                },
+              },
+            },
+          },
         },
       });
       const locum = appWithDetails?.locumProfile;
-      const jobTitle = appWithDetails?.jobPosting?.title ?? 'the shift';
-      const startDate = appWithDetails?.jobPosting?.startDate;
+      const posting = appWithDetails?.jobPosting;
+      const jobTitle = posting?.title ?? 'the shift';
       if (locum?.userId && locum.user.email) {
         if (status === 'CONFIRMED') {
-          const hostProfile = await this.prisma.hostProfile.findUnique({
-            where: { id: job.hostProfileId },
-            select: { practiceName: true },
-          });
+          const hostProfile = posting?.hostProfile;
+          const clinicName = hostProfile?.practiceName ?? 'the clinic';
+          const address = [
+            hostProfile?.address,
+            hostProfile?.city,
+            hostProfile?.province,
+            hostProfile?.postalCode,
+          ]
+            .map((s) => s?.trim())
+            .filter(Boolean)
+            .join(', ');
           await this.notifService.notifyLocumHostConfirmed({
             recipientId: locum.userId,
             recipientEmail: locum.user.email,
             firstName: locum.firstName,
             lastName: locum.lastName,
             jobTitle,
-            clinicName: hostProfile?.practiceName ?? 'the clinic',
-            startDate,
+            clinicName,
+            startTime: posting?.startTime,
+            endTime: posting?.endTime,
+            address: address || clinicName,
             applicationId: appId,
           });
         } else if (status === 'REJECTED') {

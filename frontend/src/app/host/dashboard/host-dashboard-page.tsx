@@ -9,7 +9,7 @@ import { ensureProfileMarkedCompleteFromServer } from '@/lib/profileCompleteSync
 import { useAuth } from '@/providers/AuthProvider';
 import { hostProfileCompletionPct } from '@/lib/hostProfileCompletion';
 import { isCpsnsVerificationApproved } from '@/lib/cpsnsVerify';
-import { ApiHttpError, hostApi, isActiveJob, isDraftJob, type Job, type ApplicationRecord, type CreateJobPayload, type DashboardStats} from '@/lib/api';
+import { ApiHttpError, hostApi, isActiveJob, isDraftJob, normalizeHostJob, type Job, type ApplicationRecord, type CreateJobPayload, type DashboardStats} from '@/lib/api';
 import { beforeClientNavigation } from '@/lib/topLoader';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import type { HostProfile } from '@/types';
@@ -21,6 +21,7 @@ import { getHostProfileStatusCard } from '@/lib/hostAccountNotice';
 import { MmDdYyyyDateField } from '@/components/host/HostJobPostingFormFields';
 import {
     maxIsoDate,
+    isPostingEndDatePassed,
     parseMmDdYyyyToIso,
     todayIsoDateLocal,
 } from '@/lib/hostJobPostingForm';
@@ -163,12 +164,36 @@ function isoToDateInputLocal(iso: string | null | undefined): string {
     return `${y}-${m}-${day}`;
 }
 function isJobPastEndDate(job: Pick<Job, 'endDate'>): boolean {
-    if (!job.endDate)
+    return isPostingEndDatePassed(job.endDate ?? null);
+}
+function dashboardTabForJob(job: Job): 'active' | 'ongoing' | 'recent' | 'draft' {
+    const status = String(job.status ?? '').toUpperCase();
+    if (status === 'DRAFT')
+        return 'draft';
+    if (status === 'EXPIRED' || status === 'COMPLETED' || status === 'CANCELLED')
+        return 'recent';
+    if (status === 'ONGOING')
+        return isJobPastEndDate(job) ? 'recent' : 'ongoing';
+    if (status === 'ACTIVE' && isJobPastEndDate(job))
+        return 'recent';
+    return 'active';
+}
+function jobHasAcceptedLocum(job: Job): boolean {
+    if (job.hasAcceptedLocum === true)
+        return true;
+    return String(job.status ?? '').toUpperCase() === 'ONGOING'
+        || String(job.status ?? '').toUpperCase() === 'COMPLETED';
+}
+/** Completed tab: locum accepted the placement and the shift end date has passed. */
+function isCompletedLocumShift(job: Job): boolean {
+    if (!isJobPastEndDate(job) || !jobHasAcceptedLocum(job))
         return false;
-    const end = new Date(job.endDate);
-    if (Number.isNaN(end.getTime()))
-        return false;
-    return end < new Date();
+    const status = String(job.status ?? '').toUpperCase();
+    return status === 'COMPLETED' || status === 'ONGOING';
+}
+/** Confirmed tab: locum accepted; shift is still in progress (end date not passed). */
+function isConfirmedLocumShift(job: Job): boolean {
+    return String(job.status ?? '').toUpperCase() === 'ONGOING' && !isJobPastEndDate(job);
 }
 function getLocumDisplayName(app: ApplicationRecord): string {
     const { firstName, lastName, user } = app.locumProfile;
@@ -698,7 +723,8 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onViewA
                   {statusUi.label}
                 </span>
               </div>
-              <span style={{
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -710,8 +736,9 @@ function InlineApplicantsTable({ jobId, jobTitle, applications, loading, onViewA
                         background: app.locumResponse === 'ACCEPTED' ? '#D1FAE5' : app.locumResponse === 'REJECTED' ? '#FEE2E2' : '#F3F4F6',
                         color: app.locumResponse === 'ACCEPTED' ? '#065F46' : app.locumResponse === 'REJECTED' ? '#991B1B' : '#6B7280',
                     }}>
-                {app.locumResponse === 'ACCEPTED' ? 'Accepted' : app.locumResponse === 'REJECTED' ? 'Rejected' : '—'}
-              </span>
+                  {app.locumResponse === 'ACCEPTED' ? 'Accepted' : app.locumResponse === 'REJECTED' ? 'Rejected' : '—'}
+                </span>
+              </div>
             </div>);
             })}
     </div>);
@@ -1073,7 +1100,6 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
     const [step, setStep] = useState(1);
     const [jobTitle, setJobTitle] = useState('');
     const [jobDescription, setJobDescription] = useState('');
-    const [location, setLocation] = useState('');
     const [respBySection, setRespBySection] = useState<Record<string, Set<string>>>(() => emptyResponsibilitySelection());
     const lastAutoRespJobTitleRef = useRef<string | null>(null);
     const [respCustom, setRespCustom] = useState('');
@@ -1242,8 +1268,6 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
     function hasDraftContent(): boolean {
         if (jobTitle.trim() || jobDescription.trim() || respCustom.trim())
             return true;
-        if (location.trim())
-            return true;
         if (startDateInput.trim() || endDateInput.trim() || ratePerDay.trim() || yearsExp.trim())
             return true;
         if (travelReq)
@@ -1266,7 +1290,6 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
             title: jobTitle.trim() || 'Draft locum shift',
             description: jobDescription.trim() || undefined,
             keyResponsibilities: keyResponsibilities.length ? keyResponsibilities : undefined,
-            location: location.trim() || undefined,
             startDate: startIso || undefined,
             endDate: endIso || undefined,
             startTime: startTime || undefined,
@@ -1372,7 +1395,6 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                 title: jobTitle.trim(),
                 description: jobDescription.trim() || undefined,
                 keyResponsibilities: buildKeyResponsibilitiesPayload(),
-                location: location.trim() || undefined,
                 startDate: startIso || undefined,
                 endDate: endIso || undefined,
                 startTime: startTime || undefined,
@@ -1729,15 +1751,6 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                             minHeight: 56,
                             resize: 'vertical',
                         } as React.CSSProperties} value={respCustom} onChange={(e) => setRespCustom(e.target.value)} placeholder="Other responsibilities (one per line)"/>
-                    </div>
-                    <div>
-                      <label style={lbl}>Location</label>
-                      <input
-                        style={fieldInp}
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        placeholder="Clinic address or city"
-                      />
                     </div>
                   </div>
                 </div>
@@ -2218,8 +2231,8 @@ export default function HostDashboard(props: {
     const jobStatus = (j: Job) => String(j.status ?? '').toUpperCase();
     const draftJobs = jobs.filter((j) => jobStatus(j) === 'DRAFT');
     const activePosts = jobs.filter((j) => jobStatus(j) === 'ACTIVE');
-    const ongoingJobs = jobs.filter((j) => jobStatus(j) === 'ONGOING');
-    const recentJobs = jobs.filter((j) => j.status === 'COMPLETED' || j.status === 'CANCELLED' || j.status === 'EXPIRED');
+    const ongoingJobs = jobs.filter((j) => isConfirmedLocumShift(j));
+    const recentJobs = jobs.filter((j) => isCompletedLocumShift(j));
     const tabJobs = activeTab === 'deleted'
         ? deletedJobs
         : activeTab === 'active'
@@ -2758,14 +2771,12 @@ export default function HostDashboard(props: {
                     /* keep optimistic draft row */
                 }
             }} onSuccess={(createdJob) => {
+                const job = normalizeHostJob(createdJob);
                 setShowJobOverlay(false);
-                if (String(createdJob.status ?? '').toUpperCase() === 'DRAFT') {
-                  setJobPostConfirmation('draft');
-                  setActiveTab('draft');
-                } else {
-                  setJobPostConfirmation('posted');
-                  setActiveTab('active');
-                }
+                setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
+                const tab = dashboardTabForJob(job);
+                setJobPostConfirmation(tab === 'draft' ? 'draft' : 'posted');
+                setActiveTab(tab);
                 void loadDashboardFromApi({ silent: true });
             }}/>)}
 

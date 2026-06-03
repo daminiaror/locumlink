@@ -1,4 +1,8 @@
 import { sortByLabel, sortStringsLocale } from '@/lib/sortLocale';
+import {
+    isLocalPostingEndDatePassed,
+    localCalendarDateToIso,
+} from '@/lib/localDateTime';
 
 export const HOST_JOB_CREDENTIAL_OPTIONS = sortStringsLocale([
     'CPSNS Full License',
@@ -125,6 +129,13 @@ export function fmtIsoToMmDdYyyy(iso: string | null | undefined): string {
     return `${mm}-${dd}-${yyyy}`;
 }
 
+/** True after the calendar end day has fully passed (user's local timezone). */
+export function isPostingEndDatePassed(
+    endDate: string | Date | null | undefined,
+): boolean {
+    return isLocalPostingEndDatePassed(endDate);
+}
+
 export function parseMmDdYyyyToIso(input: string): string {
     const t = input.trim();
     if (!t)
@@ -138,7 +149,7 @@ export function parseMmDdYyyyToIso(input: string): string {
     if (mm < 1 || mm > 12 || dd < 1 || dd > 31 || yyyy < 1900 || yyyy > 2100)
         return '';
     const iso = `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-    const d = new Date(`${iso}T12:00:00`);
+    const d = new Date(yyyy, mm - 1, dd, 12, 0, 0, 0);
     return d.getFullYear() === yyyy && d.getMonth() + 1 === mm && d.getDate() === dd
         ? iso
         : '';
@@ -162,12 +173,18 @@ export function formatMmDdYyyyInput(raw: string): string {
 
 /** Local calendar date as YYYY-MM-DD (for date input `min`). */
 export function todayIsoDateLocal(): string {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    return localCalendarDateToIso();
 }
+
+export {
+    getLocalNow,
+    getLocalNowMs,
+    getLocalTimezone,
+    getLocalTimeSnapshot,
+    localCalendarDateToIso,
+    endOfLocalCalendarDay,
+    isLocalPostingEndDatePassed,
+} from '@/lib/localDateTime';
 
 export function maxIsoDate(a: string, b: string): string {
     return a >= b ? a : b;

@@ -66,7 +66,6 @@ export default function HostEditJobPage(props: {
   >(() => emptyResponsibilitySelection());
   const [respCustom, setRespCustom] = useState('');
   const lastAutoRespJobTitleRef = useRef<string | null>(null);
-  const [location, setLocation] = useState('');
   const [startDateInput, setStartDateInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [startTime, setStartTime] = useState('05:00');
@@ -112,7 +111,6 @@ export default function HostEditJobPage(props: {
         ]),
       ),
       respCustom: respCustom.trim(),
-      location: location.trim(),
       startDate: startIso || '',
       endDate: endIso || '',
       startTime: startTime || '',
@@ -172,7 +170,6 @@ export default function HostEditJobPage(props: {
         ]),
       ),
       respCustom: parsed.respCustom.trim(),
-      location: typeof job?.location === 'string' ? job.location.trim() : '',
       startDate: startDate || '',
       endDate: endDate || '',
       startTime: typeof job?.startTime === 'string' ? job.startTime : '',
@@ -279,7 +276,6 @@ export default function HostEditJobPage(props: {
         setRespCustom(parsed.respCustom);
         lastAutoRespJobTitleRef.current =
           (job.title ?? '').trim().toLowerCase() || null;
-        setLocation(typeof job.location === 'string' ? job.location : '');
         setStartDateInput(
           fmtIsoToMmDdYyyy(job.startDate as string | null | undefined),
         );
@@ -403,7 +399,6 @@ export default function HostEditJobPage(props: {
         respBySection,
         respCustom,
       ),
-      location: location.trim() || undefined,
       startDate: startIso || undefined,
       endDate: endIso || undefined,
       startTime: startTime || undefined,
@@ -565,6 +560,7 @@ export default function HostEditJobPage(props: {
         <div
           style={{
             flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
             padding: '20px 24px',
             display: 'flex',
@@ -690,12 +686,14 @@ export default function HostEditJobPage(props: {
           )}
           {!loadBusy && jobLoaded && (
             <form
+              id="host-edit-job-form"
               onSubmit={handleSubmit}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 16,
                 minHeight: 0,
+                minWidth: 0,
               }}
             >
               <div style={sectionCard}>
@@ -725,15 +723,6 @@ export default function HostEditJobPage(props: {
                     inputStyle={inp}
                     labelStyle={lbl}
                   />
-                  <div>
-                    <label style={lbl}>Location</label>
-                    <input
-                      style={inp}
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Clinic address or city"
-                    />
-                  </div>
                 </div>
               </div>
               <div style={sectionCard}>
@@ -964,145 +953,156 @@ export default function HostEditJobPage(props: {
                   {err}
                 </p>
               )}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                  paddingTop: 4,
-                }}
-              >
-                <button
-                  type="submit"
-                  disabled={busy}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: busy
-                      ? '#9ca3af'
-                      : 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: busy ? 'default' : 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {busy ? 'Saving…' : 'Save changes'}
-                </button>
-                {jobStatus === 'DRAFT' && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!verified) {
-                        window.alert(
-                          'Shift is saved under "Draft Locum Shifts". Please post again after profile is verified. Thanks.',
-                        );
-                        return;
-                      }
-                      setErr('');
-                      const t = title.trim();
-                      setBusy(true);
-                      try {
-                        const startIso = parseMmDdYyyyToIso(startDateInput);
-                        const endIso = parseMmDdYyyyToIso(endDateInput);
-                        const rateNum = ratePerDay.trim()
-                          ? Number(ratePerDay)
-                          : NaN;
-                        const yearsNum = yearsExp.trim()
-                          ? Number(yearsExp)
-                          : NaN;
-                        const servicesRequired = servicesRaw
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean);
-                        await hostApi.updateJob(jobId, {
-                          title: t,
-                          description: description.trim() || undefined,
-                          keyResponsibilities: buildKeyResponsibilitiesPayload(
-                            respBySection,
-                            respCustom,
-                          ),
-                          location: location.trim() || undefined,
-                          startDate: startIso || undefined,
-                          endDate: endIso || undefined,
-                          startTime: startTime || undefined,
-                          endTime: endTime || undefined,
-                          payPerDay: Number.isFinite(rateNum)
-                            ? rateNum
-                            : undefined,
-                          minYearsExperience:
-                            yearsExp.trim() && Number.isFinite(yearsNum)
-                              ? yearsNum
-                              : undefined,
-                          requiredCredentials: credentials,
-                          travelRequired: travelReq,
-                          expiresAt: expiresAt
-                            ? new Date(expiresAt).toISOString()
-                            : undefined,
-                          servicesRequired: servicesRequired.length
-                            ? servicesRequired
-                            : [],
-                          isRural,
-                          accommodationProvided,
-                          status: 'ACTIVE',
-                        });
-                        beforeClientNavigation('/host/dashboard');
-                        router.push('/host/dashboard');
-                      } catch (e: unknown) {
-                        const msg =
-                          e && typeof e === 'object' && 'message' in e
-                            ? String((e as { message: unknown }).message)
-                            : 'Could not post job.';
-                        setErr(msg);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                    style={{
-                      padding: '12px 20px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: busy
-                        ? '#9ca3af'
-                        : 'linear-gradient(270deg,#22C55E 0%,#16A34A 100%)',
-                      color: '#fff',
-                      fontWeight: 600,
-                      fontSize: 15,
-                      cursor: busy ? 'default' : 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                    disabled={busy || !verified}
-                  >
-                    {busy ? 'Posting…' : 'Post Job'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    beforeClientNavigation('/host/dashboard');
-                    router.push('/host/dashboard');
-                  }}
-                  style={{
-                    padding: '12px 20px',
-                    borderRadius: 8,
-                    border: '1px solid #d0d4e4',
-                    background: '#fff',
-                    color: '#374151',
-                    fontWeight: 500,
-                    fontSize: 15,
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
             </form>
           )}
         </div>
+        {!loadBusy && jobLoaded && (
+          <div
+            style={{
+              flexShrink: 0,
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '16px 24px',
+              borderTop: '1px solid #F3F4F6',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="submit"
+              form="host-edit-job-form"
+              disabled={busy}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: busy
+                  ? '#9ca3af'
+                  : 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: busy ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+                flexShrink: 0,
+              }}
+            >
+              {busy ? 'Saving…' : 'Save changes'}
+            </button>
+            {jobStatus === 'DRAFT' && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setErr('');
+                  const t = title.trim();
+                  setBusy(true);
+                  try {
+                    const startIso = parseMmDdYyyyToIso(startDateInput);
+                    const endIso = parseMmDdYyyyToIso(endDateInput);
+                    const rateNum = ratePerDay.trim()
+                      ? Number(ratePerDay)
+                      : NaN;
+                    const yearsNum = yearsExp.trim()
+                      ? Number(yearsExp)
+                      : NaN;
+                    const servicesRequired = servicesRaw
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    await hostApi.updateJob(jobId, {
+                      title: t,
+                      description: description.trim() || undefined,
+                      keyResponsibilities: buildKeyResponsibilitiesPayload(
+                        respBySection,
+                        respCustom,
+                      ),
+                      startDate: startIso || undefined,
+                      endDate: endIso || undefined,
+                      startTime: startTime || undefined,
+                      endTime: endTime || undefined,
+                      payPerDay: Number.isFinite(rateNum) ? rateNum : undefined,
+                      minYearsExperience:
+                        yearsExp.trim() && Number.isFinite(yearsNum)
+                          ? yearsNum
+                          : undefined,
+                      requiredCredentials: credentials,
+                      travelRequired: travelReq,
+                      expiresAt: expiresAt
+                        ? new Date(expiresAt).toISOString()
+                        : undefined,
+                      servicesRequired: servicesRequired.length
+                        ? servicesRequired
+                        : [],
+                      isRural,
+                      accommodationProvided,
+                      status: 'ACTIVE',
+                    });
+                    beforeClientNavigation('/host/dashboard');
+                    router.push('/host/dashboard');
+                  } catch (e: unknown) {
+                    const msg =
+                      e && typeof e === 'object' && 'message' in e
+                        ? String((e as { message: unknown }).message)
+                        : 'Could not post job.';
+                    setErr(msg);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background:
+                    busy || profileLoading || !verified
+                      ? '#9ca3af'
+                      : 'linear-gradient(270deg,#22C55E 0%,#16A34A 100%)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  cursor:
+                    busy || profileLoading || !verified
+                      ? 'not-allowed'
+                      : 'pointer',
+                  fontFamily: 'inherit',
+                  flexShrink: 0,
+                }}
+                disabled={busy || profileLoading || !verified}
+                title={
+                  !verified && !profileLoading
+                    ? 'Post Job is available after CPSNS is verified'
+                    : undefined
+                }
+              >
+                {busy ? 'Posting…' : 'Post Job'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                beforeClientNavigation('/host/dashboard');
+                router.push('/host/dashboard');
+              }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 8,
+                border: '1px solid #d0d4e4',
+                background: '#fff',
+                color: '#374151',
+                fontWeight: 500,
+                fontSize: 14,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                flexShrink: 0,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

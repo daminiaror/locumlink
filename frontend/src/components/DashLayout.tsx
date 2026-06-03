@@ -56,42 +56,41 @@ function NavIcon({ name }: {
       <path d={d}/>
     </svg>);
 }
-function NotifIcon({ type, accent }: {
+function NotifIcon({ type }: {
     type: NotificationItem['type'];
-    accent?: 'critical' | 'high' | 'medium';
 }) {
-    const stroke = accent === 'critical' ? '#DC2626' : accent === 'high' ? '#C2410C' : accent === 'medium' ? '#A16207' : '#0F2A7A';
-    const bg = accent === 'critical' ? '#FEE2E2' : accent === 'high' ? '#FFEDD5' : accent === 'medium' ? '#FEF9C3' : undefined;
+    const stroke = '#0F2A7A';
+    const bg = '#EEF0FB';
     if (type === 'message') return (
-        <span style={{ width: 32, height: 32, borderRadius: '50%', background: bg ?? '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
         </span>
     );
     if (type === 'application') return (
-        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#F0FDFC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F2A7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
             </svg>
         </span>
     );
     if (type === 'reminder') return (
-        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#FFF7ED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C2410C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
         </span>
     );
     if (type === 'cancellation') return (
-        <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
             </svg>
         </span>
     );
     return (
-        <span style={{ width: 32, height: 32, borderRadius: '50%', background: bg ?? '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <span style={{ width: 32, height: 32, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
@@ -110,6 +109,27 @@ function fmtNotifTime(iso: string): string {
     if (hrs < 24)
         return `${hrs}h ago`;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function readNotifPrefs(): Record<string, boolean> | null {
+    try {
+        const s = localStorage.getItem('notifPrefs');
+        return s ? (JSON.parse(s) as Record<string, boolean>) : null;
+    }
+    catch {
+        return null;
+    }
+}
+function applyNotifPrefs(items: NotificationItem[], prefs: Record<string, boolean> | null): NotificationItem[] {
+    if (!prefs)
+        return items;
+    return items.filter((n) => {
+        if (n.priority === 'CRITICAL' || n.priority === 'HIGH' || n.priority === 'MEDIUM')
+            return true;
+        const cat = n.category ?? notifCategory(n.type);
+        if (cat === 'cancellations')
+            return true;
+        return prefs[cat] !== false;
+    });
 }
 export default function DashLayout({ navItems, activeHref, topbarRight, topbarFirstName, topbarLastName, topbarAvatarText, children, }: Props) {
     const router = useRouter();
@@ -140,6 +160,8 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [notifTotal, setNotifTotal] = useState(0);
     const bellRef = useRef<HTMLDivElement>(null);
+    /** IDs dismissed locally after open; kept until server reports read (avoids poll flash-back). */
+    const dismissedNotifIdsRef = useRef<Set<string>>(new Set());
     useTrackLastPath();
     useEffect(() => {
         let cancelled = false;
@@ -224,8 +246,14 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             return;
         try {
             const data = await notificationsApi.get({ skipTopLoader: true });
-            setNotifications(data.notifications);
-            setNotifTotal(data.total);
+            const dismissed = dismissedNotifIdsRef.current;
+            for (const n of data.notifications) {
+                if (n.read)
+                    dismissed.delete(n.id);
+            }
+            const active = data.notifications.filter((n) => !dismissed.has(n.id));
+            setNotifications(active);
+            setNotifTotal(active.filter((n) => n.read !== true).length);
         }
         catch {
         }
@@ -326,19 +354,55 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             setDeactivateBusy(false);
         }
     }
-    function handleNotifClick(notif: NotificationItem) {
-        setSelectedNotif(notif);
-
-        // Mark as seen + remove from dropdown list immediately.
+    function dismissNotification(notif: NotificationItem) {
+        dismissedNotifIdsRef.current.add(notif.id);
         setNotifications((prev) => prev.filter((n) => n.id !== notif.id));
-        if (!notif.read) setNotifTotal((t) => Math.max(0, t - 1));
-
+        if (notif.read !== true)
+            setNotifTotal((t) => Math.max(0, t - 1));
+    }
+    function markNotifRead(notif: NotificationItem) {
         void notificationsApi
             .markRead(notif.id)
             .catch(() => {
-                // Best-effort: if this fails, keep UI responsive; next refresh will re-sync.
+                dismissedNotifIdsRef.current.delete(notif.id);
+                void fetchNotifications();
             });
     }
+    function notificationHref(notif: NotificationItem): string | null {
+        const href = notif.href?.trim();
+        if (!href || href === '/')
+            return null;
+        return href;
+    }
+    function followNotification(notif: NotificationItem): boolean {
+        const href = notificationHref(notif);
+        if (!href)
+            return false;
+        dismissNotification(notif);
+        markNotifRead(notif);
+        setBellOpen(false);
+        setShowAllNotifications(false);
+        setSelectedNotif(null);
+        beforeClientNavigation(href);
+        router.push(href);
+        return true;
+    }
+    function openNotification(notif: NotificationItem) {
+        setSelectedNotif(notif);
+        setBellOpen(false);
+    }
+    function handleNotifClick(notif: NotificationItem) {
+        openNotification(notif);
+    }
+    const notifPrefs = readNotifPrefs();
+    const visibleNotifications = applyNotifPrefs(notifications, notifPrefs);
+    const unreadNotifications = visibleNotifications.filter((n) => n.read !== true);
+    const bellListNotifications = showAllNotifications
+        ? visibleNotifications
+        : unreadNotifications;
+    const bellListPreview = showAllNotifications
+        ? bellListNotifications
+        : bellListNotifications.slice(0, 3);
     const mergedFirst = apiFirstName?.trim() || topbarFirstName?.trim() || '';
     const mergedLast = apiLastName?.trim() || topbarLastName?.trim() || '';
     const initialsFromContactNames = computeAvatarInitials(mergedFirst || undefined, mergedLast || undefined, topbarAvatarText);
@@ -452,25 +516,11 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 
                 <div style={{ overflowY: 'auto', flex: 1 }}>
                   {(() => {
-                    const prefs = (() => { try { const s = localStorage.getItem('notifPrefs'); return s ? JSON.parse(s) : null; } catch { return null; } })();
-                    const visible = prefs ? notifications.filter(n => {
-                      if (n.priority === 'CRITICAL' || n.priority === 'HIGH' || n.priority === 'MEDIUM') return true;
-                      const cat = n.category ?? notifCategory(n.type);
-                      if (cat === 'cancellations') return true;
-                      return prefs[cat] !== false;
-                    }) : notifications;
-                    if (visible.length === 0) return <div style={{ padding: '36px 20px', textAlign: 'center' }}><div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div><div style={{ fontSize: 'var(--font-body)', color: '#9CA3AF' }}>No new notifications</div></div>;
-                    const list = showAllNotifications ? visible : visible.slice(0, 3);
-                    return list.map((notif) => {
-                    const isCritical = notif.priority === 'CRITICAL';
-                    const isHigh = notif.priority === 'HIGH';
-                    const isMedium = notif.priority === 'MEDIUM';
-                    const isElevated = isCritical || isHigh || isMedium;
+                    if (bellListNotifications.length === 0) return <div style={{ padding: '36px 20px', textAlign: 'center' }}><div style={{ fontSize: 28, marginBottom: 8 }}>🔔</div><div style={{ fontSize: 'var(--font-body)', color: '#9CA3AF' }}>No new notifications</div></div>;
+                    return bellListPreview.map((notif) => {
                     const isUnread = notif.read !== true;
-                    const rowBg = isCritical ? '#FEF2F2' : isHigh ? '#FFF7ED' : isMedium ? '#FEFCE8' : '#fff';
-                    const rowHover = isCritical ? '#FEE2E2' : isHigh ? '#FFEDD5' : isMedium ? '#FEF9C3' : '#F5F6FF';
-                    const borderColor = isCritical ? '#DC2626' : isHigh ? '#EA580C' : isMedium ? '#CA8A04' : 'transparent';
-                    const iconAccent = isCritical ? 'critical' as const : isHigh ? 'high' as const : isMedium ? 'medium' as const : undefined;
+                    const rowBg = '#fff';
+                    const rowHover = '#F5F6FF';
                     return (<div key={notif.id} onClick={() => handleNotifClick(notif)} style={{
                     display: 'flex',
                     alignItems: 'flex-start',
@@ -478,7 +528,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     padding: '12px 16px',
                     cursor: 'pointer',
                     borderBottom: '1px solid #F9FAFB',
-                    borderLeft: isElevated ? `3px solid ${borderColor}` : '3px solid transparent',
+                    borderLeft: '3px solid transparent',
                     background: rowBg,
                     transition: 'background 0.1s',
                 }} onMouseEnter={(e) => (e.currentTarget.style.background = rowHover)} onMouseLeave={(e) => (e.currentTarget.style.background = rowBg)}>
@@ -488,22 +538,12 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     height: 36,
                     borderRadius: '50%',
                     flexShrink: 0,
-                    background: isCritical
-                        ? '#FEE2E2'
-                        : isHigh
-                            ? '#FFEDD5'
-                        : isMedium
-                            ? '#FEF9C3'
-                        : notif.type === 'message'
-                        ? '#EEF0FB'
-                        : notif.type === 'application'
-                            ? '#F0FDF4'
-                            : '#FFF7ED',
+                    background: '#EEF0FB',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                 }}>
-                          <NotifIcon type={notif.type} accent={iconAccent}/>
+                          <NotifIcon type={notif.type}/>
                         </div>
 
                         
@@ -526,21 +566,39 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                           </div>
                           <div style={{
                     fontSize: 'var(--font-small)',
-                    color: isCritical ? '#7F1D1D' : isHigh ? '#9A3412' : isMedium ? '#854D0E' : '#6B7280',
-                    ...(isElevated
-                        ? { lineHeight: 1.45, whiteSpace: 'normal' as const }
-                        : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }),
+                    color: '#6B7280',
+                    lineHeight: 1.45,
+                    whiteSpace: 'normal' as const,
                 }}>
                             {notif.body}
                           </div>
-                          {notif.actionLabel && (<div style={{
+                          {notif.actionLabel && notificationHref(notif) ? (<button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        followNotification(notif);
+                    }}
+                    style={{
                     fontSize: 'var(--font-small)',
-                    color: isCritical ? '#DC2626' : isHigh ? '#EA580C' : isMedium ? '#CA8A04' : '#3B4FD8',
+                    color: '#3B4FD8',
+                    fontWeight: 600,
+                    marginTop: 6,
+                    padding: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    textAlign: 'left',
+                }}>
+                            {notif.actionLabel}
+                          </button>) : notif.actionLabel ? (<div style={{
+                    fontSize: 'var(--font-small)',
+                    color: '#3B4FD8',
                     fontWeight: 600,
                     marginTop: 6,
                 }}>
                             {notif.actionLabel}
-                          </div>)}
+                          </div>) : null}
                           <div style={{
                     fontSize: 'var(--font-small)',
                     color: '#9CA3AF',
@@ -555,7 +613,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    background: isCritical ? '#DC2626' : isHigh ? '#EA580C' : isMedium ? '#CA8A04' : '#3B4FD8',
+                    background: '#3B4FD8',
                     flexShrink: 0,
                     marginTop: 4,
                 }}/>)}
@@ -566,15 +624,8 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
 
                 
                 {(() => {
-                  const prefs = (() => { try { const s = localStorage.getItem('notifPrefs'); return s ? JSON.parse(s) : null; } catch { return null; } })();
-                  const visible = prefs ? notifications.filter(n => {
-                    if (n.priority === 'CRITICAL' || n.priority === 'HIGH' || n.priority === 'MEDIUM') return true;
-                    const cat = n.category ?? notifCategory(n.type);
-                    if (cat === 'cancellations') return true;
-                    return prefs[cat] !== false;
-                  }) : notifications;
-                  const hasMoreThanThree = visible.length > 3;
-                  if (!hasMoreThanThree) return null;
+                  const hasMoreThanThree = unreadNotifications.length > 3;
+                  if (!hasMoreThanThree || showAllNotifications) return null;
                   return (
                     <div style={{
                     padding: '10px 16px',
@@ -667,6 +718,27 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                   <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
                     {selectedNotif.body}
                   </div>
+                  {selectedNotif.actionLabel && notificationHref(selectedNotif) ? (
+                    <button
+                      type="button"
+                      onClick={() => followNotification(selectedNotif)}
+                      style={{
+                        marginTop: 14,
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: '#1C32D2',
+                        color: '#fff',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      {selectedNotif.actionLabel}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>

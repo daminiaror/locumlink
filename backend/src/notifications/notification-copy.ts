@@ -17,6 +17,19 @@ export function formatJobDate(date: Date | string | null | undefined): string {
   });
 }
 
+/** Full month + compact year for host new-applicant notification titles */
+export function formatJobDateHostApplicantTitle(
+  date: Date | string | null | undefined,
+): string {
+  if (!date) return '';
+  const formatted = new Date(date).toLocaleDateString('en-US', {
+    month: 'long',
+    day: '2-digit',
+    year: 'numeric',
+  });
+  return formatted.replace(/, (\d{4})$/, ',$1');
+}
+
 export function formatPayPerDay(pay: number | null | undefined): string {
   if (pay == null) return '';
   return ` Rate: $${Number(pay).toLocaleString()}/day.`;
@@ -72,21 +85,49 @@ export function buildL001NewOpportunity(params: {
   };
 }
 
-/** L-002 — Host confirmed placement */
+function formatShiftTimeRange(
+  startTime?: string | null,
+  endTime?: string | null,
+): string {
+  const start = startTime?.trim();
+  const end = endTime?.trim();
+  if (start && end) return `from ${start} to ${end}`;
+  if (start) return `from ${start}`;
+  if (end) return `until ${end}`;
+  return '';
+}
+
+export function formatClinicAddress(parts: {
+  address?: string | null;
+  city?: string | null;
+  province?: string | null;
+  postalCode?: string | null;
+}): string {
+  return [parts.address, parts.city, parts.province, parts.postalCode]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
+/** L-002 — Host confirms/books locum for opportunity */
 export function buildL002HostConfirmed(params: {
   doctorName: string;
   jobTitle: string;
   clinicName: string;
-  dateStr: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  address: string;
 }) {
-  const when = params.dateStr ? ` on ${params.dateStr}` : '';
+  const timeRange = formatShiftTimeRange(params.startTime, params.endTime);
+  const timePhrase = timeRange ? ` ${timeRange}` : '';
+  const addressSuffix = params.address ? `, ${params.address}` : '';
   return {
-    inAppTitle: 'Placement Confirmed',
-    inAppBody: `You have been confirmed for ${params.jobTitle} at ${params.clinicName}${when}. Please accept or decline your placement.`,
-    emailSubject: `Confirmed: ${params.jobTitle}`,
-    emailBody: `Hello ${params.doctorName}, You have been confirmed for ${params.jobTitle} at ${params.clinicName}${when}. Log in to LocumLink L2 to accept or decline this placement.`,
-    priority: 'HIGH' as LocumCopyPriority,
-    actionLabel: 'View Placement',
+    inAppTitle: `Shift Confirmed: ${params.jobTitle} at ${params.clinicName}`,
+    inAppBody: `Congratulations! You've been confirmed for ${params.jobTitle} shift at ${params.clinicName}.`,
+    emailSubject: `Shift Confirmed: ${params.jobTitle} at ${params.clinicName}`,
+    emailBody: `Great news ${params.doctorName}! You have been confirmed for the locum shift on ${params.jobTitle}${timePhrase} at ${params.clinicName}${addressSuffix}.`,
+    priority: 'CRITICAL' as LocumCopyPriority,
+    actionLabel: 'View Shift Details',
   };
 }
 

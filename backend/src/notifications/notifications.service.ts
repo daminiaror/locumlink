@@ -15,6 +15,7 @@ import {
   contactSupportMailtoHref,
   formatLocumDoctorName,
   formatJobDate,
+  formatJobDateHostApplicantTitle,
   formatPayPerDay,
   formatSuspensionReason,
   formatVerificationRejectionReason,
@@ -236,7 +237,9 @@ export class NotificationsService {
     lastName?: string | null;
     jobTitle: string;
     clinicName: string;
-    startDate?: Date | string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    address?: string | null;
     applicationId: string;
   }): Promise<void> {
     const doctorName = formatLocumDoctorName(params.firstName, params.lastName);
@@ -244,7 +247,9 @@ export class NotificationsService {
       doctorName,
       jobTitle: params.jobTitle,
       clinicName: params.clinicName,
-      dateStr: formatJobDate(params.startDate),
+      startTime: params.startTime,
+      endTime: params.endTime,
+      address: params.address?.trim() || params.clinicName,
     });
     await this.create({
       recipientId: params.recipientId,
@@ -589,6 +594,7 @@ export class NotificationsService {
       locumName,
       jobTitle: params.jobTitle,
       dateStr: formatJobDate(params.startDate),
+      titleDateStr: formatJobDateHostApplicantTitle(params.startDate),
     });
     await this.create({
       recipientId: params.recipientId,

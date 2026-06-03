@@ -2,14 +2,18 @@ import type { HostProfile, LocumProfile } from '@/types';
 import type { Role } from '@/lib/auth';
 import { getToken, clearSession, syncCookies } from '@/lib/auth';
 import { startLoader, stopLoader } from '@/lib/topLoader';
-const NEST_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '') || (typeof window === 'undefined' ? 'http://localhost:3000' : '');
+/** Server: direct Nest URL. Browser: same-origin `/api/*` via Next rewrites (avoids CORS). */
+const NEST_BASE =
+    typeof window === 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+        : '';
 function networkFetchError(label: string, err: unknown): Error {
     const isProd = process.env.NODE_ENV === 'production';
     const baseHint = NEST_BASE
         ? (isProd && (!process.env.NEXT_PUBLIC_API_URL || /localhost/.test(NEST_BASE))
             ? ` (check Vercel env NEXT_PUBLIC_API_URL; current base is "${NEST_BASE}")`
             : ` (base: "${NEST_BASE}")`)
-        : ' (base: same-origin)';
+        : ' (via same-origin /api proxy — ensure the API on port 3000 is running)';
     const msg = err instanceof Error && err.message
         ? err.message
         : 'Failed to fetch (network error)';
@@ -45,6 +49,16 @@ function nestHeaders(json: boolean): HeadersInit {
         h['Content-Type'] = 'application/json';
     if (token)
         h.Authorization = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+        try {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (tz)
+                h['X-Client-Timezone'] = tz;
+        }
+        catch {
+            /* ignore */
+        }
+    }
     return h;
 }
 type TrackedInit = RequestInit & {
@@ -451,6 +465,7 @@ export type Job = {
     status: PostingStatus;
     isDeleted?: boolean;
     applicationsCount: number;
+    hasAcceptedLocum?: boolean;
     maxApplicants?: number;
     startDate?: string | null;
     endDate?: string | null;
@@ -480,6 +495,7 @@ export function normalizeHostJob(raw: unknown): Job {
         description: String(r.description ?? ''),
         status: normalizePostingStatus(r.status),
         applicationsCount: typeof count === 'number' ? count : Number(count ?? 0),
+        hasAcceptedLocum: r.hasAcceptedLocum === true,
         payPerDay: r.payPerDay != null ? Number(r.payPerDay) : null,
     } as Job;
 }

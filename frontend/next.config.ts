@@ -52,12 +52,12 @@ export default withPWA({
   customWorkerDir: 'worker',
   disable: process.env.NODE_ENV === 'development',
   fallbacks: { document: '/offline' },
-  workboxOptions: {
-    runtimeCaching: [
-      {
-        urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
-        handler: 'NetworkOnly',
-      },
-    ],
-  },
+  runtimeCaching: [
+    {
+      urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
+      handler: 'NetworkOnly',
+      method: 'GET',
+      options: {},
+    },
+  ],
 })(nextConfig);

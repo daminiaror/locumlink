@@ -153,7 +153,7 @@ function MessageIcon({ active }: { active: boolean }) {
 
 function ShieldIcon() {
     return (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M10 12.5l1.5 1.5 2.75-3M12 2.5l-8 3v5.1c0 4.65 3.42 9 8 10.1 4.58-1.1 8-5.45 8-10.1V5.5l-8-3Z" stroke="#0B0F1F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M10 12.5l1.5 1.5 2.75-3M12 2.5l-8 3v5.1c0 4.65 3.42 9 8 10.1 4.58-1.1 8-5.45 8-10.1V5.5l-8-3Z" stroke="#309BB7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>);
 }
 
@@ -937,7 +937,7 @@ export default function HostApplicantsPage(props: {
                   <StatusBadge status={a.status} />
 
                   
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1024,7 +1024,6 @@ export default function HostApplicantsPage(props: {
             <div style={{ padding: '0 18px 14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <ShieldIcon />
                   <span style={{
                     fontFamily: 'Inter, sans-serif',
                     fontWeight: 600,
@@ -1035,6 +1034,7 @@ export default function HostApplicantsPage(props: {
                   }}>
                     {displayName(selected)}
                   </span>
+                  <ShieldIcon />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1145,7 +1145,7 @@ export default function HostApplicantsPage(props: {
                         padding: '10px 12px',
                         height: 44,
                         background: jobId && !actioning.has(selected.id)
-                            ? 'linear-gradient(270deg,#6366F1 0%,#4F46E5 100%)'
+                            ? 'linear-gradient(270deg,#3A65DB 0%,#0F2A7A 100%)'
                             : '#E5E7EB',
                         borderRadius: 8,
                     }}>

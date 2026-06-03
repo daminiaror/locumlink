@@ -1,4 +1,7 @@
-import { formatJobDate } from './notification-copy.js';
+import {
+  formatJobDate,
+  formatJobDateHostApplicantTitle,
+} from './notification-copy.js';
 
 export type HostCopyPriority =
   | 'CRITICAL'
@@ -24,11 +27,13 @@ export function buildH001LocumApplied(params: {
   locumName: string;
   jobTitle: string;
   dateStr: string;
+  titleDateStr?: string;
 }) {
   const when = params.dateStr ? ` on ${params.dateStr}` : '';
-  const emailSubject = params.dateStr
-    ? `New Application for Your ${params.dateStr} Locum Shift`
-    : 'New Application for Your Locum Shift';
+  const titleDate = params.titleDateStr ?? params.dateStr;
+  const emailSubject = titleDate
+    ? `New Locum for Your ${titleDate} Locum Shift`
+    : 'New Locum for Your Locum Shift';
   return {
     inAppTitle: emailSubject,
     inAppBody: `${params.locumName} has applied for your ${params.jobTitle} opportunity${when}. Review application now.`,
@@ -179,4 +184,4 @@ export function isShiftWithin24Hours(
   return diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000;
 }
 
-export { formatJobDate };
+export { formatJobDate, formatJobDateHostApplicantTitle };

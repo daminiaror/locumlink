@@ -23,6 +23,7 @@ import {
   getLocumAccountNotice,
   locumCanApplyToJobs,
 } from '@/lib/locumAccountNotice';
+import { isLocalPostingEndDatePassed } from '@/lib/localDateTime';
 import { relativeHoursOrDaysAgo, toLocalDateTime, toLocalTime } from '@/lib/relativeTime';
 import {
   CANADIAN_PROVINCE_NAMES,
@@ -208,11 +209,7 @@ function daysAgo(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 }
 function hasJobEndDatePassed(job: BrowseJob): boolean {
-  if (!job.endDate) return false;
-  const end = new Date(job.endDate);
-  if (Number.isNaN(end.getTime())) return false;
-  end.setHours(23, 59, 59, 999);
-  return end.getTime() < Date.now();
+  return isLocalPostingEndDatePassed(job.endDate ?? null);
 }
 type PostedTimeFilter = 'any' | '24h' | '7d' | '30d' | '90d';
 
@@ -365,13 +362,9 @@ export default function LocumBrowsePage(props: {
       .getMyApplications()
       .then(({ applications }) => {
         const ids = new Set(
-          applications.map(
-            (a: {
-              jobPosting: {
-                id: string;
-              };
-            }) => a.jobPosting.id,
-          ),
+          applications
+            .map((a) => a.jobPosting?.id)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0),
         );
         setApplied(ids);
       })
@@ -1549,11 +1542,13 @@ export default function LocumBrowsePage(props: {
                 )}
                 <span
                   title={
-                    selectedJobPassed
-                      ? 'This job has passed'
-                      : !canApply
-                        ? accountNotice?.title ?? 'Verify CPSNS to apply'
-                        : undefined
+                    isApplied(job.id)
+                      ? 'You have already applied to this job'
+                      : selectedJobPassed
+                        ? 'This job has passed'
+                        : !canApply
+                          ? accountNotice?.title ?? 'Verify CPSNS to apply'
+                          : undefined
                   }
                   style={{ display: 'inline-block' }}
                 >
@@ -1575,27 +1570,39 @@ export default function LocumBrowsePage(props: {
                       fontWeight: 'var(--font-weight-bold)',
                       fontFamily: 'inherit',
                       cursor:
-                        !canApply || selectedJobPassed
+                        !canApply ||
+                        selectedJobPassed ||
+                        isApplied(job.id)
                           ? 'not-allowed'
                           : isApplying(job.id)
                             ? 'wait'
-                            : isApplied(job.id)
-                              ? 'default'
-                              : 'pointer',
+                            : 'pointer',
                       background:
-                        !canApply || selectedJobPassed
+                        !canApply ||
+                        selectedJobPassed ||
+                        isApplied(job.id)
                           ? '#e5e7eb'
                           : 'linear-gradient(135deg, #0F2A7A 0%, #1E3FAF 100%)',
                       color:
-                        !canApply || selectedJobPassed ? '#9ca3af' : '#fff',
+                        !canApply ||
+                        selectedJobPassed ||
+                        isApplied(job.id)
+                          ? '#9ca3af'
+                          : '#fff',
                       boxShadow:
-                        !canApply || selectedJobPassed
+                        !canApply ||
+                        selectedJobPassed ||
+                        isApplied(job.id)
                           ? 'none'
                           : '0 2px 10px rgba(15, 42, 122, 0.22)',
                       opacity: isApplying(job.id) ? 0.88 : 1,
                     }}
                   >
-                    {isApplying(job.id) ? 'Applying…' : 'Apply'}
+                    {isApplying(job.id)
+                      ? 'Applying…'
+                      : isApplied(job.id)
+                        ? 'Applied'
+                        : 'Apply'}
                   </button>
                 </span>
               </div>
