@@ -119,8 +119,8 @@ const textareaField: React.CSSProperties = {
 const stepNavLabel: React.CSSProperties = {
     fontFamily: 'Inter, sans-serif',
     fontWeight: 500,
-    fontSize: 16,
-    lineHeight: '140%',
+    fontSize: 17,
+    lineHeight: 1.25,
     color: '#0B0F1F',
     ...profileTextCapitalize,
 };

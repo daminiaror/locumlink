@@ -32,7 +32,7 @@ export function formatJobDateHostApplicantTitle(
 
 export function formatPayPerDay(pay: number | null | undefined): string {
   if (pay == null) return '';
-  return ` Rate: $${Number(pay).toLocaleString()}/day.`;
+  return ` Rate: $${Number(pay).toLocaleString()}/hour.`;
 }
 
 export function formatVerificationRejectionReason(
@@ -67,34 +67,19 @@ export function locumMessagesHref(partnerId: string): string {
 
 /** L-001 — New opportunity posted */
 export function buildL001NewOpportunity(params: {
-  doctorName: string;
   jobTitle: string;
-  dateStr: string;
-  payStr: string;
-  locationStr: string;
+  payPerDay?: number | null;
 }) {
-  const when = params.dateStr ? ` on ${params.dateStr}` : '';
-  const where = params.locationStr ? ` in ${params.locationStr}` : '';
+  const ratePart = formatPayPerDay(params.payPerDay);
+  const inAppBody = `A new ${params.jobTitle} locum opportunity has been posted.${ratePart}`;
   return {
     inAppTitle: 'New Locum Opportunity Available',
-    inAppBody: `${params.jobTitle}${when} is now available.${params.payStr ? ` ${params.payStr.trim()}` : ''}`,
+    inAppBody,
     emailSubject: `New Locum Opportunity: ${params.jobTitle}`,
-    emailBody: `Hello ${params.doctorName}, A new locum opportunity has been posted on LocumLink L2: ${params.jobTitle}${when}${params.payStr}${where}. Log in to view details and apply.`,
+    emailBody: inAppBody,
     priority: 'NORMAL' as LocumCopyPriority,
     actionLabel: 'Browse Opportunities',
   };
-}
-
-function formatShiftTimeRange(
-  startTime?: string | null,
-  endTime?: string | null,
-): string {
-  const start = startTime?.trim();
-  const end = endTime?.trim();
-  if (start && end) return `from ${start} to ${end}`;
-  if (start) return `from ${start}`;
-  if (end) return `until ${end}`;
-  return '';
 }
 
 export function formatClinicAddress(parts: {
@@ -111,21 +96,15 @@ export function formatClinicAddress(parts: {
 
 /** L-002 — Host confirms/books locum for opportunity */
 export function buildL002HostConfirmed(params: {
-  doctorName: string;
   jobTitle: string;
   clinicName: string;
-  startTime?: string | null;
-  endTime?: string | null;
-  address: string;
 }) {
-  const timeRange = formatShiftTimeRange(params.startTime, params.endTime);
-  const timePhrase = timeRange ? ` ${timeRange}` : '';
-  const addressSuffix = params.address ? `, ${params.address}` : '';
+  const inAppBody = `Congratulations! You've been confirmed for ${params.jobTitle} shift at ${params.clinicName}.`;
   return {
     inAppTitle: `Shift Confirmed: ${params.jobTitle} at ${params.clinicName}`,
-    inAppBody: `Congratulations! You've been confirmed for ${params.jobTitle} shift at ${params.clinicName}.`,
+    inAppBody,
     emailSubject: `Shift Confirmed: ${params.jobTitle} at ${params.clinicName}`,
-    emailBody: `Great news ${params.doctorName}! You have been confirmed for the locum shift on ${params.jobTitle}${timePhrase} at ${params.clinicName}${addressSuffix}.`,
+    emailBody: inAppBody,
     priority: 'CRITICAL' as LocumCopyPriority,
     actionLabel: 'View Shift Details',
   };
@@ -170,12 +149,15 @@ export function buildL005ShiftReminder48h(params: {
   dateStr: string;
   timeStr: string;
 }) {
-  const at = params.timeStr ? ` at ${params.timeStr}` : '';
+  const when = params.timeStr?.trim()
+    ? `${params.dateStr} at ${params.timeStr.trim()}`
+    : params.dateStr;
+  const inAppBody = `Reminder: Your shift at ${params.clinicName} starts in 2 days (${when}).`;
   return {
     inAppTitle: 'Upcoming Shift Reminder',
-    inAppBody: `Your shift at ${params.clinicName} starts in 48 hours on ${params.dateStr}${at}.`,
+    inAppBody,
     emailSubject: `Shift Reminder: ${params.dateStr} at ${params.clinicName}`,
-    emailBody: `Hello ${params.doctorName}, This is a reminder that your confirmed shift at ${params.clinicName} starts in 48 hours on ${params.dateStr}${at}.`,
+    emailBody: inAppBody,
     priority: 'NORMAL' as LocumCopyPriority,
     actionLabel: 'View Schedule',
   };
@@ -187,12 +169,13 @@ export function buildL006ShiftReminderEvening(params: {
   clinicName: string;
   timeStr: string;
 }) {
-  const at = params.timeStr ? ` at ${params.timeStr}` : '';
+  const at = params.timeStr?.trim() || 'the scheduled time';
+  const inAppBody = `Tomorrow morning: Your shift at ${params.clinicName} starts at ${at}. Be ready!`;
   return {
     inAppTitle: "Tomorrow's Shift Reminder",
-    inAppBody: `Your shift at ${params.clinicName} begins tomorrow${at}. Ensure you have all credentials ready.`,
+    inAppBody,
     emailSubject: `Tomorrow: Shift at ${params.clinicName}`,
-    emailBody: `Hello ${params.doctorName}, Your shift at ${params.clinicName} begins tomorrow${at}. Please ensure you have all credentials and travel arrangements ready.`,
+    emailBody: inAppBody,
     priority: 'NORMAL' as LocumCopyPriority,
     actionLabel: 'View Shift Details',
   };
@@ -204,12 +187,12 @@ export function buildL007ShiftReminder2h(params: {
   clinicName: string;
   timeStr: string;
 }) {
-  const at = params.timeStr || 'the scheduled time';
+  const inAppBody = `Your shift starts in 2 hours at ${params.clinicName}. Safe travels!`;
   return {
     inAppTitle: 'Shift Starting Soon',
-    inAppBody: `Your shift at ${params.clinicName} starts in 2 hours. Safe travels!`,
+    inAppBody,
     emailSubject: `Your shift starts in 2 hours — ${params.clinicName}`,
-    emailBody: `Hello ${params.doctorName}, Safe travels! Your shift at ${params.clinicName} starts at ${at}.`,
+    emailBody: inAppBody,
     priority: 'HIGH' as LocumCopyPriority,
     actionLabel: 'View Shift',
   };
@@ -217,52 +200,59 @@ export function buildL007ShiftReminder2h(params: {
 
 /** L-008 — New message */
 export function buildL008NewMessage(params: {
-  senderName: string;
-  preview: string;
+  hostName: string;
+  jobTitle: string;
+  startDateStr: string;
 }) {
+  const shiftDate = params.startDateStr ? ` ${params.startDateStr}` : '';
+  const inAppBody = `New message from Dr. ${params.hostName} about your ${params.jobTitle} shift${shiftDate}.`;
   return {
     inAppTitle: 'New Message',
-    inAppBody: `${params.senderName} sent you a message: ${params.preview}`,
-    emailSubject: `New message from ${params.senderName}`,
-    emailBody: `${params.senderName} sent you a message on LocumLink L2:\n\n${params.preview}\n\nLog in to reply.`,
+    inAppBody,
+    emailSubject: `New message from Dr. ${params.hostName}`,
+    emailBody: inAppBody,
     priority: 'NORMAL' as LocumCopyPriority,
     actionLabel: 'Reply',
   };
 }
 
 /** L-009 — Locum account verified */
+const L009_BODY =
+  'Welcome to LocumLink L2! Your account is verified. Start browsing opportunities.';
+
 export const L009_LOCUM_ACCOUNT_VERIFIED = {
   inAppTitle: 'Account Verified - Start Finding Shifts!',
-  inAppBody:
-    'Welcome to LocumLink L2! Your account is verified. Start browsing opportunities.',
+  inAppBody: L009_BODY,
   emailSubject: 'Account Verified - Start Finding Shifts!',
-  emailBody: (doctorName: string) =>
-    `Congratulations ${doctorName}! Your credentials have been verified. You can now apply for locum opportunities across Nova Scotia.`,
+  emailBody: L009_BODY,
   priority: 'HIGH' as LocumCopyPriority,
   actionLabel: 'Browse Opportunities',
   browseHref: '/locum/browse',
 };
 
 /** L-010 — Locum account verification rejected */
+const L010_BODY =
+  'Account verification incomplete. Additional documentation required.';
+
 export const L010_LOCUM_VERIFICATION_REJECTED = {
   inAppTitle: 'Action Required: Account Verification',
-  inAppBody:
-    'Account verification incomplete. Additional documentation required.',
+  inAppBody: L010_BODY,
   emailSubject: 'Action Required: Account Verification',
-  emailBody: (doctorName: string, reason: string) =>
-    `Hello ${doctorName}, We need additional information to verify your account. Reason: ${reason}. Please upload the required documents.`,
+  emailBody: L010_BODY,
   priority: 'HIGH' as LocumCopyPriority,
   actionLabel: 'Complete Verification',
   profileHref: '/locum/profile',
 };
 
 /** L-011 — Locum account suspended */
+const L011_BODY =
+  'Your account has been suspended. Contact support immediately.';
+
 export const L011_LOCUM_ACCOUNT_SUSPENDED = {
   inAppTitle: 'Account suspended',
-  inAppBody: 'Your account has been suspended. Contact support immediately.',
+  inAppBody: L011_BODY,
   emailSubject: 'Important: Account Suspension Notice',
-  emailBody: (reason: string) =>
-    `Your LocumLink L2 account has been suspended due to ${reason}. Please contact support to resolve this issue.`,
+  emailBody: L011_BODY,
   priority: 'CRITICAL' as LocumCopyPriority,
   actionLabel: 'Contact Support',
 };

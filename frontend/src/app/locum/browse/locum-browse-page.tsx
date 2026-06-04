@@ -211,6 +211,14 @@ function daysAgo(iso: string): number {
 function hasJobEndDatePassed(job: BrowseJob): boolean {
   return isLocalPostingEndDatePassed(job.endDate ?? null);
 }
+
+function isJobRemovedByHost(job: BrowseJob): boolean {
+  return Boolean(job.isDeleted);
+}
+
+const BROWSE_REMOVED_LIST_BG = '#F3F4F6';
+const BROWSE_REMOVED_LIST_SELECTED_BG = '#E5E7EB';
+const BROWSE_REMOVED_MUTED = '#9CA3AF';
 type PostedTimeFilter = 'any' | '24h' | '7d' | '30d' | '90d';
 
 const POSTED_TIME_FILTER_OPTIONS: { id: PostedTimeFilter; label: string }[] = [
@@ -438,12 +446,18 @@ export default function LocumBrowsePage(props: {
   }, [filteredJobs, selectedId]);
   const job = filteredJobs.find((j) => j.id === selectedId) ?? null;
   const selectedJobPassed = job ? hasJobEndDatePassed(job) : false;
+  const selectedJobRemoved = job ? isJobRemovedByHost(job) : false;
+  const selectedJobUnavailable = selectedJobPassed || selectedJobRemoved;
   const accountNotice = getLocumAccountNotice(profile);
   const canApply = locumCanApplyToJobs(profile);
   const cpsnsVerified = isCpsnsVerificationApproved(profile?.cpsnsVerificationStatus);
   async function handleApply(jobId: string) {
     if (applied.has(jobId)) return;
     const targetJob = jobs.find((j) => j.id === jobId);
+    if (targetJob && isJobRemovedByHost(targetJob)) {
+      setApplyError('This posting has been removed by the host.');
+      return;
+    }
     if (targetJob && hasJobEndDatePassed(targetJob)) {
       setApplyError('This job has passed.');
       return;
@@ -860,7 +874,10 @@ export default function LocumBrowsePage(props: {
             )}
 
             {!loading &&
-              filteredJobs.map((j) => (
+              filteredJobs.map((j) => {
+                const removed = isJobRemovedByHost(j);
+                const selected = selectedId === j.id;
+                return (
                 <div
                   key={j.id}
                   onClick={() => setSelectedId(j.id)}
@@ -868,11 +885,18 @@ export default function LocumBrowsePage(props: {
                     padding: '12px 14px',
                     borderBottom: '1px solid #f3f4f6',
                     cursor: 'pointer',
-                    background: selectedId === j.id ? '#eef0fb' : '#fff',
+                    background: removed
+                      ? selected
+                        ? BROWSE_REMOVED_LIST_SELECTED_BG
+                        : BROWSE_REMOVED_LIST_BG
+                      : selected
+                        ? '#eef0fb'
+                        : '#fff',
                     position: 'relative',
+                    opacity: removed ? 0.88 : 1,
                   }}
                 >
-                  {selectedId === j.id && (
+                  {selected && (
                     <div
                       style={{
                         position: 'absolute',
@@ -880,7 +904,7 @@ export default function LocumBrowsePage(props: {
                         top: 0,
                         bottom: 0,
                         width: 3,
-                        background: '#3B4FD8',
+                        background: removed ? '#9CA3AF' : '#3B4FD8',
                       }}
                     />
                   )}
@@ -897,7 +921,7 @@ export default function LocumBrowsePage(props: {
                         fontSize: 'var(--font-heading)',
                         fontWeight: 'var(--font-weight-bold)',
                         lineHeight: '140%',
-                        color: 'var(--brand-primary)',
+                        color: removed ? BROWSE_REMOVED_MUTED : 'var(--brand-primary)',
                       }}
                     >
                       {(() => {
@@ -916,7 +940,7 @@ export default function LocumBrowsePage(props: {
                         fontSize: 'var(--font-small)',
                         fontWeight: 'var(--font-weight-normal)',
                         lineHeight: '140%',
-                        color: 'var(--text-secondary)',
+                        color: removed ? BROWSE_REMOVED_MUTED : 'var(--text-secondary)',
                         flexShrink: 0,
                         marginLeft: 6,
                       }}
@@ -924,13 +948,29 @@ export default function LocumBrowsePage(props: {
                       <span title={toLocalDateTime(j.createdAt)} style={{ cursor: 'help', borderBottom: '1px dotted currentColor' }}>{daysAgo(j.createdAt)}d ago</span>
                     </span>
                   </div>
+                  {removed ? (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        marginBottom: 4,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        background: '#E5E7EB',
+                        color: '#6B7280',
+                        fontSize: 'var(--font-small)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Posting removed
+                    </span>
+                  ) : null}
                   <div
                     style={{
                       fontFamily: 'Inter, sans-serif',
                       fontSize: 'var(--font-body)',
                       fontWeight: 'var(--font-weight-normal)',
                       lineHeight: '150%',
-                      color: 'var(--text-muted)',
+                      color: removed ? BROWSE_REMOVED_MUTED : 'var(--text-muted)',
                       textTransform: 'capitalize',
                       marginBottom: 4,
                     }}
@@ -944,7 +984,7 @@ export default function LocumBrowsePage(props: {
                         fontSize: 'var(--font-small)',
                         fontWeight: 'var(--font-weight-normal)',
                         lineHeight: '140%',
-                        color: 'var(--text-secondary)',
+                        color: removed ? BROWSE_REMOVED_MUTED : 'var(--text-secondary)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 4,
@@ -968,8 +1008,8 @@ export default function LocumBrowsePage(props: {
                         marginTop: 4,
                         padding: '2px 6px',
                         borderRadius: 4,
-                        background: '#d1fae5',
-                        color: '#065f46',
+                        background: removed ? '#E5E7EB' : '#d1fae5',
+                        color: removed ? '#6B7280' : '#065f46',
                         fontSize: 'var(--font-small)',
                         fontWeight: 'var(--font-weight-bold)',
                       }}
@@ -978,7 +1018,8 @@ export default function LocumBrowsePage(props: {
                     </span>
                   )}
                 </div>
-              ))}
+              );
+              })}
             </div>
             <div
               role="separator"
@@ -1047,8 +1088,26 @@ export default function LocumBrowsePage(props: {
                   minHeight: 0,
                   overflowY: 'auto',
                   padding: '18px 20px',
+                  opacity: selectedJobRemoved ? 0.9 : 1,
                 }}
               >
+                {selectedJobRemoved ? (
+                  <p
+                    style={{
+                      fontSize: 'var(--font-small)',
+                      fontWeight: 600,
+                      color: '#6B7280',
+                      background: '#F3F4F6',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: 6,
+                      padding: '8px 12px',
+                      marginBottom: 12,
+                    }}
+                  >
+                    This opportunity was removed by the host and is no longer accepting
+                    applications.
+                  </p>
+                ) : null}
                 <div
                   style={{
                     display: 'flex',
@@ -1544,11 +1603,13 @@ export default function LocumBrowsePage(props: {
                   title={
                     isApplied(job.id)
                       ? 'You have already applied to this job'
-                      : selectedJobPassed
-                        ? 'This job has passed'
-                        : !canApply
-                          ? accountNotice?.title ?? 'Verify CPSNS to apply'
-                          : undefined
+                      : selectedJobRemoved
+                        ? 'This posting was removed by the host'
+                        : selectedJobPassed
+                          ? 'This job has passed'
+                          : !canApply
+                            ? accountNotice?.title ?? 'Verify CPSNS to apply'
+                            : undefined
                   }
                   style={{ display: 'inline-block' }}
                 >
@@ -1557,7 +1618,7 @@ export default function LocumBrowsePage(props: {
                     onClick={() => handleApply(job.id)}
                     disabled={
                       !canApply ||
-                      selectedJobPassed ||
+                      selectedJobUnavailable ||
                       isApplied(job.id) ||
                       isApplying(job.id)
                     }
@@ -1571,7 +1632,7 @@ export default function LocumBrowsePage(props: {
                       fontFamily: 'inherit',
                       cursor:
                         !canApply ||
-                        selectedJobPassed ||
+                        selectedJobUnavailable ||
                         isApplied(job.id)
                           ? 'not-allowed'
                           : isApplying(job.id)
@@ -1579,19 +1640,19 @@ export default function LocumBrowsePage(props: {
                             : 'pointer',
                       background:
                         !canApply ||
-                        selectedJobPassed ||
+                        selectedJobUnavailable ||
                         isApplied(job.id)
                           ? '#e5e7eb'
                           : 'linear-gradient(135deg, #0F2A7A 0%, #1E3FAF 100%)',
                       color:
                         !canApply ||
-                        selectedJobPassed ||
+                        selectedJobUnavailable ||
                         isApplied(job.id)
                           ? '#9ca3af'
                           : '#fff',
                       boxShadow:
                         !canApply ||
-                        selectedJobPassed ||
+                        selectedJobUnavailable ||
                         isApplied(job.id)
                           ? 'none'
                           : '0 2px 10px rgba(15, 42, 122, 0.22)',
@@ -1602,7 +1663,9 @@ export default function LocumBrowsePage(props: {
                       ? 'Applying…'
                       : isApplied(job.id)
                         ? 'Applied'
-                        : 'Apply'}
+                        : selectedJobRemoved
+                          ? 'Posting removed'
+                          : 'Apply'}
                   </button>
                 </span>
               </div>

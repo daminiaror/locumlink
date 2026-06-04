@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Ban, Download, Search, UserCheck, XCircle } from 'lucide-react';
+import { Ban, Download, Eye, FileText, Search, UserCheck, XCircle } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import { adminFetchJson, adminDownloadUsersCsv } from '@/lib/adminApi';
+import { formatAdminCpsnsDisplay } from '@/lib/cpsnsVerify';
 
 type CpsnsVerificationStatus =
   | 'UNVERIFIED'
@@ -71,6 +72,45 @@ function matchesStatusFilter(row: Row, filter: string): boolean {
   return true;
 }
 
+type UserProfileDocument = {
+  id: string;
+  label: string;
+  fileName: string;
+  signedUrl: string;
+};
+
+type ProfileField = { label: string; value: string };
+
+type UserProfileDetail = {
+  userId: string;
+  email: string;
+  role: 'LOCUM' | 'HOST';
+  profileType: 'locum' | 'host';
+  hasProfile: boolean;
+  documents: UserProfileDocument[];
+  profileFields: ProfileField[];
+};
+
+function cpsnsFromProfileFields(fields: ProfileField[]): string {
+  const raw = fields.find((f) => f.label === 'CPSNS')?.value;
+  return formatAdminCpsnsDisplay(raw);
+}
+
+function displayNameFromFields(
+  fields: ProfileField[],
+  email: string,
+): string {
+  const first = fields.find((f) => f.label === 'First name')?.value;
+  const last = fields.find((f) => f.label === 'Last name')?.value;
+  const contact = fields.find((f) => f.label === 'Contact')?.value;
+  const clinic = fields.find((f) => f.label === 'Clinic / practice')?.value;
+  const fromPerson = [first, last].filter(Boolean).join(' ').trim();
+  if (fromPerson) return fromPerson;
+  if (contact?.trim()) return contact.trim();
+  if (clinic?.trim()) return clinic.trim();
+  return email.split('@')[0] ?? email;
+}
+
 function fmtDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString(undefined, {
@@ -95,6 +135,11 @@ export default function AdminUsersPage() {
   const [suspendTarget, setSuspendTarget] = useState<Row | null>(null);
   const [suspensionNote, setSuspensionNote] = useState('');
   const [reinstateTarget, setReinstateTarget] = useState<Row | null>(null);
+  const [profileUser, setProfileUser] = useState<Row | null>(null);
+  const [profileDetail, setProfileDetail] = useState<UserProfileDetail | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+  const [showProfileFields, setShowProfileFields] = useState(true);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 300);
@@ -162,6 +207,40 @@ export default function AdminUsersPage() {
 
   function closeReinstateModal() {
     setReinstateTarget(null);
+  }
+
+  function closeProfileModal() {
+    setProfileUser(null);
+    setProfileDetail(null);
+    setProfileErr(null);
+    setShowProfileFields(true);
+  }
+
+  async function openUserProfile(row: Row) {
+    if (row.role === 'ADMIN') return;
+    setProfileUser(row);
+    setProfileDetail(null);
+    setProfileErr(null);
+    setShowProfileFields(true);
+    setProfileLoading(true);
+    try {
+      const detail = await adminFetchJson<UserProfileDetail>(
+        `/api/admin/users/${encodeURIComponent(row.id)}/profile`,
+      );
+      setProfileDetail(detail);
+    } catch (e) {
+      setProfileErr(e instanceof Error ? e.message : 'Could not load profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  function viewDocument(doc: UserProfileDocument) {
+    if (doc.signedUrl) {
+      window.open(doc.signedUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setProfileErr(`Could not open "${doc.fileName}". The file may be missing from storage.`);
   }
 
   async function confirmReinstate() {
@@ -275,7 +354,13 @@ export default function AdminUsersPage() {
               </tr>
             ) : (
               filtered.map((r) => (
-                <tr key={r.id}>
+                <tr
+                  key={r.id}
+                  className={r.role !== 'ADMIN' ? 'table-row-clickable' : undefined}
+                  onClick={() => {
+                    if (r.role !== 'ADMIN') void openUserProfile(r);
+                  }}
+                >
                   <td>
                     <div className="font-medium">{r.email.split('@')[0]}</div>
                     <div className="text-sm text-muted">{r.email}</div>
@@ -295,7 +380,7 @@ export default function AdminUsersPage() {
                   <td className="text-muted">
                     {r.lastLoginAt ? fmtDate(r.lastLoginAt) : '—'}
                   </td>
-                  <td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <div className="action-buttons">
                       {r.status === 'SUSPENDED' || r.status === 'DEACTIVATED' ? (
                         <button
@@ -396,6 +481,153 @@ export default function AdminUsersPage() {
                   {savingId === suspendTarget.id ? 'Suspending…' : 'Confirm suspend'}
                 </button>
               </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        className={`modal-overlay${profileUser ? ' active' : ''}`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) closeProfileModal();
+        }}
+        onKeyDown={() => {}}
+        role="presentation"
+      >
+        {profileUser ? (
+          <div className="modal" role="dialog" aria-modal="true" style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title">
+                  {profileDetail
+                    ? displayNameFromFields(profileDetail.profileFields, profileUser.email)
+                    : profileUser.email.split('@')[0]}
+                </h2>
+                <p className="modal-subtitle">{profileUser.email}</p>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeProfileModal}
+                aria-label="Close"
+              >
+                <XCircle size={20} color="#64748b" />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="grid-2 mb-4">
+                <div>
+                  <p className="text-xs font-medium text-muted" style={{ marginBottom: 4 }}>
+                    Role
+                  </p>
+                  <p className="text-sm">{roleLabel(profileUser.role)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted" style={{ marginBottom: 4 }}>
+                    Account status
+                  </p>
+                  <p className="text-sm">
+                    <span className={`status-badge ${displayStatus(profileUser).className}`}>
+                      {displayStatus(profileUser).label}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {profileLoading ? (
+                <p className="text-sm text-muted">Loading profile…</p>
+              ) : null}
+              {profileErr ? (
+                <p className="text-sm" style={{ color: '#dc2626', marginBottom: 12 }}>
+                  {profileErr}
+                </p>
+              ) : null}
+
+              {profileDetail && !profileLoading ? (
+                <>
+                  <div className="info-box mb-4">
+                    <p className="text-xs font-medium text-muted" style={{ marginBottom: 4 }}>
+                      CPSNS number
+                    </p>
+                    <p className="text-sm font-medium" style={{ margin: 0 }}>
+                      <code>{cpsnsFromProfileFields(profileDetail.profileFields)}</code>
+                    </p>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-sm font-medium mb-4">Uploaded documents</p>
+                    {profileDetail.documents.length === 0 ? (
+                      <p className="text-sm text-muted">No documents uploaded yet.</p>
+                    ) : (
+                      profileDetail.documents.map((doc) => (
+                        <div key={doc.id} className="document-item">
+                          <div className="document-info">
+                            <FileText size={20} color="#64748b" />
+                            <div>
+                              <span className="document-name">{doc.label}</span>
+                              <div className="text-xs text-muted">{doc.fileName}</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: 13 }}
+                            onClick={() => viewDocument(doc)}
+                          >
+                            <Eye size={16} />
+                            View
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="mb-4">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: 13 }}
+                      onClick={() => setShowProfileFields((v) => !v)}
+                    >
+                      <Eye size={16} />
+                      {showProfileFields ? 'Hide profile data' : 'Show profile data'}
+                    </button>
+                    {showProfileFields && profileDetail.profileFields.length > 0 ? (
+                      <div
+                        className="info-box"
+                        style={{ marginTop: 12, maxHeight: 280, overflowY: 'auto' }}
+                      >
+                        <dl style={{ margin: 0, display: 'grid', gap: 10 }}>
+                          {profileDetail.profileFields.map((f) => (
+                            <div key={f.label}>
+                              <dt className="text-xs font-medium text-muted">{f.label}</dt>
+                              <dd
+                                className="text-sm"
+                                style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}
+                              >
+                                {f.label === 'CPSNS'
+                                  ? formatAdminCpsnsDisplay(f.value)
+                                  : f.value}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {profileDetail.hasProfile &&
+                  profileUser.cpsnsVerificationStatus !== 'VERIFIED' ? (
+                    <p className="text-sm text-muted" style={{ margin: 0 }}>
+                      To approve or reject credentials, use the{' '}
+                      <a href="/admin/verifications" className="font-medium">
+                        Credential Queue
+                      </a>
+                      .
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           </div>
         ) : null}

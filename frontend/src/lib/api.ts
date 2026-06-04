@@ -296,6 +296,7 @@ export type BrowseJob = {
     minYearsExperience: number | null;
     isRural: boolean;
     accommodationProvided: boolean;
+    isDeleted?: boolean;
 };
 export type MyApplication = {
     id: string;
@@ -308,6 +309,7 @@ export type MyApplication = {
         id: string;
         title: string;
         description: string;
+        isDeleted?: boolean;
         startDate: string | null;
         endDate: string | null;
         startTime: string | null;

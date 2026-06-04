@@ -349,12 +349,25 @@ export class MessageService {
           messageId: message.id,
         });
       } else if (recipient?.email) {
+        let jobTitle = 'shift';
+        let startDate: Date | null = null;
+        if (jobPostingId) {
+          const job = await this.prisma.jobPosting.findUnique({
+            where: { id: jobPostingId },
+            select: { title: true, startDate: true },
+          });
+          if (job?.title) jobTitle = job.title;
+          if (job?.startDate) startDate = job.startDate;
+        }
+        const hostProfile = message.sender?.hostProfile;
         await this.notifService.notifyLocumNewMessage({
           recipientId,
           recipientEmail: recipient.email,
           senderId,
-          senderName,
-          preview,
+          hostFirstName: hostProfile?.contactFirstName,
+          hostLastName: hostProfile?.contactLastName,
+          jobTitle,
+          startDate,
           messageId: message.id,
         });
       }

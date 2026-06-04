@@ -46,6 +46,27 @@ export function buildA003CredentialUploaded(params: {
   };
 }
 
+/** A-005 — Profile CPSNS number or document updated */
+export function buildA005CpsnsUpdated(params: {
+  doctorName: string;
+  changeType: 'number' | 'document';
+}) {
+  const inAppBody =
+    params.changeType === 'number'
+      ? `${params.doctorName} has updated the profile CPSNS number.`
+      : `${params.doctorName} has updated the profile CPSNS document.`;
+  return {
+    inAppTitle:
+      params.changeType === 'number'
+        ? 'Profile CPSNS Number Updated'
+        : 'Profile CPSNS Document Updated',
+    inAppBody,
+    priority: 'HIGH' as AdminCopyPriority,
+    actionLabel: 'Review Credential',
+    href: '/admin/verifications',
+  };
+}
+
 /** A-004 — Account flagged */
 export function buildA004AccountFlagged(params: {
   doctorName: string;

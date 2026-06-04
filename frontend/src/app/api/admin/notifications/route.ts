@@ -29,7 +29,8 @@ export async function GET(req: Request) {
     };
     const eventType = payload.eventType ?? e.eventType;
     let type: 'registration' | 'credential' | 'flagged' = 'registration';
-    if (eventType.includes('CREDENTIAL')) type = 'credential';
+    if (eventType.includes('CREDENTIAL') || eventType.includes('CPSNS'))
+      type = 'credential';
     else if (eventType.includes('FLAGGED')) type = 'flagged';
 
     return {

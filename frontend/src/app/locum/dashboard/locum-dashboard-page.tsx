@@ -521,23 +521,45 @@ export default function LocumDashboard(props: {
       {!loading &&
             tabApps.map((app) => {
                 const jp = app.jobPosting;
+                const postingRemoved = Boolean(jp.isDeleted);
                 const st = applicationStatusPresentation(app);
                 const responding = respondingAppId === app.id;
                 const needsLocumResponse = app.status === 'CONFIRMED' && !app.locumAcceptedAt;
+                const mutedText = postingRemoved ? '#9CA3AF' : '#5a6478';
+                const titleColor = postingRemoved ? '#9CA3AF' : '#0f1523';
                 return (<div key={app.id} style={{
-                        background: '#fff',
-                        border: '1px solid #e2e5ee',
+                        background: postingRemoved ? '#F9FAFB' : '#fff',
+                        border: postingRemoved
+                            ? '1px dashed #D1D5DB'
+                            : '1px solid #e2e5ee',
                         borderRadius: 8,
                         padding: '16px 18px',
                         marginBottom: 10,
+                        opacity: postingRemoved ? 0.9 : 1,
                     }}>
+              {postingRemoved ? (
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#6B7280',
+                    marginBottom: 8,
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    background: '#E5E7EB',
+                    display: 'inline-block',
+                  }}
+                >
+                  Posting removed by host
+                </div>
+              ) : null}
               <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'flex-start',
                         marginBottom: 4,
                     }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#0f1523' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: titleColor }}>
                   {jp.title}
                 </div>
                 <span style={{
@@ -563,14 +585,14 @@ export default function LocumDashboard(props: {
                         marginBottom: 8,
                     }}>
                 <Image src="/avatar-clinic.png" alt="" width={18} height={18} style={{ flexShrink: 0, objectFit: 'contain' }}/>
-                <span style={{ fontSize: 13, color: '#5a6478' }}>
+                <span style={{ fontSize: 13, color: mutedText }}>
                   {jp.hostProfile.practiceName}, {jp.hostProfile.city},{' '}
                   {jp.hostProfile.province}
                 </span>
               </div>
               {jp.description?.trim() ? (<div style={{
                             fontSize: 13,
-                            color: '#5a6478',
+                            color: mutedText,
                             marginTop: -4,
                             marginBottom: 10,
                             whiteSpace: 'pre-line',
@@ -591,7 +613,7 @@ export default function LocumDashboard(props: {
                             padding: '4px 10px',
                             borderRadius: 5,
                             fontSize: 12,
-                            color: '#5a6478',
+                            color: mutedText,
                         }}>
                     <Image src="/calender.svg" alt="" width={14} height={14} style={{ flexShrink: 0, objectFit: 'contain' }}/>
                     {fmtDate(jp.startDate)} – {fmtDate(jp.endDate)}
@@ -600,11 +622,11 @@ export default function LocumDashboard(props: {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 5,
-                            background: '#F1F3F7',
+                            background: postingRemoved ? '#E5E7EB' : '#F1F3F7',
                             padding: '4px 10px',
                             borderRadius: 5,
                             fontSize: 12,
-                            color: '#5a6478',
+                            color: mutedText,
                         }}>
                     <Image src="/clock.svg" alt="" width={14} height={14} style={{ flexShrink: 0, objectFit: 'contain' }}/>
                     {fmtTime(jp.startTime)} – {fmtTime(jp.endTime)}

@@ -4,6 +4,25 @@ export function normalizeCpsns(input: string | null | undefined): string {
   return String(input ?? '').replace(/\D/g, '');
 }
 
+/** True when a submitted CPSNS number differs from what is already stored. */
+export function didCpsnsNumberChange(
+  existing: string | null | undefined,
+  cpsnsDigits: string,
+): boolean {
+  if (!cpsnsDigits) return false;
+  return normalizeCpsns(existing) !== normalizeCpsns(cpsnsDigits);
+}
+
+/** True when a stored file reference (e.g. CPSNS license upload) was replaced. */
+export function didCpsnsDocumentChange(
+  existing: string | null | undefined,
+  next: string | null | undefined,
+): boolean {
+  const n = next?.trim() ?? '';
+  if (!n) return false;
+  return (existing?.trim() ?? '') !== n;
+}
+
 export function hasCpsnsNumber(input: string | null | undefined): boolean {
   const raw = String(input ?? '').trim();
   if (!raw || /^pending-/i.test(raw)) return false;

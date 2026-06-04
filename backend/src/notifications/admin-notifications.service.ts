@@ -6,13 +6,15 @@ import {
   buildA002LocumRegistration,
   buildA003CredentialUploaded,
   buildA004AccountFlagged,
+  buildA005CpsnsUpdated,
 } from './admin-notification-copy.js';
 
 export type AdminNotifEventType =
   | 'A_001_NEW_HOST_REGISTRATION'
   | 'A_002_NEW_LOCUM_REGISTRATION'
   | 'A_003_CREDENTIAL_UPLOADED'
-  | 'A_004_ACCOUNT_FLAGGED';
+  | 'A_004_ACCOUNT_FLAGGED'
+  | 'A_005_CPSNS_UPDATED';
 
 export type AdminNotificationPriority =
   | 'CRITICAL'
@@ -34,7 +36,8 @@ export type AdminNotificationItem = {
 };
 
 function eventTypeToCategory(eventType: string): AdminNotificationItem['type'] {
-  if (eventType.includes('CREDENTIAL')) return 'credential';
+  if (eventType.includes('CREDENTIAL') || eventType.includes('CPSNS'))
+    return 'credential';
   if (eventType.includes('FLAGGED')) return 'flagged';
   return 'registration';
 }
@@ -191,6 +194,25 @@ export class AdminNotificationsService {
       referenceType: 'User',
       emailSubject: copy.emailSubject,
       emailBody: copy.emailBody,
+    });
+  }
+
+  async notifyCpsnsUpdated(params: {
+    doctorName: string;
+    changeType: 'number' | 'document';
+    profileId: string;
+    profileType: 'LocumProfile' | 'HostProfile';
+  }): Promise<void> {
+    const copy = buildA005CpsnsUpdated(params);
+    await this.notifyAllAdmins({
+      eventType: 'A_005_CPSNS_UPDATED',
+      title: copy.inAppTitle,
+      body: copy.inAppBody,
+      href: copy.href,
+      priority: copy.priority,
+      actionLabel: copy.actionLabel,
+      referenceId: params.profileId,
+      referenceType: params.profileType,
     });
   }
 

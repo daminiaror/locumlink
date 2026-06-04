@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import HostDashboard from '@/app/host/dashboard/host-dashboard-page';
@@ -24,6 +24,9 @@ import {
   hostJobFieldLbl,
   parseKeyResponsibilitiesFromLines,
   parseMmDdYyyyToIso,
+  validateJobPostingSchedule,
+  getJobScheduleValidationError,
+  buildJobScheduleApiFields,
 } from '@/lib/hostJobPostingForm';
 const inp = hostJobFieldInp;
 const lbl = hostJobFieldLbl;
@@ -90,6 +93,19 @@ export default function HostEditJobPage(props: {
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [closeConfirmBusy, setCloseConfirmBusy] = useState(false);
   const initialSnapshotRef = useRef<string | null>(null);
+  const scheduleValidationError = useMemo(() => {
+    const startIso = parseMmDdYyyyToIso(startDateInput);
+    const endIso = parseMmDdYyyyToIso(endDateInput);
+    if (!startIso || !endIso || !startTime.trim() || !endTime.trim())
+      return null;
+    return getJobScheduleValidationError({
+      startDateIso: startIso,
+      endDateIso: endIso,
+      startTime,
+      endTime,
+      allowPastDates: jobStatus === 'DRAFT',
+    });
+  }, [startDateInput, endDateInput, startTime, endTime, jobStatus]);
   useLayoutEffect(() => {
     setOverlayMounted(true);
   }, []);
@@ -388,6 +404,28 @@ export default function HostEditJobPage(props: {
       setErr('Years of experience must be a number.');
       throw new Error('validation');
     }
+    if (startIso && endIso && startTime && endTime) {
+      const scheduleCheck = validateJobPostingSchedule({
+        startDateIso: startIso,
+        endDateIso: endIso,
+        startTime,
+        endTime,
+        allowPastDates: jobStatus === 'DRAFT',
+      });
+      if (!scheduleCheck.valid) {
+        setErr(scheduleCheck.message);
+        throw new Error('validation');
+      }
+    }
+    const scheduleFields =
+      startIso && endIso && startTime && endTime
+        ? buildJobScheduleApiFields({
+            startDateIso: startIso,
+            endDateIso: endIso,
+            startTime,
+            endTime,
+          })
+        : null;
     const servicesRequired = servicesRaw
       .split(',')
       .map((s) => s.trim())
@@ -399,10 +437,10 @@ export default function HostEditJobPage(props: {
         respBySection,
         respCustom,
       ),
-      startDate: startIso || undefined,
-      endDate: endIso || undefined,
-      startTime: startTime || undefined,
-      endTime: endTime || undefined,
+      startDate: scheduleFields?.startDate ?? undefined,
+      endDate: scheduleFields?.endDate ?? undefined,
+      startTime: scheduleFields?.startTime ?? (startTime || undefined),
+      endTime: scheduleFields?.endTime ?? (endTime || undefined),
       payPerDay: rateNum,
       minYearsExperience:
         yearsExp.trim() && Number.isFinite(yearsNum) ? yearsNum : undefined,
@@ -785,6 +823,11 @@ export default function HostEditJobPage(props: {
                       />
                     </div>
                   </div>
+                  {scheduleValidationError && (
+                    <p style={{ fontSize: 13, color: '#DC2626', margin: 0 }}>
+                      {scheduleValidationError}
+                    </p>
+                  )}
                   <div>
                     <label style={lbl}>Rate per Day (CAD) *</label>
                     <input
@@ -1002,6 +1045,26 @@ export default function HostEditJobPage(props: {
                   try {
                     const startIso = parseMmDdYyyyToIso(startDateInput);
                     const endIso = parseMmDdYyyyToIso(endDateInput);
+                    const scheduleCheck = validateJobPostingSchedule({
+                      startDateIso: startIso || '',
+                      endDateIso: endIso || '',
+                      startTime,
+                      endTime,
+                    });
+                    if (!scheduleCheck.valid) {
+                      setErr(scheduleCheck.message);
+                      return;
+                    }
+                    const scheduleFields = buildJobScheduleApiFields({
+                      startDateIso: startIso!,
+                      endDateIso: endIso!,
+                      startTime,
+                      endTime,
+                    });
+                    if (!scheduleFields) {
+                      setErr('Schedule could not be encoded.');
+                      return;
+                    }
                     const rateNum = ratePerDay.trim()
                       ? Number(ratePerDay)
                       : NaN;
@@ -1019,10 +1082,10 @@ export default function HostEditJobPage(props: {
                         respBySection,
                         respCustom,
                       ),
-                      startDate: startIso || undefined,
-                      endDate: endIso || undefined,
-                      startTime: startTime || undefined,
-                      endTime: endTime || undefined,
+                      startDate: scheduleFields.startDate,
+                      endDate: scheduleFields.endDate,
+                      startTime: scheduleFields.startTime,
+                      endTime: scheduleFields.endTime,
                       payPerDay: Number.isFinite(rateNum) ? rateNum : undefined,
                       minYearsExperience:
                         yearsExp.trim() && Number.isFinite(yearsNum)

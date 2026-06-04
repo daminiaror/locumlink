@@ -23,16 +23,24 @@ import {
   isCpsnsVerificationApproved,
   normalizeCpsns,
   credentialReviewPatchOnProfileSave,
+  didCpsnsDocumentChange,
+  didCpsnsNumberChange,
   mergeCredentialReviewPatchForAccountPending,
 } from '../cpsns/cpsns-verified.js';
+import {
+  assertJobScheduleAcceptable,
+  formatCalendarDateForApi,
+  isPostingEndDatePassed,
+} from './job-schedule.util.js';
 
-/** After the full calendar end day (avoids expiring ACTIVE jobs on the end date morning). */
-function isPostingEndDatePassed(endDate: Date | null | undefined): boolean {
-  if (!endDate) return false;
-  const end = new Date(endDate);
-  if (Number.isNaN(end.getTime())) return false;
-  end.setUTCHours(23, 59, 59, 999);
-  return end.getTime() < Date.now();
+function mapJobPostingForApi<T extends { startDate?: Date | null; endDate?: Date | null }>(
+  job: T,
+): T & { startDate: string | null; endDate: string | null } {
+  return {
+    ...job,
+    startDate: formatCalendarDateForApi(job.startDate ?? null),
+    endDate: formatCalendarDateForApi(job.endDate ?? null),
+  };
 }
 
 export type HostProfileApi = {
@@ -173,7 +181,11 @@ export class HostService {
     const [existing, account] = await Promise.all([
       this.prisma.hostProfile.findUnique({
         where: { userId },
-        select: { cpsnsNumber: true, cpsnsVerificationStatus: true },
+        select: {
+          cpsnsNumber: true,
+          cpsnsVerificationStatus: true,
+          licenseFile: true,
+        },
       }),
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -213,25 +225,50 @@ export class HostService {
       select: { status: true, suspensionNote: true, suspendedAt: true },
     });
 
-    if (profileSubmittedForReview) {
-      try {
-        const credentialType = dto.licenseFile?.trim()
-          ? 'license documents'
-          : dto.photoIdFile?.trim()
-            ? 'photo ID documents'
-            : 'credentials';
+    const doctorName = formatAdminDoctorName(
+      dto.contactFirstName,
+      dto.contactLastName,
+      dto.clinicName?.trim() || 'Host physician',
+    );
+    const cpsnsNumberChanged = didCpsnsNumberChange(
+      existing?.cpsnsNumber,
+      cpsnsDigits,
+    );
+    const cpsnsLicenseChanged = didCpsnsDocumentChange(
+      existing?.licenseFile,
+      dto.licenseFile,
+    );
+    try {
+      if (cpsnsNumberChanged) {
+        await this.adminNotif.notifyCpsnsUpdated({
+          doctorName,
+          changeType: 'number',
+          profileId: profile.id,
+          profileType: 'HostProfile',
+        });
+      }
+      if (cpsnsLicenseChanged) {
+        await this.adminNotif.notifyCpsnsUpdated({
+          doctorName,
+          changeType: 'document',
+          profileId: profile.id,
+          profileType: 'HostProfile',
+        });
+      }
+      const skipGenericCredential =
+        cpsnsNumberChanged || cpsnsLicenseChanged;
+      if (profileSubmittedForReview && !skipGenericCredential) {
+        const credentialType = dto.photoIdFile?.trim()
+          ? 'photo ID documents'
+          : 'credentials';
         await this.adminNotif.notifyCredentialUploaded({
-          doctorName: formatAdminDoctorName(
-            dto.contactFirstName,
-            dto.contactLastName,
-            dto.clinicName?.trim() || 'Host physician',
-          ),
+          doctorName,
           credentialType,
           profileId: profile.id,
           profileType: 'HostProfile',
         });
-      } catch {}
-    }
+      }
+    } catch {}
 
     return { success: true, profile: this.mapProfileToApi(profile, user) };
   }
@@ -380,6 +417,14 @@ export class HostService {
           ? PostingStatus.ACTIVE
           : PostingStatus.DRAFT;
 
+    const schedule = assertJobScheduleAcceptable({
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      allowPast: saveAsDraft,
+    });
+
     const job = await this.prisma.jobPosting.create({
       data: {
         hostProfileId,
@@ -392,8 +437,8 @@ export class HostService {
         accommodationProvided: dto.accommodationProvided ?? false,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         keyResponsibilities: dto.keyResponsibilities ?? [],
-        startDate: dto.startDate ? new Date(dto.startDate) : null,
-        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        startDate: schedule.startDate ?? null,
+        endDate: schedule.endDate ?? null,
         startTime: dto.startTime ?? null,
         endTime: dto.endTime ?? null,
         payPerDay: dto.payPerDay ?? null,
@@ -450,7 +495,7 @@ export class HostService {
     return {
       success: true,
       job: {
-        ...job,
+        ...mapJobPostingForApi(job),
         status: job.status,
         applicationsCount: 0,
         payPerDay: job.payPerDay != null ? Number(job.payPerDay) : null,
@@ -517,7 +562,7 @@ export class HostService {
         const { _count, shifts: _shifts, applications: acceptedApps, ...rest } =
           j;
         return {
-          ...rest,
+          ...mapJobPostingForApi(rest),
           status: j.status,
           applicationsCount: _count.applications,
           hasAcceptedLocum: acceptedApps.length > 0,
@@ -535,7 +580,12 @@ export class HostService {
     });
     if (!job) throw new NotFoundException('Job not found');
     if (job.hostProfileId !== hostProfileId) throw new ForbiddenException();
-    return { job: { ...job, applicationsCount: job._count.applications } };
+    return {
+      job: {
+        ...mapJobPostingForApi(job),
+        applicationsCount: job._count.applications,
+      },
+    };
   }
 
   async updateJob(userId: string, jobId: string, dto: UpdateJobDto) {
@@ -564,6 +614,18 @@ export class HostService {
       }
     }
 
+    const publishingActive = statusToSave === PostingStatus.ACTIVE;
+    const schedule =
+      dto.startDate != null || dto.endDate != null
+        ? assertJobScheduleAcceptable({
+            startDate: dto.startDate,
+            endDate: dto.endDate,
+            startTime: dto.startTime,
+            endTime: dto.endTime,
+            allowPast: !publishingActive && job.status === PostingStatus.DRAFT,
+          })
+        : {};
+
     const updated = await this.prisma.jobPosting.update({
       where: { id: jobId },
       data: {
@@ -574,8 +636,8 @@ export class HostService {
         ...(dto.keyResponsibilities != null && {
           keyResponsibilities: dto.keyResponsibilities,
         }),
-        ...(dto.startDate != null && { startDate: new Date(dto.startDate) }),
-        ...(dto.endDate != null && { endDate: new Date(dto.endDate) }),
+        ...(schedule.startDate != null && { startDate: schedule.startDate }),
+        ...(schedule.endDate != null && { endDate: schedule.endDate }),
         ...(dto.startTime != null && { startTime: dto.startTime }),
         ...(dto.endTime != null && { endTime: dto.endTime }),
         ...(dto.payPerDay != null && { payPerDay: dto.payPerDay }),
@@ -681,8 +743,7 @@ export class HostService {
     const appCount = job._count.applications;
     const atApplicantCap =
       job.status === 'ACTIVE' && appCount >= job.maxApplicants;
-    const endMs = job.endDate ? new Date(job.endDate).getTime() : NaN;
-    const pastEndDate = Number.isFinite(endMs) && new Date(endMs) < new Date();
+    const pastEndDate = isPostingEndDatePassed(job.endDate);
     const eligible =
       job.status === 'ONGOING' ||
       job.status === 'COMPLETED' ||
@@ -712,17 +773,13 @@ export class HostService {
     let startDateParsed: Date | undefined;
     let endDateParsed: Date | undefined;
     if (hasBothSchedule) {
-      startDateParsed = new Date(dto.startDate as string);
-      endDateParsed = new Date(dto.endDate as string);
-      if (
-        Number.isNaN(startDateParsed.getTime()) ||
-        Number.isNaN(endDateParsed.getTime())
-      )
-        throw new BadRequestException('Invalid start or end date.');
-      if (endDateParsed < startDateParsed)
-        throw new BadRequestException(
-          'End date must be on or after start date.',
-        );
+      const schedule = assertJobScheduleAcceptable({
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        allowPast: false,
+      });
+      startDateParsed = schedule.startDate;
+      endDateParsed = schedule.endDate;
     } else if (
       (dto.startDate != null && dto.startDate.trim() !== '') ||
       (dto.endDate != null && dto.endDate.trim() !== '')

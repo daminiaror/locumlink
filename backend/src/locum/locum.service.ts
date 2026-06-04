@@ -21,6 +21,8 @@ import {
   isCpsnsVerificationApproved,
   normalizeCpsns,
   credentialReviewPatchOnProfileSave,
+  didCpsnsDocumentChange,
+  didCpsnsNumberChange,
   mergeCredentialReviewPatchForAccountPending,
 } from '../cpsns/cpsns-verified.js';
 import type { SaveLocumProfileDto } from './locum.dto.js';
@@ -204,7 +206,11 @@ export class LocumService {
     const [existing, account] = await Promise.all([
       this.prisma.locumProfile.findUnique({
         where: { userId },
-        select: { cpsnsId: true, cpsnsVerificationStatus: true },
+        select: {
+          cpsnsId: true,
+          cpsnsVerificationStatus: true,
+          licenseFileName: true,
+        },
       }),
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -327,26 +333,50 @@ export class LocumService {
       select: { status: true, suspensionNote: true, suspendedAt: true },
     });
 
-    // A-003: notify admins when credential uploaded for review
-    if (profileSubmittedForReview) {
-      try {
-        const credentialType = dto.licenseFileName?.trim()
-          ? 'license documents'
-          : dto.resumeFileName?.trim()
-            ? 'resume documents'
-            : 'credentials';
+    const doctorName = formatAdminDoctorName(
+      dto.firstName,
+      dto.lastName,
+      'Locum physician',
+    );
+    const cpsnsNumberChanged = didCpsnsNumberChange(
+      existing?.cpsnsId,
+      cpsnsDigits,
+    );
+    const cpsnsLicenseChanged = didCpsnsDocumentChange(
+      existing?.licenseFileName,
+      dto.licenseFileName,
+    );
+    try {
+      if (cpsnsNumberChanged) {
+        await this.adminNotif.notifyCpsnsUpdated({
+          doctorName,
+          changeType: 'number',
+          profileId: profile.id,
+          profileType: 'LocumProfile',
+        });
+      }
+      if (cpsnsLicenseChanged) {
+        await this.adminNotif.notifyCpsnsUpdated({
+          doctorName,
+          changeType: 'document',
+          profileId: profile.id,
+          profileType: 'LocumProfile',
+        });
+      }
+      const skipGenericCredential =
+        cpsnsNumberChanged || cpsnsLicenseChanged;
+      if (profileSubmittedForReview && !skipGenericCredential) {
+        const credentialType = dto.resumeFileName?.trim()
+          ? 'resume documents'
+          : 'credentials';
         await this.adminNotif.notifyCredentialUploaded({
-          doctorName: formatAdminDoctorName(
-            dto.firstName,
-            dto.lastName,
-            'Locum physician',
-          ),
+          doctorName,
           credentialType,
           profileId: profile.id,
           profileType: 'LocumProfile',
         });
-      } catch {}
-    }
+      }
+    } catch {}
 
     return { success: true, profile: this.mapProfileToApi(profile, user) };
   }
@@ -373,7 +403,7 @@ export class LocumService {
   }
   async browseJobs() {
     const jobs = await this.prisma.jobPosting.findMany({
-      where: { status: 'ACTIVE', isDeleted: false },
+      where: { status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
       include: {
         hostProfile: {
@@ -396,6 +426,7 @@ export class LocumService {
     return {
       jobs: jobs.map((j) => ({
         ...j,
+        isDeleted: j.isDeleted,
         applicationsCount: j._count.applications,
       })),
     };
@@ -419,6 +450,10 @@ export class LocumService {
       where: { id: jobId },
     });
     if (!job) throw new NotFoundException('Job not found.');
+    if (job.isDeleted)
+      throw new BadRequestException(
+        'This posting has been removed by the host.',
+      );
     if (job.status !== 'ACTIVE')
       throw new BadRequestException(
         'This job is no longer accepting applications.',
@@ -486,6 +521,7 @@ export class LocumService {
             id: true,
             title: true,
             description: true,
+            isDeleted: true,
             startDate: true,
             endDate: true,
             startTime: true,

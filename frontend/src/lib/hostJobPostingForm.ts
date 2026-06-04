@@ -1,7 +1,11 @@
 import { sortByLabel, sortStringsLocale } from '@/lib/sortLocale';
 import {
+    calendarDatePartFromInput,
     isLocalPostingEndDatePassed,
     localCalendarDateToIso,
+    toTimezoneAwareIso,
+    validateJobPostingSchedule,
+    type JobScheduleValidationResult,
 } from '@/lib/localDateTime';
 
 export const HOST_JOB_CREDENTIAL_OPTIONS = sortStringsLocale([
@@ -120,6 +124,9 @@ export function autoResponsibilitiesForJobTitle(title: string): Record<string, S
 export function fmtIsoToMmDdYyyy(iso: string | null | undefined): string {
     if (!iso)
         return '';
+    const cal = calendarDatePartFromInput(iso);
+    if (cal)
+        return isoToMmDdYyyy(cal);
     const d = new Date(iso);
     if (Number.isNaN(d.getTime()))
         return '';
@@ -184,7 +191,43 @@ export {
     localCalendarDateToIso,
     endOfLocalCalendarDay,
     isLocalPostingEndDatePassed,
+    validateJobPostingSchedule,
+    toTimezoneAwareIso,
+    calendarDatePartFromInput,
+    compareLocalCalendarDates,
+    type JobScheduleValidationResult,
 } from '@/lib/localDateTime';
+
+/** Live validation helper — returns an error message or null when valid. */
+export function getJobScheduleValidationError(params: {
+    startDateIso: string;
+    endDateIso: string;
+    startTime: string;
+    endTime: string;
+    allowPastDates?: boolean;
+}): string | null {
+    const result = validateJobPostingSchedule(params);
+    return result.valid ? null : result.message;
+}
+
+/** API schedule fields with timezone-aware ISO instants for start/end. */
+export function buildJobScheduleApiFields(params: {
+    startDateIso: string;
+    endDateIso: string;
+    startTime: string;
+    endTime: string;
+}): { startDate: string; endDate: string; startTime: string; endTime: string } | null {
+    const startDate = toTimezoneAwareIso(params.startDateIso, params.startTime);
+    const endDate = toTimezoneAwareIso(params.endDateIso, params.endTime);
+    if (!startDate || !endDate)
+        return null;
+    return {
+        startDate,
+        endDate,
+        startTime: params.startTime.trim(),
+        endTime: params.endTime.trim(),
+    };
+}
 
 export function maxIsoDate(a: string, b: string): string {
     return a >= b ? a : b;

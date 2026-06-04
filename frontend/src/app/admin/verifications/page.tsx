@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle,
   Clock,
@@ -51,6 +51,38 @@ function waitDays(submittedAt: string): number {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
+const STATUS_SORT_RANK: Record<VerificationRow['cpsnsVerificationStatus'], number> = {
+  PENDING_REVIEW: 0,
+  UNVERIFIED: 1,
+  REJECTED: 2,
+  VERIFIED: 3,
+};
+
+function statusSortKey(row: VerificationRow): number {
+  return STATUS_SORT_RANK[row.cpsnsVerificationStatus] ?? 99;
+}
+
+function statusDisplayLabel(row: VerificationRow): string {
+  return adminVerificationStatusTag(row.cpsnsVerificationStatus, row.cpsns).label;
+}
+
+function matchesStatusFilter(row: VerificationRow, filter: string): boolean {
+  if (filter === 'all') return true;
+  const label = statusDisplayLabel(row);
+  if (filter === 'awaiting_review') return label === 'Awaiting review';
+  if (filter === 'not_verified') return label === 'Not verified';
+  if (filter === 'cpsns_not_provided') return label === 'CPSNS not provided';
+  return true;
+}
+
+type SortKey = 'status' | 'waitTime';
+type SortDir = 'asc' | 'desc';
+
+function sortIndicator(active: boolean, dir: SortDir): string {
+  if (!active) return '↕';
+  return dir === 'asc' ? '↑' : '↓';
+}
+
 function resolveProfileType(
   row: Pick<VerificationRow, 'profileType' | 'userRole'>,
 ): 'locum' | 'host' {
@@ -84,6 +116,18 @@ export default function AdminVerificationsPage() {
   const [detailErr, setDetailErr] = useState<string | null>(null);
   const [showProfileData, setShowProfileData] = useState(false);
   const [notes, setNotes] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<SortKey>('waitTime');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'waitTime' ? 'desc' : 'asc');
+    }
+  }
 
   const openReview = useCallback(async (row: VerificationRow) => {
     setReview(row);
@@ -179,7 +223,27 @@ export default function AdminVerificationsPage() {
     }
   }
 
-  const pendingCount = rows.length;
+  const displayedRows = useMemo(() => {
+    const filtered = rows.filter((r) => matchesStatusFilter(r, statusFilter));
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'status') {
+        cmp = statusSortKey(a) - statusSortKey(b);
+        if (cmp === 0) {
+          cmp = statusDisplayLabel(a).localeCompare(statusDisplayLabel(b));
+        }
+      } else {
+        cmp = waitDays(a.submittedAt) - waitDays(b.submittedAt);
+        if (cmp === 0) {
+          cmp =
+            new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+        }
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [rows, statusFilter, sortKey, sortDir]);
+
+  const pendingCount = displayedRows.length;
 
   return (
     <AdminLayout>
@@ -201,16 +265,94 @@ export default function AdminVerificationsPage() {
 
       {err ? <div className="error-banner">{err}</div> : null}
 
+      <div className="filter-grid">
+        <select
+          className="input"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+        >
+          <option value="all">All statuses</option>
+          <option value="awaiting_review">Awaiting review</option>
+          <option value="not_verified">Not verified</option>
+          <option value="cpsns_not_provided">CPSNS not provided</option>
+        </select>
+        <select
+          className="input"
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          aria-label="Sort by"
+        >
+          <option value="waitTime">Sort by wait time</option>
+          <option value="status">Sort by status</option>
+        </select>
+        <select
+          className="input"
+          value={sortDir}
+          onChange={(e) => setSortDir(e.target.value as SortDir)}
+          aria-label="Sort direction"
+        >
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </div>
+
       <div className="table-container">
         <table>
           <thead>
             <tr>
               <th>Physician / clinic</th>
               <th>CPSNS #</th>
-              <th>Status</th>
+              <th>
+                <button
+                  type="button"
+                  className="th-sortable"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    color: 'inherit',
+                    textTransform: 'inherit',
+                    letterSpacing: 'inherit',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                  onClick={() => toggleSort('status')}
+                >
+                  Status
+                  <span className="th-sort-indicator" aria-hidden>
+                    {sortIndicator(sortKey === 'status', sortDir)}
+                  </span>
+                </button>
+              </th>
               <th>Submitted</th>
               <th>Documents</th>
-              <th className="wait-time-col">Wait Time</th>
+              <th className="wait-time-col">
+                <button
+                  type="button"
+                  className="th-sortable"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    color: 'inherit',
+                    textTransform: 'inherit',
+                    letterSpacing: 'inherit',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                  onClick={() => toggleSort('waitTime')}
+                >
+                  Wait Time
+                  <span className="th-sort-indicator" aria-hidden>
+                    {sortIndicator(sortKey === 'waitTime', sortDir)}
+                  </span>
+                </button>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -227,8 +369,14 @@ export default function AdminVerificationsPage() {
                   No pending verifications.
                 </td>
               </tr>
+            ) : displayedRows.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="text-muted">
+                  No verifications match this filter.
+                </td>
+              </tr>
             ) : (
-              rows.map((r) => {
+              displayedRows.map((r) => {
                 const days = waitDays(r.submittedAt);
                 const urgent = days >= 3;
                 const statusTag = adminVerificationStatusTag(

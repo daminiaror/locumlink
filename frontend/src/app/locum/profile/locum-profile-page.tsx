@@ -20,6 +20,7 @@ import { locumProfileCompletionPct } from '@/lib/locumProfileCompletion';
 import {
     PROFILE_FORM_CAPITALIZE_CLASS,
     PROFILE_FORM_CAPITALIZE_CSS,
+    profileSectionHeadingStyle,
     profileTextCapitalize,
 } from '@/lib/profileFormTypography';
 import { dispatchProfileUpdated } from '@/lib/profileUpdatedEvent';
@@ -501,7 +502,7 @@ export default function LocumProfilePage(props: {
                   {isDone ? '✓' : s.n}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, minWidth: 0 }}>
-                  <div className="profile-step-label" style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.25, color: '#0B0F1F', ...profileTextCapitalize }}>
+                  <div className="profile-step-label" style={profileSectionHeadingStyle}>
                     {s.label}
                   </div>
                 </div>

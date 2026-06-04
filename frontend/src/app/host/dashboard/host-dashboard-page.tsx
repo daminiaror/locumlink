@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback, useRef, useLayoutEffect, type MouseEvent as ReactMouseEvent, } from 'react';
+import { useEffect, useState, useCallback, useRef, useLayoutEffect, useMemo, type MouseEvent as ReactMouseEvent, } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
@@ -24,6 +24,12 @@ import {
     isPostingEndDatePassed,
     parseMmDdYyyyToIso,
     todayIsoDateLocal,
+    validateJobPostingSchedule,
+    getJobScheduleValidationError,
+    buildJobScheduleApiFields,
+    calendarDatePartFromInput,
+    toTimezoneAwareIso,
+    compareLocalCalendarDates,
 } from '@/lib/hostJobPostingForm';
 const HOST_DASH_NAV = [
     { label: 'My Postings', href: '/host/dashboard', icon: <NavIcon name="postings"/> },
@@ -155,6 +161,11 @@ function fmtDate(iso: string | null | undefined): string {
 function isoToDateInputLocal(iso: string | null | undefined): string {
     if (!iso)
         return '';
+    const cal = calendarDatePartFromInput(iso);
+    if (cal) {
+        const [y, m, d] = cal.split('-');
+        return `${y}-${m}-${d}`;
+    }
     const d = new Date(iso);
     if (Number.isNaN(d.getTime()))
         return '';
@@ -425,19 +436,20 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
             window.alert('Choose a start date and an end date.');
             return;
         }
-        const st = new Date(`${startDate}T12:00:00`);
-        const en = new Date(`${endDate}T12:00:00`);
-        if (Number.isNaN(st.getTime()) || Number.isNaN(en.getTime())) {
-            window.alert('Invalid dates.');
+        const todayIso = todayIsoDateLocal();
+        if (compareLocalCalendarDates(startDate.trim(), todayIso) < 0
+            || compareLocalCalendarDates(endDate.trim(), todayIso) < 0) {
+            window.alert('Dates cannot be in the past.');
             return;
         }
-        if (en < st) {
+        if (compareLocalCalendarDates(endDate.trim(), startDate.trim()) < 0) {
             window.alert('End date must be on or after the start date.');
             return;
         }
-        const todayIso = todayIsoDateLocal();
-        if (startDate.trim() < todayIso || endDate.trim() < todayIso) {
-            window.alert('Dates cannot be in the past.');
+        const startIso = toTimezoneAwareIso(startDate.trim(), '12:00');
+        const endIso = toTimezoneAwareIso(endDate.trim(), '23:59');
+        if (!startIso || !endIso) {
+            window.alert('Invalid dates.');
             return;
         }
         const n = Number(extra);
@@ -446,8 +458,8 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
         try {
             await onConfirm({
                 additionalApplicants,
-                startDate: startDate.trim(),
-                endDate: endDate.trim(),
+                startDate: startIso,
+                endDate: endIso,
             });
         }
         catch (e) {
@@ -1124,6 +1136,18 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
     const jobEndMinIso = startIsoForEndMin
         ? maxIsoDate(jobDateMinIso, startIsoForEndMin)
         : jobDateMinIso;
+    const scheduleValidationError = useMemo(() => {
+        const startIso = parseMmDdYyyyToIso(startDateInput);
+        const endIso = parseMmDdYyyyToIso(endDateInput);
+        if (!startIso || !endIso || !startTime.trim() || !endTime.trim())
+            return null;
+        return getJobScheduleValidationError({
+            startDateIso: startIso,
+            endDateIso: endIso,
+            startTime,
+            endTime,
+        });
+    }, [startDateInput, endDateInput, startTime, endTime]);
     const jobTitleWrapRef = useRef<HTMLDivElement>(null);
     const jobTitleMenuRef = useRef<HTMLDivElement>(null);
     const [jobTitleListOpen, setJobTitleListOpen] = useState(false);
@@ -1286,14 +1310,23 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
         const rateNum = ratePerDay.trim() ? Number(ratePerDay) : NaN;
         const yearsNum = yearsExp.trim() ? Number(yearsExp) : NaN;
         const keyResponsibilities = buildKeyResponsibilitiesPayload();
+        const scheduleFields =
+            startIso && endIso && startTime && endTime
+                ? buildJobScheduleApiFields({
+                    startDateIso: startIso,
+                    endDateIso: endIso,
+                    startTime,
+                    endTime,
+                })
+                : null;
         return {
             title: jobTitle.trim() || 'Draft locum shift',
             description: jobDescription.trim() || undefined,
             keyResponsibilities: keyResponsibilities.length ? keyResponsibilities : undefined,
-            startDate: startIso || undefined,
-            endDate: endIso || undefined,
-            startTime: startTime || undefined,
-            endTime: endTime || undefined,
+            startDate: scheduleFields?.startDate ?? (startIso ? toTimezoneAwareIso(startIso, '00:00') ?? undefined : undefined),
+            endDate: scheduleFields?.endDate ?? (endIso ? toTimezoneAwareIso(endIso, '23:59') ?? undefined : undefined),
+            startTime: scheduleFields?.startTime ?? (startTime || undefined),
+            endTime: scheduleFields?.endTime ?? (endTime || undefined),
             payPerDay: Number.isFinite(rateNum) && rateNum > 0 ? rateNum : undefined,
             minYearsExperience: yearsExp.trim() && Number.isFinite(yearsNum) ? yearsNum : undefined,
             requiredCredentials: credentials,
@@ -1357,25 +1390,24 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
             setSubmitError('End date must be a valid date in MM-DD-YYYY format.');
             return;
         }
-        const todayIso = todayIsoDateLocal();
-        if (startIso < todayIso) {
-            setSubmitError('Start date cannot be in the past.');
+        const scheduleCheck = validateJobPostingSchedule({
+            startDateIso: startIso,
+            endDateIso: endIso,
+            startTime,
+            endTime,
+        });
+        if (!scheduleCheck.valid) {
+            setSubmitError(scheduleCheck.message);
             return;
         }
-        if (endIso < todayIso) {
-            setSubmitError('End date cannot be in the past.');
-            return;
-        }
-        if (new Date(endIso) < new Date(startIso)) {
-            setSubmitError('End date must be on or after start date.');
-            return;
-        }
-        if (!startTime) {
-            setSubmitError('Start time is required.');
-            return;
-        }
-        if (!endTime) {
-            setSubmitError('End time is required.');
+        const scheduleFields = buildJobScheduleApiFields({
+            startDateIso: startIso,
+            endDateIso: endIso,
+            startTime,
+            endTime,
+        });
+        if (!scheduleFields) {
+            setSubmitError('Schedule could not be encoded. Check dates and times.');
             return;
         }
         const rateNum = ratePerDay.trim() ? Number(ratePerDay) : NaN;
@@ -1395,10 +1427,10 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                 title: jobTitle.trim(),
                 description: jobDescription.trim() || undefined,
                 keyResponsibilities: buildKeyResponsibilitiesPayload(),
-                startDate: startIso || undefined,
-                endDate: endIso || undefined,
-                startTime: startTime || undefined,
-                endTime: endTime || undefined,
+                startDate: scheduleFields.startDate,
+                endDate: scheduleFields.endDate,
+                startTime: scheduleFields.startTime,
+                endTime: scheduleFields.endTime,
                 payPerDay: rateNum,
                 minYearsExperience: yearsExp.trim() && Number.isFinite(yearsNum) ? yearsNum : undefined,
                 requiredCredentials: credentials,
@@ -1825,6 +1857,9 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                     <input type="time" style={fieldInp} value={endTime} onChange={(e) => setEndTime(e.target.value)}/>
                   </div>
                 </div>
+                {scheduleValidationError && (<p style={{ fontSize: 13, color: '#DC2626', margin: 0 }}>
+                    {scheduleValidationError}
+                  </p>)}
                 <div>
                   <label style={lbl}>Rate per Day (CAD) *</label>
                   <input style={fieldInp} type="number" value={ratePerDay} onChange={(e) => setRatePerDay(e.target.value)} placeholder="e.g. 2000"/>

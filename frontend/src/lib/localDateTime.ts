@@ -12,10 +12,11 @@ export function getLocalNowMs(): number {
     return Date.now();
 }
 
-/** IANA timezone from the OS, e.g. "America/Toronto". */
+/** IANA timezone from the browser/OS, e.g. "America/Toronto" or "Asia/Kolkata". */
 export function getLocalTimezone(): string {
     try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+        const { timeZone } = Intl.DateTimeFormat().resolvedOptions();
+        return timeZone ?? '';
     }
     catch {
         return '';
@@ -101,4 +102,145 @@ export function getLocalTimeSnapshot(): LocalTimeSnapshot {
         calendarDateIso: localCalendarDateToIso(now),
         offsetMinutes: -now.getTimezoneOffset(),
     };
+}
+
+/** YYYY-MM-DD prefix from an ISO or date-only string (authoritative calendar day). */
+export function calendarDatePartFromInput(
+    input: string | null | undefined,
+): string | null {
+    const t = input?.trim() ?? '';
+    const m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+/** Parse HH:mm (24h) from a time input. */
+export function parseLocalTimeHm(
+    time: string | null | undefined,
+): { hours: number; minutes: number } | null {
+    const m = time?.trim().match(/^(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    const hours = Number(m[1]);
+    const minutes = Number(m[2]);
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+    return { hours, minutes };
+}
+
+/**
+ * Combine a local calendar date (YYYY-MM-DD) and optional HH:mm into a Date
+ * in the user's browser timezone (native Date local components).
+ */
+export function localDateTimeFromCalendarAndTime(
+    dateIso: string,
+    timeHm?: string | null,
+): Date | null {
+    const day = startOfLocalCalendarDay(dateIso);
+    if (!day) return null;
+    const tm = parseLocalTimeHm(timeHm);
+    if (!tm) return day;
+    return new Date(
+        day.getFullYear(),
+        day.getMonth(),
+        day.getDate(),
+        tm.hours,
+        tm.minutes,
+        0,
+        0,
+    );
+}
+
+function formatLocalOffsetForDate(d: Date): string {
+    const offsetMin = -d.getTimezoneOffset();
+    const sign = offsetMin >= 0 ? '+' : '-';
+    const abs = Math.abs(offsetMin);
+    const oh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const om = String(abs % 60).padStart(2, '0');
+    return `${sign}${oh}:${om}`;
+}
+
+/**
+ * ISO 8601 instant with the browser's local offset, e.g. 2026-06-04T09:30:00-04:00.
+ * Use when sending schedule fields to the API.
+ */
+export function toTimezoneAwareIso(
+    dateIso: string,
+    timeHm?: string | null,
+): string | null {
+    const dt = localDateTimeFromCalendarAndTime(dateIso, timeHm);
+    if (!dt) return null;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const cal = localCalendarDateToIso(dt);
+    return `${cal}T${pad(dt.getHours())}:${pad(dt.getMinutes())}:00${formatLocalOffsetForDate(dt)}`;
+}
+
+export type JobScheduleValidationResult =
+    | { valid: true }
+    | { valid: false; message: string };
+
+/** Validate job posting dates/times against the user's local clock. */
+export function validateJobPostingSchedule(params: {
+    startDateIso: string;
+    endDateIso: string;
+    startTime: string;
+    endTime: string;
+    /** When true, only checks ordering — not "in the past" (draft save). */
+    allowPastDates?: boolean;
+}): JobScheduleValidationResult {
+    const today = localCalendarDateToIso();
+    const { startDateIso, endDateIso, startTime, endTime, allowPastDates } =
+        params;
+
+    if (!startDateIso) {
+        return { valid: false, message: 'Start date is required.' };
+    }
+    if (!endDateIso) {
+        return { valid: false, message: 'End date is required.' };
+    }
+    if (!allowPastDates) {
+        if (compareLocalCalendarDates(startDateIso, today) < 0) {
+            return { valid: false, message: 'Start date cannot be in the past.' };
+        }
+        if (compareLocalCalendarDates(endDateIso, today) < 0) {
+            return { valid: false, message: 'End date cannot be in the past.' };
+        }
+    }
+    if (compareLocalCalendarDates(endDateIso, startDateIso) < 0) {
+        return {
+            valid: false,
+            message: 'End date must be on or after start date.',
+        };
+    }
+
+    if (!startTime?.trim()) {
+        return { valid: false, message: 'Start time is required.' };
+    }
+    if (!endTime?.trim()) {
+        return { valid: false, message: 'End time is required.' };
+    }
+    if (!parseLocalTimeHm(startTime)) {
+        return { valid: false, message: 'Start time is invalid.' };
+    }
+    if (!parseLocalTimeHm(endTime)) {
+        return { valid: false, message: 'End time is invalid.' };
+    }
+
+    const startDt = localDateTimeFromCalendarAndTime(startDateIso, startTime);
+    const endDt = localDateTimeFromCalendarAndTime(endDateIso, endTime);
+    if (!startDt || !endDt) {
+        return { valid: false, message: 'Schedule dates are invalid.' };
+    }
+
+    if (!allowPastDates && startDt.getTime() < getLocalNowMs()) {
+        return {
+            valid: false,
+            message: 'Start date and time cannot be in the past.',
+        };
+    }
+    if (endDt.getTime() <= startDt.getTime()) {
+        return {
+            valid: false,
+            message: 'End time must be after start time.',
+        };
+    }
+
+    return { valid: true };
 }

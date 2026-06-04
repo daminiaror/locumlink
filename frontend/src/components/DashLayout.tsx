@@ -1,5 +1,6 @@
 'use client';
 import { ReactNode, useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { onPwaRefresh } from '@/lib/pwaEvents';
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,7 @@ import { getSupabase } from '@/lib/supabaseClient';
 import { useTrackLastPath } from '../hooks/useTrackLastPath';
 import { subscribeProfileUpdated } from '@/lib/profileUpdatedEvent';
 import { beforeClientNavigation } from '@/lib/topLoader';
+import { isExternalNotificationHref, resolveNotificationAction } from '@/lib/notificationActions';
 interface NavItem {
     label: string;
     href: string;
@@ -252,7 +254,14 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     dismissed.delete(n.id);
             }
             const active = data.notifications.filter((n) => !dismissed.has(n.id));
-            setNotifications(active);
+            setNotifications(active.map((n) => {
+                const resolved = resolveNotificationAction(n);
+                return {
+                    ...n,
+                    href: resolved.href ?? n.href,
+                    actionLabel: resolved.actionLabel ?? n.actionLabel,
+                };
+            }));
             setNotifTotal(active.filter((n) => n.read !== true).length);
         }
         catch {
@@ -369,10 +378,10 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             });
     }
     function notificationHref(notif: NotificationItem): string | null {
-        const href = notif.href?.trim();
-        if (!href || href === '/')
-            return null;
-        return href;
+        return resolveNotificationAction(notif).href;
+    }
+    function notificationActionLabel(notif: NotificationItem): string | null {
+        return resolveNotificationAction(notif).actionLabel;
     }
     function followNotification(notif: NotificationItem): boolean {
         const href = notificationHref(notif);
@@ -383,6 +392,10 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
         setBellOpen(false);
         setShowAllNotifications(false);
         setSelectedNotif(null);
+        if (isExternalNotificationHref(href)) {
+            window.location.href = href;
+            return true;
+        }
         beforeClientNavigation(href);
         router.push(href);
         return true;
@@ -572,7 +585,11 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 }}>
                             {notif.body}
                           </div>
-                          {notif.actionLabel && notificationHref(notif) ? (<button
+                          {(() => {
+                            const actionLabel = notificationActionLabel(notif);
+                            const href = notificationHref(notif);
+                            if (!actionLabel || !href) return null;
+                            return (<button
                     type="button"
                     onClick={(e) => {
                         e.stopPropagation();
@@ -590,15 +607,9 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                     fontFamily: 'inherit',
                     textAlign: 'left',
                 }}>
-                            {notif.actionLabel}
-                          </button>) : notif.actionLabel ? (<div style={{
-                    fontSize: 'var(--font-small)',
-                    color: '#3B4FD8',
-                    fontWeight: 600,
-                    marginTop: 6,
-                }}>
-                            {notif.actionLabel}
-                          </div>) : null}
+                            {actionLabel}
+                          </button>);
+                          })()}
                           <div style={{
                     fontSize: 'var(--font-small)',
                     color: '#9CA3AF',
@@ -650,99 +661,6 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                 })()}
               </div>)}
           </div>
-          {selectedNotif && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) setSelectedNotif(null);
-              }}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(15, 23, 42, 0.45)',
-                zIndex: 1000,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 18,
-              }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: 420,
-                  background: '#fff',
-                  borderRadius: 14,
-                  border: '1px solid #E5E7EB',
-                  boxShadow: '0 18px 60px rgba(0,0,0,0.22)',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '14px 16px 10px',
-                    borderBottom: '1px solid #F3F4F6',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#0B0F1F', lineHeight: 1.3 }}>
-                      {selectedNotif.title}
-                    </div>
-                    <div style={{ marginTop: 6, fontSize: 12, color: '#9CA3AF' }}>
-                      {fmtNotifTime(selectedNotif.createdAt)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Close notification"
-                    onClick={() => setSelectedNotif(null)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      padding: '2px 6px',
-                      fontSize: 22,
-                      lineHeight: 1,
-                      color: '#6B7280',
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ padding: '14px 16px 16px' }}>
-                  <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                    {selectedNotif.body}
-                  </div>
-                  {selectedNotif.actionLabel && notificationHref(selectedNotif) ? (
-                    <button
-                      type="button"
-                      onClick={() => followNotification(selectedNotif)}
-                      style={{
-                        marginTop: 14,
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: 8,
-                        border: 'none',
-                        background: '#1C32D2',
-                        color: '#fff',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                      }}
-                    >
-                      {selectedNotif.actionLabel}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          )}
 
           
           <div ref={avatarMenuRef} style={{ position: 'relative' }}>
@@ -1178,6 +1096,101 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
           </main>
         </div>
       </div>
+      {selectedNotif && typeof document !== 'undefined' && createPortal((() => {
+        const actionLabel = notificationActionLabel(selectedNotif);
+        const href = notificationHref(selectedNotif);
+        return (<div
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSelectedNotif(null);
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            zIndex: 100030,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 18,
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              background: '#fff',
+              borderRadius: 14,
+              border: '1px solid #E5E7EB',
+              boxShadow: '0 18px 60px rgba(0,0,0,0.22)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '14px 16px 10px',
+                borderBottom: '1px solid #F3F4F6',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 10,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#0B0F1F', lineHeight: 1.3 }}>
+                  {selectedNotif.title}
+                </div>
+                <div style={{ marginTop: 6, fontSize: 12, color: '#9CA3AF' }}>
+                  {fmtNotifTime(selectedNotif.createdAt)}
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Close notification"
+                onClick={() => setSelectedNotif(null)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontSize: 22,
+                  lineHeight: 1,
+                  color: '#6B7280',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ padding: '14px 16px 16px' }}>
+              <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                {selectedNotif.body}
+              </div>
+              {actionLabel && href ? (
+                <button
+                  type="button"
+                  onClick={() => followNotification(selectedNotif)}
+                  style={{
+                    marginTop: 14,
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#1C32D2',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {actionLabel}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>);
+      })(), document.body)}
     </div>);
 }
 export { NavIcon };

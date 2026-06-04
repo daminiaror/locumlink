@@ -1272,10 +1272,10 @@ body.app-body {
 }
 
 .locum-section-header span {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
-  color: #0f1523;
-  line-height: 1.2;
+  color: #0B0F1F;
+  line-height: 1.25;
 }
 
 /* Locum profile icons — brand blue (#0F2A7A in SVG assets) */
@@ -1293,7 +1293,8 @@ body.app-body {
   }
 
   .locum-step-nav .profile-step-label {
-    font-size: 15px !important;
+    font-size: 17px !important;
+    font-weight: 600 !important;
     line-height: 1.25 !important;
   }
 }
@@ -1550,8 +1551,8 @@ body.app-body {
     font-size: 12px !important;
     min-width: 24px !important;
   }
-  .locum-step-nav > div[style*="flex:"] > div:last-child > div {
-    font-size: 12px !important;
+  .locum-step-nav .profile-step-label {
+    font-size: 15px !important;
     white-space: nowrap !important;
   }
 
@@ -1580,9 +1581,10 @@ body.app-body {
     border-bottom: 1px solid #F3F4F6 !important;
   }
   .locum-section-header span {
-    font-size: 14px !important;
-    font-weight: 700 !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
     color: #0B0F1F !important;
+    line-height: 1.25 !important;
   }
   .locum-form-row {
     grid-template-columns: 1fr !important;

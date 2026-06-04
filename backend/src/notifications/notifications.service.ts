@@ -16,7 +16,6 @@ import {
   formatLocumDoctorName,
   formatJobDate,
   formatJobDateHostApplicantTitle,
-  formatPayPerDay,
   formatSuspensionReason,
   formatVerificationRejectionReason,
   locumBrowseHref,
@@ -25,6 +24,7 @@ import {
   L010_LOCUM_VERIFICATION_REJECTED,
   L011_LOCUM_ACCOUNT_SUSPENDED,
 } from './notification-copy.js';
+import { resolveNotificationActionFields } from './notification-defaults.js';
 import {
   buildH001LocumApplied,
   buildH002LocumAccepted,
@@ -200,18 +200,9 @@ export class NotificationsService {
     city?: string | null;
     province?: string | null;
   }): Promise<void> {
-    const doctorName = formatLocumDoctorName(params.firstName, params.lastName);
-    const dateStr = formatJobDate(params.startDate);
-    const payStr = formatPayPerDay(params.payPerDay);
-    const locationStr = [params.city, params.province]
-      .filter(Boolean)
-      .join(', ');
     const copy = buildL001NewOpportunity({
-      doctorName,
       jobTitle: params.jobTitle,
-      dateStr,
-      payStr,
-      locationStr,
+      payPerDay: params.payPerDay,
     });
     await this.create({
       recipientId: params.recipientId,
@@ -242,14 +233,9 @@ export class NotificationsService {
     address?: string | null;
     applicationId: string;
   }): Promise<void> {
-    const doctorName = formatLocumDoctorName(params.firstName, params.lastName);
     const copy = buildL002HostConfirmed({
-      doctorName,
       jobTitle: params.jobTitle,
       clinicName: params.clinicName,
-      startTime: params.startTime,
-      endTime: params.endTime,
-      address: params.address?.trim() || params.clinicName,
     });
     await this.create({
       recipientId: params.recipientId,
@@ -432,13 +418,21 @@ export class NotificationsService {
     recipientId: string;
     recipientEmail: string;
     senderId: string;
-    senderName: string;
-    preview: string;
+    hostFirstName?: string | null;
+    hostLastName?: string | null;
+    jobTitle: string;
+    startDate?: Date | string | null;
     messageId: string;
   }): Promise<void> {
+    const hostName =
+      [params.hostFirstName, params.hostLastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || 'Host';
     const copy = buildL008NewMessage({
-      senderName: params.senderName,
-      preview: params.preview,
+      hostName,
+      jobTitle: params.jobTitle,
+      startDateStr: formatJobDate(params.startDate),
     });
     await this.create({
       recipientId: params.recipientId,
@@ -498,7 +492,6 @@ export class NotificationsService {
     lastName?: string | null;
     referenceId?: string;
   }): Promise<void> {
-    const doctorName = formatLocumDoctorName(params.firstName, params.lastName);
     const copy = L009_LOCUM_ACCOUNT_VERIFIED;
     await this.create({
       recipientId: params.recipientId,
@@ -514,7 +507,7 @@ export class NotificationsService {
       pushBody: copy.inAppBody,
       emailTo: params.recipientEmail,
       emailSubject: copy.emailSubject,
-      emailBody: copy.emailBody(doctorName),
+      emailBody: copy.emailBody,
     });
   }
 
@@ -527,8 +520,6 @@ export class NotificationsService {
     rejectionReason?: string | null;
     referenceId?: string;
   }): Promise<void> {
-    const reason = formatVerificationRejectionReason(params.rejectionReason);
-    const doctorName = formatLocumDoctorName(params.firstName, params.lastName);
     const copy = L010_LOCUM_VERIFICATION_REJECTED;
     await this.create({
       recipientId: params.recipientId,
@@ -544,7 +535,7 @@ export class NotificationsService {
       pushBody: copy.inAppBody,
       emailTo: params.recipientEmail,
       emailSubject: copy.emailSubject,
-      emailBody: copy.emailBody(doctorName, reason),
+      emailBody: copy.emailBody,
     });
   }
 
@@ -555,7 +546,6 @@ export class NotificationsService {
     suspensionNote?: string | null;
     referenceId?: string;
   }): Promise<void> {
-    const reason = formatSuspensionReason(params.suspensionNote);
     const copy = L011_LOCUM_ACCOUNT_SUSPENDED;
     await this.create({
       recipientId: params.recipientId,
@@ -571,7 +561,7 @@ export class NotificationsService {
       pushBody: copy.inAppBody,
       emailTo: params.recipientEmail,
       emailSubject: copy.emailSubject,
-      emailBody: copy.emailBody(reason),
+      emailBody: copy.emailBody,
     });
   }
 
@@ -876,16 +866,17 @@ export class NotificationsService {
         actionLabel?: string;
         eventType?: string;
       };
+      const resolved = resolveNotificationActionFields(e.eventType, payload);
       return {
         id: e.id,
         type: eventTypeToCategory(e.eventType),
         title: payload.title ?? e.eventType,
         body: payload.body ?? '',
-        href: payload.href ?? '/',
+        href: resolved.href,
         read: e.deliveryStatus === 'READ',
         createdAt: e.sentAt.toISOString(),
         priority: payload.priority,
-        actionLabel: payload.actionLabel,
+        actionLabel: resolved.actionLabel,
         eventType: payload.eventType ?? e.eventType,
       };
     });

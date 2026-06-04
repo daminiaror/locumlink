@@ -1,8 +1,9 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Activity,
   BarChart3,
@@ -11,7 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import { adminApiBase } from '@/lib/adminApi';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { onPwaRefresh } from '@/lib/pwaEvents';
 import {
@@ -51,6 +52,7 @@ function adminInitials(email: string): string {
 
 function AdminLayoutInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { stats, adminEmail } = useAdminStats();
   const pendingCount = stats?.pendingVerifications ?? 0;
 
@@ -109,6 +111,8 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
   const [adminNotifs, setAdminNotifs] = useState<AdminNotificationItem[]>([]);
   const [adminNotifTotal, setAdminNotifTotal] = useState(0);
   const [adminBellOpen, setAdminBellOpen] = useState(false);
+  const [selectedAdminNotif, setSelectedAdminNotif] =
+    useState<AdminNotificationItem | null>(null);
   const adminBellRef = useRef<HTMLDivElement>(null);
   const prevAdminTotal = useRef(0);
   const fetchAdminNotifs = useCallback(async () => {
@@ -145,6 +149,28 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [adminBellOpen]);
+
+  const markAdminNotifRead = useCallback((notif: AdminNotificationItem) => {
+    if (notif.read) return;
+    void adminMarkNotificationRead(notif.id).then(() => {
+      setAdminNotifs((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)),
+      );
+      setAdminNotifTotal((t) => Math.max(0, t - 1));
+    });
+  }, []);
+
+  function openAdminNotification(notif: AdminNotificationItem) {
+    setSelectedAdminNotif(notif);
+    setAdminBellOpen(false);
+  }
+
+  function followAdminNotification(notif: AdminNotificationItem) {
+    markAdminNotifRead(notif);
+    setSelectedAdminNotif(null);
+    const href = notif.href?.trim() || '/admin';
+    router.push(href);
+  }
 
   return (
     <div className="admin-portal">
@@ -201,30 +227,34 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
                         role="button"
                         tabIndex={0}
                         className="admin-bell-item"
-                        onClick={() => {
-                          setAdminBellOpen(false);
-                          if (!notif.read) {
-                            void adminMarkNotificationRead(notif.id).then(() => {
-                              setAdminNotifs((prev) =>
-                                prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)),
-                              );
-                              setAdminNotifTotal((t) => Math.max(0, t - 1));
-                            });
+                        onClick={() => openAdminNotification(notif)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openAdminNotification(notif);
                           }
-                          window.location.href = notif.href;
                         }}
                       >
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="admin-bell-item-content">
                           <div className="admin-bell-item-title">{notif.title}</div>
                           <div className="admin-bell-item-body">{notif.body}</div>
-                          {notif.actionLabel && (
-                            <div className="admin-bell-item-action">{notif.actionLabel}</div>
-                          )}
+                          {notif.actionLabel && notif.href ? (
+                            <button
+                              type="button"
+                              className="admin-bell-item-action"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                followAdminNotification(notif);
+                              }}
+                            >
+                              {notif.actionLabel}
+                            </button>
+                          ) : null}
                           <div className="admin-bell-item-time">
                             {fmtAdminNotifTime(notif.createdAt)}
                           </div>
                         </div>
-                        {isUnread && <div className="admin-bell-item-dot" />}
+                        {isUnread ? <div className="admin-bell-item-dot" aria-hidden /> : null}
                       </div>
                     );
                   })
@@ -274,6 +304,53 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
 
         <main className="main-content">{children}</main>
       </div>
+
+      {selectedAdminNotif &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="admin-notif-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setSelectedAdminNotif(null);
+            }}
+          >
+            <div className="admin-notif-modal">
+              <div className="admin-notif-modal-header">
+                <div>
+                  <h2 className="admin-notif-modal-title">
+                    {selectedAdminNotif.title}
+                  </h2>
+                  <div className="admin-notif-modal-time">
+                    {fmtAdminNotifTime(selectedAdminNotif.createdAt)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="admin-notif-modal-close"
+                  aria-label="Close notification"
+                  onClick={() => setSelectedAdminNotif(null)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="admin-notif-modal-body">
+                <p className="admin-notif-modal-text">{selectedAdminNotif.body}</p>
+                {selectedAdminNotif.actionLabel && selectedAdminNotif.href ? (
+                  <button
+                    type="button"
+                    className="admin-notif-modal-action"
+                    onClick={() => followAdminNotification(selectedAdminNotif)}
+                  >
+                    {selectedAdminNotif.actionLabel}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

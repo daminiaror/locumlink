@@ -95,6 +95,12 @@ export async function fetchHostVerificationDetail(
       profile.licenseFile,
       profile.licenseOriginalName,
     ),
+    buildDocument(
+      'photo-id',
+      'Photo ID',
+      profile.photoIdFile,
+      profile.photoIdOriginalName,
+    ),
   ]);
   const documents = docCandidates.filter((d): d is AdminVerificationDocument => d !== null);
 
@@ -174,4 +180,73 @@ export async function fetchVerificationDetailById(
     if (detail) return detail;
   }
   return null;
+}
+
+export type AdminUserProfileDetail = AdminVerificationDetail & {
+  userId: string;
+  email: string;
+  role: 'LOCUM' | 'HOST';
+  hasProfile: boolean;
+};
+
+/** Load CPSNS, profile fields, and signed document URLs for a user account. */
+export async function fetchUserProfileDetailByUserId(
+  db: PrismaClient,
+  userId: string,
+): Promise<AdminUserProfileDetail | null> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      status: true,
+      locumProfile: { select: { id: true } },
+      hostProfile: { select: { id: true } },
+    },
+  });
+  if (!user || user.role === 'ADMIN') return null;
+
+  if (user.role === 'HOST' && user.hostProfile) {
+    const detail = await fetchHostVerificationDetail(db, user.hostProfile.id);
+    if (detail) {
+      return {
+        ...detail,
+        userId: user.id,
+        email: user.email,
+        role: 'HOST',
+        hasProfile: true,
+      };
+    }
+  }
+
+  if (user.role === 'LOCUM' && user.locumProfile) {
+    const detail = await fetchLocumVerificationDetail(db, user.locumProfile.id);
+    if (detail) {
+      return {
+        ...detail,
+        userId: user.id,
+        email: user.email,
+        role: 'LOCUM',
+        hasProfile: true,
+      };
+    }
+  }
+
+  const profileType = user.role === 'HOST' ? ('host' as const) : ('locum' as const);
+  const profileFields = [
+    field('Email', user.email),
+    field('Account status', user.status),
+    field('Role', user.role === 'HOST' ? 'Host Physician' : 'Locum Physician'),
+  ].filter((f): f is AdminProfileField => f !== null);
+
+  return {
+    profileType,
+    documents: [],
+    profileFields,
+    userId: user.id,
+    email: user.email,
+    role: user.role === 'HOST' ? 'HOST' : 'LOCUM',
+    hasProfile: false,
+  };
 }
