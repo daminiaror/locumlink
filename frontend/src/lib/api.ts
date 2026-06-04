@@ -188,6 +188,18 @@ export const authApi = {
         });
         if (!res.ok) {
             const text = await res.text();
+            try {
+                const j = JSON.parse(text) as { message?: string | string[] };
+                const msg = j.message;
+                if (Array.isArray(msg))
+                    throw new Error(msg.join(', '));
+                if (typeof msg === 'string')
+                    throw new Error(msg);
+            }
+            catch (e) {
+                if (e instanceof Error && e.message !== text)
+                    throw e;
+            }
             throw new Error(text || `dev-otp-login failed: ${res.status}`);
         }
         return res.json() as Promise<{

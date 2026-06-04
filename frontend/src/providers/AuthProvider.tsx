@@ -123,33 +123,22 @@ export function AuthProvider({ children }: {
         // Dev bypass: OTP 000000 skips Supabase
         if (otp === '000000') {
             const role = (getRole() ?? 'locum') as Role;
-            const NEST = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
-            const res = await fetch(`${NEST}/api/auth/dev-otp-login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, role: role === 'clinic' ? 'clinic' : 'locum' }),
-            });
-            if (!res.ok) {
-                let detail = 'Dev login failed';
-                try {
-                    const j = await res.json() as { message?: string };
-                    if (j.message)
-                        detail = j.message;
-                }
-                catch {
-                    try {
-                        detail = await res.text();
-                    }
-                    catch { /* keep default */ }
-                }
-                if (/ECONNREFUSED|connect/i.test(detail))
-                    throw new Error('Dev login failed: database is not running. Start Docker Desktop, then run: npm run db:up');
+            let tokens: { accessToken: string; refreshToken: string };
+            try {
+                tokens = await authApi.devOtpLogin(
+                    email,
+                    role === 'clinic' ? 'clinic' : 'locum',
+                );
+            }
+            catch (err) {
+                const detail = err instanceof Error ? err.message : 'Dev login failed';
+                if (/ECONNREFUSED|connect|fetch failed|Failed to fetch/i.test(detail))
+                    throw new Error('Dev login failed: backend is not reachable. From repo root run: npm run dev (and npm run db:up if Postgres is down).');
                 throw new Error(detail);
             }
-            const tokens = await res.json();
             saveToken(tokens.accessToken);
             syncCookies();
-            setUserId(tokens.userId ?? null);
+            setUserId(null);
             const profileExists = await checkProfileExistsOnServer(role, tokens.accessToken);
             let redirectTo: string;
             if (profileExists) {

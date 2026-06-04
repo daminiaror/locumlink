@@ -7,19 +7,22 @@ import {
     type Role,
 } from '@/lib/auth';
 
-const NEST_BASE = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(
-    /\/$/,
-    '',
-);
+const NEST_BASE =
+    typeof window === 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+        : (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+
+function profileCheckUrl(role: Role): string {
+    const path = role === 'clinic' ? '/api/host/profile' : '/api/locum/profile';
+    return NEST_BASE ? `${NEST_BASE}${path}` : path;
+}
 
 export async function checkProfileExistsOnServer(
     role: Role,
     token: string,
 ): Promise<boolean> {
     try {
-        const path =
-            role === 'clinic' ? '/api/host/profile' : '/api/locum/profile';
-        const res = await fetch(`${NEST_BASE}${path}`, {
+        const res = await fetch(profileCheckUrl(role), {
             cache: 'no-store',
             headers: { Authorization: `Bearer ${token}` },
         });

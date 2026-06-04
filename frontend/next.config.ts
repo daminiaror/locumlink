@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
     return [
-      { source: '/favicon.ico', destination: '/logo1.png' },
+      { source: '/favicon.ico', destination: '/icon-192.png' },
       { source: '/api/admin-auth/:path*', destination: `${apiBase}/api/admin-auth/:path*` },
       { source: '/api/admin/stats', destination: `${apiBase}/api/admin/stats` },
       { source: '/api/admin/notifications', destination: `${apiBase}/api/admin/notifications` },
