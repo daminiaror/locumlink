@@ -6,7 +6,7 @@ import { onPwaRefresh } from '@/lib/pwaEvents';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
-import { hostApi, locumApi, messageApi, uploadFile, type ApplicationRecord, type Conversation, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
+import { hostApi, locumApi, messageApi, uploadFile, type ApplicationRecord, type Conversation, type ConversationPartner, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
 import { getEmail, getToken } from '@/lib/auth';
 import { subscribeProfileUpdated } from '@/lib/profileUpdatedEvent';
 import { beforeClientNavigation } from '@/lib/topLoader';
@@ -106,24 +106,33 @@ function getDisplayName(user: AnyUser): string {
 function getClinicName(user: AnyUser): string {
     return user.hostProfile?.practiceName ?? '';
 }
-function getSpecializations(partner: ThreadPartner | null): string[] {
+type MessagePartner = ConversationPartner | ThreadPartner;
+
+function getSpecializations(partner: MessagePartner | null): string[] {
     if (!partner)
         return [];
-    if (partner.locumProfile?.specializationText)
-        return partner.locumProfile.specializationText
+    const locumProfile = partner.locumProfile as ThreadPartner['locumProfile'];
+    if (locumProfile?.specializationText)
+        return locumProfile.specializationText
             .split(',')
             .map((s: string) => s.trim())
             .filter(Boolean)
             .slice(0, 4);
-    if (partner.locumProfile?.specialty)
-        return [partner.locumProfile.specialty.replace(/_/g, ' ')];
+    if (locumProfile?.specialty)
+        return [locumProfile.specialty.replace(/_/g, ' ')];
     return [];
 }
-function getLocation(partner: ThreadPartner | null): string {
+function getLocation(partner: MessagePartner | null): string {
     if (!partner)
         return '';
-    const city = partner.locumProfile?.city ?? partner.hostProfile?.city ?? '';
-    const prov = partner.locumProfile?.province ?? partner.hostProfile?.province ?? '';
+    const city =
+        (partner.locumProfile as ThreadPartner['locumProfile'])?.city
+        ?? (partner.hostProfile as ThreadPartner['hostProfile'])?.city
+        ?? '';
+    const prov =
+        (partner.locumProfile as ThreadPartner['locumProfile'])?.province
+        ?? (partner.hostProfile as ThreadPartner['hostProfile'])?.province
+        ?? '';
     return [city, prov].filter(Boolean).join(', ');
 }
 function fmtTime(iso: string): string {
@@ -335,7 +344,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(urlPartnerId);
     const [thread, setThread] = useState<ThreadMessage[]>([]);
-    const [partner, setPartner] = useState<ThreadPartner | null>(null);
+    const [partner, setPartner] = useState<MessagePartner | null>(null);
     const [messageText, setMessageText] = useState('');
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [search, setSearch] = useState('');

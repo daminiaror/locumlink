@@ -61,7 +61,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [initialActiveJobCount]);
     const mainOverflow = interactive ? 'auto' : 'hidden';
     const opportunityCountLabel = browseOpportunityCount !== null
         ? browseOpportunityCount.toLocaleString('en-CA')

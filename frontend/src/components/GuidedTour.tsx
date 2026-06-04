@@ -106,6 +106,7 @@ export default function GuidedTour() {
         if (!tourConfig || !isFirstVisit || launchedRef.current) return;
         if (!tourConfig.entryPaths.includes(pathname)) return;
 
+        const config = tourConfig;
         let cancelled = false;
         const startedAt = Date.now();
 
@@ -133,7 +134,7 @@ export default function GuidedTour() {
         function pollForElements() {
             if (cancelled || launchedRef.current) return;
 
-            const resolved = resolveTourSteps(tourConfig.steps);
+            const resolved = resolveTourSteps(config.steps);
             if (resolved.length > 0) {
                 launchTour(resolved);
                 return;
