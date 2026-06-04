@@ -354,6 +354,16 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const [myCpsnsVerified, setMyCpsnsVerified] = useState(false);
     const [listPanelWidth, setListPanelWidth] = useState(readStoredMessagesListWidth);
     const userClearedRef = useRef(false);
+    const syncPartnerFromConversations = useCallback((
+        convs: Conversation[],
+        partnerId: string | null,
+    ) => {
+        if (!partnerId)
+            return;
+        const match = convs.find((c) => c.partnerId === partnerId);
+        if (match)
+            setPartner(match.partner);
+    }, []);
     useEffect(() => {
         setMyListPreviewName(null);
         setMyCpsnsVerified(false);
@@ -421,6 +431,20 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         const t = window.setTimeout(() => setDebouncedSearchQuery(search.trim()), 280);
         return () => window.clearTimeout(t);
     }, [search]);
+    const loadMyApplications = useCallback(async () => {
+        if (authLoading || role !== 'locum' || !getToken())
+            return;
+        try {
+            const { applications } = await locumApi.getMyApplications();
+            setMyApplications(applications);
+        }
+        catch {
+            setMyApplications([]);
+        }
+    }, [authLoading, role]);
+    useEffect(() => {
+        void loadMyApplications();
+    }, [loadMyApplications, pathname]);
     const loadConversations = useCallback(async (opts?: {
         skipTopLoader?: boolean;
     }) => {
@@ -431,6 +455,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 q,
             });
             setConversations(data);
+            syncPartnerFromConversations(data, selectedPartnerId);
             if (!urlPartnerId && !selectedPartnerId && data.length > 0 && window.innerWidth > 768 && !userClearedRef.current) {
                 const first = data[0];
                 setSelectedPartnerId(first.partnerId);
@@ -442,7 +467,25 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         finally {
             setLoadingConvs(false);
         }
-    }, [urlPartnerId, debouncedSearchQuery, selectedPartnerId]);
+    }, [urlPartnerId, debouncedSearchQuery, selectedPartnerId, syncPartnerFromConversations]);
+    const loadThread = useCallback(async (partnerId: string) => {
+        setLoadingThread(true);
+        try {
+            const { messages, partner: p } = await messageApi.getThread(partnerId);
+            const hiddenIds = new Set(JSON.parse(localStorage.getItem('deleted-for-me') || '[]'));
+            const visible = messages.filter((m: ThreadMessage) => !hiddenIds.has(m.id));
+            setThread(visible);
+            const last = visible[visible.length - 1];
+            threadSinceRef.current = last?.sentAt ?? null;
+            setPartner(p);
+            setConversations((prev) => prev.map((c) => c.partnerId === partnerId ? { ...c, unreadCount: 0 } : c));
+        }
+        catch {
+        }
+        finally {
+            setLoadingThread(false);
+        }
+    }, []);
     useEffect(() => {
         if (authLoading)
             return;
@@ -463,32 +506,6 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             setComposeJobPostingId(jid);
     }, [searchParams, role]);
     useEffect(() => {
-        if (authLoading || role !== 'locum' || !getToken())
-            return;
-        void locumApi
-            .getMyApplications()
-            .then(({ applications }) => setMyApplications(applications))
-            .catch(() => setMyApplications([]));
-    }, [authLoading, role]);
-    const loadThread = useCallback(async (partnerId: string) => {
-        setLoadingThread(true);
-        try {
-            const { messages, partner: p } = await messageApi.getThread(partnerId);
-            const hiddenIds = new Set(JSON.parse(localStorage.getItem('deleted-for-me') || '[]'));
-            const visible = messages.filter((m: ThreadMessage) => !hiddenIds.has(m.id));
-            setThread(visible);
-            const last = visible[visible.length - 1];
-            threadSinceRef.current = last?.sentAt ?? null;
-            setPartner(p);
-            setConversations((prev) => prev.map((c) => c.partnerId === partnerId ? { ...c, unreadCount: 0 } : c));
-        }
-        catch {
-        }
-        finally {
-            setLoadingThread(false);
-        }
-    }, []);
-    useEffect(() => {
         if (!selectedPartnerId || authLoading || !getToken())
             return;
         void loadThread(selectedPartnerId);
@@ -496,12 +513,14 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     useEffect(() => {
         return subscribeProfileUpdated(() => {
             void refreshMyListPreviewName();
+            void loadMyApplications();
             void loadConversations({ skipTopLoader: true });
             if (selectedPartnerId)
                 void loadThread(selectedPartnerId);
         });
     }, [
         refreshMyListPreviewName,
+        loadMyApplications,
         loadConversations,
         loadThread,
         selectedPartnerId,
@@ -559,10 +578,11 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                 });
             }
             setConversations(convs.map((c) => c.partnerId === selectedPartnerId ? { ...c, unreadCount: 0 } : c));
+            syncPartnerFromConversations(convs, selectedPartnerId);
         }
         catch {
         }
-    }, [selectedPartnerId, debouncedSearchQuery]);
+    }, [selectedPartnerId, debouncedSearchQuery, syncPartnerFromConversations]);
     useVisibilityPolling(() => {
         void pollMessages();
     }, 10_000, Boolean(selectedPartnerId) && !authLoading && Boolean(getToken()));
@@ -779,6 +799,13 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const location = getLocation(partner);
     const partnerName = partner ? getDisplayName(partner as AnyUser) : '';
     const clinicName = partner ? getClinicName(partner as AnyUser) : '';
+    function senderLabel(msg: ThreadMessage, isMine: boolean): string {
+        if (isMine)
+            return myListPreviewName ?? getDisplayName(msg.sender as AnyUser);
+        if (partner && msg.senderId === partner.id)
+            return partnerName || getDisplayName(msg.sender as AnyUser);
+        return getDisplayName(msg.sender as AnyUser);
+    }
     const showHostThreadConfirm = role === 'host' &&
         partner?.locumProfile != null &&
         composeJobPostingId != null &&
@@ -1519,7 +1546,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                                     fontWeight: 600,
                                     color: '#0f1523',
                                   }}>
-                                    {myListPreviewName ?? getDisplayName(msg.sender as AnyUser)}
+                                    {senderLabel(msg, isMine)}
                                   </span>
                                 </NameWithVerifiedShield>
                               ) : (
@@ -1528,7 +1555,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                                   fontWeight: 600,
                                   color: '#0f1523',
                                 }}>
-                                  {getDisplayName(msg.sender as AnyUser)}
+                                  {senderLabel(msg, isMine)}
                                 </span>
                               )}
                               <span style={{ fontSize: 11, color: '#9CA3AF' }}>

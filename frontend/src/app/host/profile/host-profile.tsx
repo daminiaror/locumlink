@@ -2153,13 +2153,15 @@ export default function HostProfilePage(props: {
                         disabled={saving}
                         style={{
                             padding: '10px 28px',
-                            background: saving ? '#a5b4fc' : '#3B4FD8',
+                            background: saving
+                                ? '#9CA3AF'
+                                : 'linear-gradient(270deg, #3A65DB 0%, #0F2A7A 100%)',
                             color: '#fff',
                             border: 'none',
                             borderRadius: 6,
                             fontFamily: 'Inter, sans-serif',
                             fontSize: 14,
-                            fontWeight: 500,
+                            fontWeight: 600,
                             cursor: saving ? 'not-allowed' : 'pointer',
                         }}
                     >
