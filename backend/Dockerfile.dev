@@ -1,0 +1,24 @@
+# Dev image: deps baked in; source mounted at runtime for hot reload.
+FROM node:22-alpine
+
+WORKDIR /app
+
+COPY package.json ./
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+
+RUN npm install --workspace=backend --include-workspace-root
+
+COPY database/prisma ./database/prisma
+COPY backend/tsconfig.json ./backend/tsconfig.json
+COPY backend/nest-cli.json ./backend/nest-cli.json
+COPY backend/tsconfig.build.json ./backend/tsconfig.build.json
+
+RUN npx prisma generate --schema=database/prisma/schema.prisma
+
+WORKDIR /app/backend
+
+ENV NODE_ENV=staging
+ENV PORT=3000
+
+CMD ["npm", "run", "start:dev"]

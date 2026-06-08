@@ -953,15 +953,23 @@ body.app-body {
     height: 100dvh !important;
     max-height: 100dvh !important;
     padding-bottom: env(safe-area-inset-bottom) !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
 
   .host-job-post-panel-resize-handle {
     display: none !important;
   }
 
+  .host-job-post-panel .host-job-schedule-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* Portal dropdowns (city, specialty, job title, etc.) — stay within viewport */
   .anchored-dropdown-menu {
     max-width: calc(100vw - 16px) !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
     touch-action: pan-y;
   }
 
@@ -1037,15 +1045,21 @@ body.app-body {
     height: 100dvh !important;
     max-height: 100dvh !important;
     padding-bottom: env(safe-area-inset-bottom) !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
   .host-job-post-panel-resize-handle {
     display: none !important;
+  }
+  .host-job-post-panel .host-job-schedule-grid {
+    grid-template-columns: 1fr !important;
   }
   .dash-content-column {
     min-width: 0 !important;
     width: 100% !important;
   }
   .dash-page-shell,
+  .host-dash-page,
   .host-profile-inner {
     min-width: 0 !important;
     max-width: 100% !important;
@@ -1335,8 +1349,8 @@ body.app-body {
     -webkit-overflow-scrolling: touch !important;
   }
 
-  /* Tab bars — scroll horizontally, don't wrap */
-  .dash-sidebar ~ div main > div > div:first-child:has(> button) {
+  /* Tab bars — scroll horizontally, don't wrap (exclude dashboard alerts) */
+  .dash-sidebar ~ div main > div > div:first-child:has(> button):not(.host-dash-confirmation-alert) {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     white-space: nowrap !important;
@@ -1354,8 +1368,8 @@ body.app-body {
   }
 
   /* ── 11. FLEX ROWS: wrap on mobile (exclude dashboard headers/stats) ── */
-  .dash-sidebar ~ div main div[style*="flex-direction: row"]:not(.host-step-nav-step):not(.host-dash-header-row):not(.host-dash-stats-inner):not(.host-dash-stat-line):not(.locum-section-header),
-  .dash-sidebar ~ div main div[style*="flexDirection: 'row'"]:not(.host-step-nav-step):not(.host-dash-header-row):not(.host-dash-stats-inner):not(.host-dash-stat-line):not(.locum-section-header) {
+  .dash-sidebar ~ div main div[style*="flex-direction: row"]:not(.host-step-nav-step):not(.host-dash-header-row):not(.host-dash-stats-card):not(.locum-section-header),
+  .dash-sidebar ~ div main div[style*="flexDirection: 'row'"]:not(.host-step-nav-step):not(.host-dash-header-row):not(.host-dash-stats-card):not(.locum-section-header) {
     flex-wrap: wrap !important;
   }
 
@@ -1866,87 +1880,74 @@ body.app-body {
     justify-content: center !important;
   }
 
-  /* ── Host dashboard: undo global nowrap/scroll on top sections ── */
+  /* ── Host dashboard: contain layout within viewport ── */
+  .host-dash-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
   .host-dash-page .host-dash-top-section,
   .host-dash-page .host-dash-stats-card,
   .host-dash-page .host-dash-profile-banner,
-  .host-dash-page .host-dash-stats-inner,
-  .host-dash-page .host-dash-stat-line,
   .host-dash-page .host-dash-profile-banner-title,
-  .host-dash-page .host-dash-profile-banner-subtitle {
-    overflow: visible !important;
-    overflow-x: visible !important;
-    overflow-y: visible !important;
+  .host-dash-page .host-dash-profile-banner-subtitle,
+  .host-dash-confirmation-alert {
     white-space: normal !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .host-dash-confirmation-alert {
+    overflow-x: hidden !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+  .host-dash-confirmation-alert > div:nth-child(2) {
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
   }
 
   /* ── Host dashboard: header, stats, profile banner ── */
   .host-dash-header-row {
-    flex-direction: row !important;
-    align-items: flex-start !important;
-    justify-content: space-between !important;
-    gap: 8px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
   }
   .host-dash-header-info {
-    flex: 1 1 0 !important;
+    flex: 1 1 auto !important;
     min-width: 0 !important;
+    width: 100% !important;
   }
   .host-dash-header-info h1 {
     word-break: break-word !important;
   }
   .host-dash-post-btn {
-    width: auto !important;
-    max-width: 124px !important;
-    height: 36px !important;
-    padding: 6px 10px !important;
-    gap: 6px !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 40px !important;
+    padding: 8px 12px !important;
+    gap: 8px !important;
     flex-shrink: 0 !important;
-    align-self: flex-start !important;
-    margin-left: auto !important;
+    align-self: stretch !important;
+    margin-left: 0 !important;
   }
   .host-dash-post-btn span {
-    font-size: 12px !important;
-  }
-  .host-dash-post-btn svg {
-    width: 14px !important;
-    height: 14px !important;
+    font-size: 13px !important;
   }
   .host-dash-stats-card {
-    padding: 14px 16px !important;
-    height: auto !important;
-    min-height: 0 !important;
-  }
-  .host-dash-stats-inner {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 0 !important;
-  }
-  .host-dash-stat-item {
-    flex-direction: column !important;
-    flex: none !important;
     width: 100% !important;
+    min-width: 0 !important;
   }
-  .host-dash-stats-divider {
-    width: 100% !important;
-    height: 1px !important;
-    margin: 10px 0 !important;
-    align-self: stretch !important;
+  .host-dash-stats-card > div {
+    min-width: 0 !important;
+    padding: 14px 12px !important;
   }
-  .host-dash-stat-line {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 2px !important;
-    font-size: 14px !important;
-    line-height: 1.4 !important;
+  .host-dash-stats-card p {
+    font-size: 13px !important;
+    line-height: 1.35 !important;
     word-break: break-word !important;
     overflow-wrap: anywhere !important;
-  }
-  .host-dash-stat-sep {
-    display: none !important;
-  }
-  .host-dash-stat-value {
-    font-size: 16px !important;
   }
   .host-dash-profile-banner {
     min-height: 0 !important;
@@ -1987,6 +1988,14 @@ body.app-body {
   }
   .host-dash-profile-banner-btn span {
     font-size: 13px !important;
+  }
+  .host-dash-tab-btn {
+    padding: 0 10px !important;
+    min-height: 44px !important;
+  }
+  .host-dash-tab-label {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
   }
 
   /* ── Settings toggles ── */
@@ -2208,18 +2217,14 @@ main.dash-main-content {
   min-height: 104px;
 }
 
-.host-dash-stat-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.2em;
-}
-
 /* Host dashboard — horizontal job tabs (scroll without visible scrollbar) */
 .host-dash-tabs-row {
   display: flex;
   align-items: stretch;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   border-bottom: 1px solid #e5e7eb;
 }
 

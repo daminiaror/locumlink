@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
 import LocumProfileStatusBanner from '@/components/LocumProfileStatusBanner';
-import { locumApi, type MyApplication } from '@/lib/api';
+import { fetchAllPaginated, locumApi, type MyApplication } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import { useAuth } from '@/providers/AuthProvider';
@@ -186,9 +186,8 @@ export default function LocumDashboard(props: {
             setProfile(null);
             setProfileError(msg);
         });
-        locumApi
-            .getMyApplications()
-            .then(({ applications: apps }) => {
+        fetchAllPaginated((cursor) => locumApi.getMyApplications({ cursor, limit: 100 }))
+            .then((apps) => {
             if (!cancelled)
                 setApplications(apps);
         })
@@ -253,8 +252,8 @@ export default function LocumDashboard(props: {
         setRespondingAppId(appId);
         try {
             await locumApi.respondToConfirmedPlacement(appId, response);
-            const [{ applications: apps }, stats] = await Promise.all([
-                locumApi.getMyApplications(),
+            const [apps, stats] = await Promise.all([
+                fetchAllPaginated((cursor) => locumApi.getMyApplications({ cursor, limit: 100 })),
                 locumApi.getDashboardStats(),
             ]);
             setApplications(apps);

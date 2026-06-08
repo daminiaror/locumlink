@@ -9,6 +9,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import {
+  paginateJobPostings,
+  paginateApplications,
+  parsePaginationParams,
+} from '../common/pagination/index.js';
+import {
   PostingStatus,
   Role,
   UserStatus,
@@ -507,17 +512,17 @@ export class HostService {
     };
   }
 
-  async getJobs(userId: string, options?: { deletedOnly?: boolean }) {
-    const hostProfileId = await this.getHostProfileId(userId);
-    const deletedOnly = options?.deletedOnly === true;
+  private async syncHostJobPostingStatuses(hostProfileId: string): Promise<void> {
     const jobs = await this.prisma.jobPosting.findMany({
-      where: deletedOnly
-        ? { hostProfileId, isDeleted: true }
-        : { hostProfileId, isDeleted: false },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: { select: { applications: true } },
-        shifts: true,
+      where: {
+        hostProfileId,
+        isDeleted: false,
+        status: { in: ['ONGOING', 'ACTIVE'] },
+      },
+      select: {
+        id: true,
+        status: true,
+        endDate: true,
         applications: {
           where: {
             OR: [
@@ -531,38 +536,73 @@ export class HostService {
       },
     });
 
-    if (!deletedOnly) {
-      const toComplete = jobs.filter(
-        (j) =>
-          j.status === 'ONGOING' &&
-          isPostingEndDatePassed(j.endDate) &&
-          j.applications.length > 0,
-      );
-      if (toComplete.length > 0) {
-        await this.prisma.jobPosting.updateMany({
-          where: { id: { in: toComplete.map((j) => j.id) } },
-          data: { status: 'COMPLETED' },
-        });
-        toComplete.forEach((j) => {
-          j.status = 'COMPLETED' as never;
-        });
-      }
-      const toExpire = jobs.filter(
-        (j) => j.status === 'ACTIVE' && isPostingEndDatePassed(j.endDate),
-      );
-      if (toExpire.length > 0) {
-        await this.prisma.jobPosting.updateMany({
-          where: { id: { in: toExpire.map((j) => j.id) } },
-          data: { status: 'EXPIRED' },
-        });
-        toExpire.forEach((j) => {
-          j.status = 'EXPIRED' as never;
-        });
-      }
+    const toComplete = jobs.filter(
+      (j) =>
+        j.status === 'ONGOING' &&
+        isPostingEndDatePassed(j.endDate) &&
+        j.applications.length > 0,
+    );
+    if (toComplete.length > 0) {
+      await this.prisma.jobPosting.updateMany({
+        where: { id: { in: toComplete.map((j) => j.id) } },
+        data: { status: 'COMPLETED' },
+      });
     }
 
+    const toExpire = jobs.filter(
+      (j) => j.status === 'ACTIVE' && isPostingEndDatePassed(j.endDate),
+    );
+    if (toExpire.length > 0) {
+      await this.prisma.jobPosting.updateMany({
+        where: { id: { in: toExpire.map((j) => j.id) } },
+        data: { status: 'EXPIRED' },
+      });
+    }
+  }
+
+  async getJobs(userId: string, query: Record<string, unknown> = {}) {
+    const hostProfileId = await this.getHostProfileId(userId);
+    const deletedOnly = query.deleted === 'true' || query.deleted === true;
+    const pagination = parsePaginationParams(query, 20);
+    pagination.direction = 'desc';
+
+    if (!deletedOnly) {
+      await this.syncHostJobPostingStatuses(hostProfileId);
+    }
+
+    const statusRaw =
+      typeof query.status === 'string' ? query.status.toUpperCase() : undefined;
+    const statusFilter =
+      statusRaw && Object.values(PostingStatus).includes(statusRaw as PostingStatus)
+        ? (statusRaw as PostingStatus)
+        : undefined;
+
+    const page = await paginateJobPostings(
+      this.prisma,
+      {
+        hostProfileId,
+        isDeleted: deletedOnly,
+        status: statusFilter,
+      },
+      pagination,
+      {
+        _count: { select: { applications: true } },
+        shifts: true,
+        applications: {
+          where: {
+            OR: [
+              { locumResponse: 'ACCEPTED' },
+              { locumAcceptedAt: { not: null } },
+            ],
+          },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    );
+
     return {
-      jobs: jobs.map((j) => {
+      items: page.items.map((j) => {
         const { _count, shifts: _shifts, applications: acceptedApps, ...rest } =
           j;
         return {
@@ -573,6 +613,8 @@ export class HostService {
           payPerDay: j.payPerDay != null ? Number(j.payPerDay) : null,
         };
       }),
+      nextCursor: page.nextCursor,
+      hasNextPage: page.hasNextPage,
     };
   }
 
@@ -815,7 +857,11 @@ export class HostService {
     return { success: true, job: updated };
   }
 
-  async getApplications(userId: string, jobId: string) {
+  async getApplications(
+    userId: string,
+    jobId: string,
+    query: Record<string, unknown> = {},
+  ) {
     const hostProfileId = await this.getHostProfileId(userId);
     const job = await this.prisma.jobPosting.findUnique({
       where: { id: jobId },
@@ -823,44 +869,60 @@ export class HostService {
     if (!job) throw new NotFoundException('Job not found');
     if (job.hostProfileId !== hostProfileId) throw new ForbiddenException();
 
-    const applications = await this.prisma.application.findMany({
-      where: { jobPostingId: jobId },
-      orderBy: { appliedAt: 'desc' },
-      select: {
-        id: true,
-        status: true,
-        locumResponse: true,
-        appliedAt: true,
-        placedAt: true,
-        locumProfile: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            userId: true,
-            cpsnsId: true,
-            specialty: true,
-            specializationText: true,
-            summary: true,
-            yearsOfExperience: true,
-            city: true,
-            province: true,
-            documents: {
-              select: {
-                id: true,
-                documentType: true,
-                storageUrl: true,
-                fileName: true,
+    const pagination = parsePaginationParams(query, 20);
+    pagination.direction = 'desc';
+
+    const statusRaw =
+      typeof query.status === 'string' ? query.status.toUpperCase() : undefined;
+    const statusFilter =
+      statusRaw &&
+      ['APPLIED', 'SHORTLISTED', 'CONFIRMED', 'REJECTED', 'WITHDRAWN'].includes(
+        statusRaw,
+      )
+        ? (statusRaw as 'APPLIED' | 'SHORTLISTED' | 'CONFIRMED' | 'REJECTED' | 'WITHDRAWN')
+        : undefined;
+
+    const page = await paginateApplications(
+      this.prisma,
+      { jobPostingId: jobId, status: statusFilter },
+      pagination,
+      {
+        select: {
+          id: true,
+          status: true,
+          locumResponse: true,
+          appliedAt: true,
+          placedAt: true,
+          locumProfile: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              userId: true,
+              cpsnsId: true,
+              specialty: true,
+              specializationText: true,
+              summary: true,
+              yearsOfExperience: true,
+              city: true,
+              province: true,
+              documents: {
+                select: {
+                  id: true,
+                  documentType: true,
+                  storageUrl: true,
+                  fileName: true,
+                },
               },
+              user: { select: { email: true } },
             },
-            user: { select: { email: true } },
           },
         },
       },
-    });
+    );
 
     const withSignedDocs = await Promise.all(
-      applications.map(async (a) => {
+      page.items.map(async (a) => {
         const docs = Array.isArray(a.locumProfile?.documents)
           ? a.locumProfile.documents
           : [];
@@ -881,7 +943,11 @@ export class HostService {
       }),
     );
 
-    return { applications: withSignedDocs };
+    return {
+      items: withSignedDocs,
+      nextCursor: page.nextCursor,
+      hasNextPage: page.hasNextPage,
+    };
   }
 
   async updateApplication(

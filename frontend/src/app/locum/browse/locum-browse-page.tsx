@@ -12,7 +12,7 @@ import {
 } from 'react';
 import Image from 'next/image';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
-import { locumApi, type BrowseJob } from '@/lib/api';
+import { fetchAllPaginated, locumApi, type BrowseJob } from '@/lib/api';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import type { LocumProfile } from '@/types';
 import LocumAccountNotice from '@/components/LocumAccountNotice';
@@ -353,7 +353,9 @@ export default function LocumBrowsePage(props: {
   const loadJobs = useCallback(async () => {
     setLoading(true);
     try {
-      const { jobs: data } = await locumApi.browseJobs();
+      const data = await fetchAllPaginated((cursor) =>
+        locumApi.browseJobs({ cursor, limit: 100 }),
+      );
       setJobs(data);
       if (data.length > 0 && window.innerWidth > 768) setSelectedId(data[0].id);
     } catch {
@@ -373,9 +375,8 @@ export default function LocumBrowsePage(props: {
       .catch(() => {});
   }, []);
   useEffect(() => {
-    locumApi
-      .getMyApplications()
-      .then(({ applications }) => {
+    fetchAllPaginated((cursor) => locumApi.getMyApplications({ cursor, limit: 100 }))
+      .then((applications) => {
         const ids = new Set(
           applications
             .map((a) => a.jobPosting?.id)

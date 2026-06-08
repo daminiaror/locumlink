@@ -12,6 +12,7 @@ export const anchoredDropdownMenuBaseStyle: CSSProperties = {
     boxShadow: '0 8px 24px rgba(15,42,122,0.13)',
     zIndex: 100020,
     overflowY: 'auto',
+    overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
     overscrollBehavior: 'contain',
     boxSizing: 'border-box',

@@ -493,10 +493,10 @@ export default function HostApplicantsPage(props: {
         setLoading(true);
         setError(null);
         hostApi
-            .getApplications(jobId)
+            .getApplications(jobId, { limit: 100 })
             .then((res) => {
             if (!cancelled)
-                setApps(res.applications ?? []);
+                setApps(res.items ?? []);
         })
             .catch((e) => {
             if (cancelled)

@@ -20,7 +20,7 @@ export default function AuthCallbackCompletePage() {
                 if (!cancelled) {
                     setError(err instanceof Error
                         ? err.message
-                        : 'Could not complete social sign-in. Please try again.');
+                        : 'Could not complete sign-in. Please try again.');
                 }
             }
         })();

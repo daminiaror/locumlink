@@ -6,6 +6,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  paginateMessages,
+  parsePaginationParams,
+} from '../common/pagination/index.js';
 import { GcsService } from '../gcs/gcs.service.js';
 const userSelect = {
   id: true,
@@ -222,33 +226,63 @@ export class MessageService {
     }
     return { conversations };
   }
-  async getThread(userId: string, partnerId: string, since?: Date) {
+  async getThread(
+    userId: string,
+    partnerId: string,
+    since?: Date,
+    query: Record<string, unknown> = {},
+  ) {
     const isDelta = since != null;
-    if (!isDelta) {
-      await this.prisma.message.updateMany({
-        where: { senderId: partnerId, recipientId: userId, readAt: null },
-        data: { readAt: new Date() },
+    if (isDelta) {
+      const threadWhere = {
+        OR: [
+          { senderId: userId, recipientId: partnerId },
+          { senderId: partnerId, recipientId: userId },
+        ],
+        sentAt: { gt: since },
+        deletedAt: null,
+      };
+      const messages = await this.prisma.message.findMany({
+        where: threadWhere,
+        orderBy: { sentAt: 'asc' },
+        include: {
+          sender: { select: userSelect },
+          attachments: true,
+        },
       });
+      const withSigned = await this.signAttachments(messages);
+      return {
+        items: withSigned,
+        nextCursor: null,
+        hasNextPage: false,
+        partner: null,
+      };
     }
-    const threadWhere = {
-      OR: [
-        { senderId: userId, recipientId: partnerId },
-        { senderId: partnerId, recipientId: userId },
-      ],
-      ...(isDelta ? { sentAt: { gt: since } } : {}),
-    };
-    const messages = await this.prisma.message.findMany({
-      where: threadWhere,
-      orderBy: { sentAt: 'asc' },
-      include: {
+
+    await this.prisma.message.updateMany({
+      where: { senderId: partnerId, recipientId: userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+
+    const pagination = parsePaginationParams(query, 50);
+    pagination.direction = 'desc';
+
+    const page = await paginateMessages(
+      this.prisma,
+      { senderId: userId, recipientId: partnerId },
+      pagination,
+      {
         sender: { select: userSelect },
         attachments: true,
       },
-    });
-    const withSigned = await this.signAttachments(messages);
-    if (isDelta) {
-      return { messages: withSigned, partner: null };
-    }
+    );
+
+    const withSigned = await this.signAttachments(
+      [...page.items].sort(
+        (a, b) => a.sentAt.getTime() - b.sentAt.getTime(),
+      ),
+    );
+
     const partner = await this.prisma.user.findUnique({
       where: { id: partnerId },
       select: {
@@ -276,7 +310,13 @@ export class MessageService {
         },
       },
     });
-    return { messages: withSigned, partner };
+
+    return {
+      items: withSigned,
+      nextCursor: page.nextCursor,
+      hasNextPage: page.hasNextPage,
+      partner,
+    };
   }
   async sendMessage(
     senderId: string,

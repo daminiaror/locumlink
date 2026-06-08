@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  paginateNotificationEvents,
+  parsePaginationParams,
+} from '../common/pagination/index.js';
 import { PushService } from './push.service.js';
 import { EmailService } from './email.service.js';
 import {
@@ -853,17 +857,28 @@ export class NotificationsService {
   async getNotifications(
     userId: string,
     _role: string,
+    query: Record<string, unknown> = {},
   ): Promise<{
-    total: number;
-    notifications: NotificationItem[];
+    items: NotificationItem[];
+    nextCursor: string | null;
+    hasNextPage: boolean;
+    total?: number;
   }> {
-    const events = await this.prisma.notificationEvent.findMany({
-      where: { recipientId: userId },
-      orderBy: { sentAt: 'desc' },
-      take: 50,
-    });
+    const pagination = parsePaginationParams(query, 20);
+    pagination.direction = 'desc';
+    const unreadOnly =
+      query.unreadOnly === 'true' ||
+      query.unreadOnly === true ||
+      query.unread === 'true' ||
+      query.unread === true;
 
-    const notifications: NotificationItem[] = events.map((e) => {
+    const page = await paginateNotificationEvents(
+      this.prisma,
+      { recipientId: userId, unreadOnly },
+      pagination,
+    );
+
+    const notifications: NotificationItem[] = page.items.map((e) => {
       const payload = (e.payload ?? {}) as {
         title?: string;
         body?: string;
@@ -887,8 +902,16 @@ export class NotificationsService {
       };
     });
 
-    const unread = notifications.filter((n) => !n.read).length;
-    return { total: unread, notifications };
+    const unreadCount = await this.prisma.notificationEvent.count({
+      where: { recipientId: userId, deliveryStatus: { not: 'READ' } },
+    });
+
+    return {
+      items: notifications,
+      nextCursor: page.nextCursor,
+      hasNextPage: page.hasNextPage,
+      total: unreadCount,
+    };
   }
 
   async markAllRead(userId: string): Promise<void> {

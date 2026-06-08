@@ -27,6 +27,63 @@ export class ApiHttpError extends Error {
         this.status = status;
     }
 }
+
+export type PaginatedResult<T> = {
+    items: T[];
+    nextCursor: string | null;
+    hasNextPage: boolean;
+    total?: number;
+};
+
+export type PaginationQuery = {
+    cursor?: string;
+    limit?: number;
+    direction?: 'asc' | 'desc';
+    status?: string;
+    unreadOnly?: boolean;
+};
+
+function buildPaginationQs(params?: PaginationQuery & Record<string, string | number | boolean | undefined>): string {
+    if (!params)
+        return '';
+    const sp = new URLSearchParams();
+    if (params.cursor)
+        sp.set('cursor', params.cursor);
+    if (params.limit != null)
+        sp.set('limit', String(params.limit));
+    if (params.direction)
+        sp.set('direction', params.direction);
+    if (params.status)
+        sp.set('status', params.status);
+    if (params.unreadOnly)
+        sp.set('unreadOnly', 'true');
+    for (const [key, value] of Object.entries(params)) {
+        if (['cursor', 'limit', 'direction', 'status', 'unreadOnly'].includes(key))
+            continue;
+        if (value === undefined || value === null || value === '')
+            continue;
+        sp.set(key, String(value));
+    }
+    const qs = sp.toString();
+    return qs ? `?${qs}` : '';
+}
+
+/** Fetch all pages when a screen needs the full list (e.g. dashboard tab filters). */
+export async function fetchAllPaginated<T>(
+    fetchPage: (cursor?: string) => Promise<PaginatedResult<T>>,
+    maxPages = 20,
+): Promise<T[]> {
+    const all: T[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+    do {
+        const page = await fetchPage(cursor);
+        all.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+        pages += 1;
+    } while (cursor && pages < maxPages);
+    return all;
+}
 function handleUnauthorized(): void {
     if (typeof window === 'undefined')
         return;
@@ -428,10 +485,8 @@ export const locumApi = {
             count: number;
         }>;
     },
-    browseJobs: async (): Promise<{
-        jobs: BrowseJob[];
-    }> => {
-        const res = await trackedFetch(`${NEST_BASE}/api/locum/jobs`, {
+    browseJobs: async (params?: PaginationQuery): Promise<PaginatedResult<BrowseJob>> => {
+        const res = await trackedFetch(`${NEST_BASE}/api/locum/jobs${buildPaginationQs(params)}`, {
             cache: 'no-store',
             headers: nestHeaders(false),
         });
@@ -439,9 +494,7 @@ export const locumApi = {
             const text = await res.text();
             throw nestHttpError(text, res.status, 'Loading jobs');
         }
-        return res.json() as Promise<{
-            jobs: BrowseJob[];
-        }>;
+        return res.json() as Promise<PaginatedResult<BrowseJob>>;
     },
     applyToJob: async (jobId: string, coverNote?: string): Promise<unknown> => {
         const res = await trackedFetch(`${NEST_BASE}/api/locum/jobs/${encodeURIComponent(jobId)}/apply`, {
@@ -472,10 +525,8 @@ export const locumApi = {
             completedShifts: number;
         }>;
     },
-    getMyApplications: async (): Promise<{
-        applications: MyApplication[];
-    }> => {
-        const res = await trackedFetch(`${NEST_BASE}/api/locum/applications`, {
+    getMyApplications: async (params?: PaginationQuery): Promise<PaginatedResult<MyApplication>> => {
+        const res = await trackedFetch(`${NEST_BASE}/api/locum/applications${buildPaginationQs(params)}`, {
             cache: 'no-store',
             headers: nestHeaders(false),
         });
@@ -483,9 +534,7 @@ export const locumApi = {
             const text = await res.text();
             throw nestHttpError(text, res.status, 'Loading applications');
         }
-        return res.json() as Promise<{
-            applications: MyApplication[];
-        }>;
+        return res.json() as Promise<PaginatedResult<MyApplication>>;
     },
     respondToConfirmedPlacement: async (applicationId: string, response: 'accept' | 'decline'): Promise<{
         success: boolean;
@@ -726,11 +775,12 @@ export const hostApi = {
             throw new Error('Creating job failed: empty response');
         return { success: data.success ?? true, job: normalizeHostJob(data.job) };
     },
-    getJobs: async (opts?: { deleted?: boolean }): Promise<{
-        jobs: Job[];
-    }> => {
+    getJobs: async (opts?: PaginationQuery & { deleted?: boolean }): Promise<PaginatedResult<Job>> => {
         let res: Response;
-        const qs = opts?.deleted ? '?deleted=true' : '';
+        const qs = buildPaginationQs({
+            ...opts,
+            ...(opts?.deleted ? { deleted: 'true' } : {}),
+        });
         try {
             res = await trackedFetch(`${NEST_BASE}/api/host/jobs${qs}`, {
                 cache: 'no-store',
@@ -744,11 +794,12 @@ export const hostApi = {
             const text = await res.text();
             throw nestHttpError(text, res.status, 'Loading jobs');
         }
-        const data = await res.json() as {
-            jobs?: unknown[];
-        };
+        const data = await res.json() as PaginatedResult<unknown>;
         return {
-            jobs: (data.jobs ?? []).map((j) => normalizeHostJob(j)),
+            items: (data.items ?? []).map((j) => normalizeHostJob(j)),
+            nextCursor: data.nextCursor ?? null,
+            hasNextPage: data.hasNextPage ?? false,
+            total: data.total,
         };
     },
     getJob: async (jobId: string): Promise<{
@@ -823,12 +874,10 @@ export const hostApi = {
         }
         return res.json() as Promise<DashboardStats>;
     },
-    getApplications: async (jobId: string): Promise<{
-        applications: ApplicationRecord[];
-    }> => {
+    getApplications: async (jobId: string, params?: PaginationQuery): Promise<PaginatedResult<ApplicationRecord>> => {
         let res: Response;
         try {
-            res = await trackedFetch(`${NEST_BASE}/api/host/jobs/${encodeURIComponent(jobId)}/applications`, { cache: 'no-store', headers: nestHeaders(false) });
+            res = await trackedFetch(`${NEST_BASE}/api/host/jobs/${encodeURIComponent(jobId)}/applications${buildPaginationQs(params)}`, { cache: 'no-store', headers: nestHeaders(false) });
         }
         catch (err) {
             throw networkFetchError('Loading applications', err);
@@ -837,9 +886,7 @@ export const hostApi = {
             const text = await res.text();
             throw nestHttpError(text, res.status, 'Loading applications');
         }
-        return res.json() as Promise<{
-            applications: ApplicationRecord[];
-        }>;
+        return res.json() as Promise<PaginatedResult<ApplicationRecord>>;
     },
     updateApplication: async (jobId: string, appId: string, status: 'SHORTLISTED' | 'REJECTED' | 'CONFIRMED'): Promise<unknown> => {
         const res = await trackedFetch(`${NEST_BASE}/api/host/jobs/${encodeURIComponent(jobId)}/applications/${encodeURIComponent(appId)}`, {
@@ -958,15 +1005,21 @@ export const messageApi = {
             conversations: Conversation[];
         }>;
     },
-    getThread: async (partnerId: string, opts?: {
+    getThread: async (partnerId: string, opts?: PaginationQuery & {
         skipTopLoader?: boolean;
         /** ISO timestamp — poll only messages newer than this (lighter on RAM/CPU). */
         since?: string;
-    }): Promise<{
-        messages: ThreadMessage[];
-        partner: ThreadPartner | null;
-    }> => {
-        const qs = opts?.since ? `?${new URLSearchParams({ since: opts.since }).toString()}` : '';
+    }): Promise<PaginatedResult<ThreadMessage> & { partner: ThreadPartner | null }> => {
+        const sp = new URLSearchParams();
+        if (opts?.since)
+            sp.set('since', opts.since);
+        if (opts?.cursor)
+            sp.set('cursor', opts.cursor);
+        if (opts?.limit != null)
+            sp.set('limit', String(opts.limit));
+        if (opts?.direction)
+            sp.set('direction', opts.direction);
+        const qs = sp.toString() ? `?${sp.toString()}` : '';
         const res = await trackedFetch(`${NEST_BASE}/api/messages/thread/${encodeURIComponent(partnerId)}${qs}`, {
             cache: 'no-store',
             headers: nestHeaders(false),
@@ -976,10 +1029,7 @@ export const messageApi = {
             const text = await res.text();
             throw nestHttpError(text, res.status, 'Loading thread');
         }
-        return res.json() as Promise<{
-            messages: ThreadMessage[];
-            partner: ThreadPartner | null;
-        }>;
+        return res.json() as Promise<PaginatedResult<ThreadMessage> & { partner: ThreadPartner | null }>;
     },
     sendMessage: async (recipientId: string, body: string, jobPostingId?: string, attachments?: {
         storagePath: string;
@@ -1057,15 +1107,12 @@ export type NotificationItem = {
     actionLabel?: string;
     eventType?: string;
 };
-export type NotificationsResponse = {
-    total: number;
-    notifications: NotificationItem[];
-};
+export type NotificationsResponse = PaginatedResult<NotificationItem>;
 export const notificationsApi = {
-    get: async (opts?: {
+    get: async (opts?: PaginationQuery & {
         skipTopLoader?: boolean;
     }): Promise<NotificationsResponse> => {
-        const res = await trackedFetch(`${NEST_BASE}/api/notifications`, {
+        const res = await trackedFetch(`${NEST_BASE}/api/notifications${buildPaginationQs(opts)}`, {
             cache: 'no-store',
             headers: nestHeaders(false),
             skipTopLoader: opts?.skipTopLoader ?? false,

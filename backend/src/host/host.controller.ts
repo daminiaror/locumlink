@@ -69,12 +69,10 @@ export class HostController {
   getJobs(
     @Req()
     req: JwtRequest,
-    @Query('deleted')
-    deleted?: string,
+    @Query()
+    query: Record<string, unknown>,
   ) {
-    return this.hostService.getJobs(req.user.id, {
-      deletedOnly: deleted === 'true',
-    });
+    return this.hostService.getJobs(req.user.id, query);
   }
   @Get('jobs/:id')
   getJob(
@@ -123,8 +121,10 @@ export class HostController {
     req: JwtRequest,
     @Param('jobId')
     jobId: string,
+    @Query()
+    query: Record<string, unknown>,
   ) {
-    return this.hostService.getApplications(req.user.id, jobId);
+    return this.hostService.getApplications(req.user.id, jobId, query);
   }
   @Patch('jobs/:jobId/applications/:appId')
   updateApplication(

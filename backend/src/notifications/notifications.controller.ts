@@ -6,6 +6,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -26,10 +27,14 @@ export class NotificationsController {
   ) {}
 
   @Get()
-  getNotifications(@Req() req: JwtRequest) {
+  getNotifications(
+    @Req() req: JwtRequest,
+    @Query() query: Record<string, unknown>,
+  ) {
     return this.notificationsService.getNotifications(
       req.user.id,
       req.user.role,
+      query,
     );
   }
 

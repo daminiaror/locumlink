@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build output
+dist
+**/dist
+.next
+**/.next
+coverage
+**/coverage
+
+# Git / IDE
+.git
+.gitignore
+.cursor
+.vscode
+**/*.md
+!README.md
+
+# Env & secrets (injected at runtime)
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Frontend (not needed for backend image)
+frontend
+
+# Local artifacts
+*.zip
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Tests (not needed in production image)
+backend/test
+**/*.spec.ts
+**/*.e2e-spec.ts
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+nginx
+
+# Misc
+iPhone*.png
+background-image.jpeg
+frontend.zip

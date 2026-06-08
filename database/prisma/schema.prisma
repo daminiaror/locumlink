@@ -275,6 +275,7 @@ model JobPosting {
   applications          Application[]
   messages              Message[]
 
+  @@index([status, id], map: "job_postings_status_id_idx")
   @@map("job_postings")
 }
 
@@ -312,6 +313,8 @@ model Application {
   placedAt        DateTime?         @map("placed_at")
 
   @@unique([jobPostingId, locumProfileId])
+  @@index([jobPostingId, id], map: "applications_job_posting_id_id_idx")
+  @@index([locumProfileId, id], map: "applications_locum_profile_id_id_idx")
   @@map("applications")
 }
 
@@ -351,6 +354,7 @@ model Message {
 
   attachments  MessageAttachment[]
 
+  @@index([senderId, recipientId, id], map: "messages_sender_recipient_id_idx")
   @@map("messages")
 }
 
@@ -383,6 +387,7 @@ model NotificationEvent {
   deliveredAt    DateTime?
   sentAt         DateTime  @default(now())
 
+  @@index([recipientId, id], map: "notification_events_recipient_id_idx")
   @@map("notification_events")
 }
 

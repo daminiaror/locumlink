@@ -6,7 +6,7 @@ import { onPwaRefresh } from '@/lib/pwaEvents';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import DashLayout, { NavIcon } from '@/components/DashLayout';
-import { hostApi, locumApi, messageApi, uploadFile, type ApplicationRecord, type Conversation, type ConversationPartner, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
+import { fetchAllPaginated, hostApi, locumApi, messageApi, uploadFile, type ApplicationRecord, type Conversation, type ConversationPartner, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
 import { getEmail, getToken } from '@/lib/auth';
 import { subscribeProfileUpdated } from '@/lib/profileUpdatedEvent';
 import { beforeClientNavigation } from '@/lib/topLoader';
@@ -444,7 +444,9 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         if (authLoading || role !== 'locum' || !getToken())
             return;
         try {
-            const { applications } = await locumApi.getMyApplications();
+            const applications = await fetchAllPaginated((cursor) =>
+                locumApi.getMyApplications({ cursor, limit: 100 }),
+            );
             setMyApplications(applications);
         }
         catch {
@@ -480,9 +482,9 @@ function MessagesPageInner({ role }: MessagesPageProps) {
     const loadThread = useCallback(async (partnerId: string) => {
         setLoadingThread(true);
         try {
-            const { messages, partner: p } = await messageApi.getThread(partnerId);
+            const { items, partner: p } = await messageApi.getThread(partnerId, { limit: 100 });
             const hiddenIds = new Set(JSON.parse(localStorage.getItem('deleted-for-me') || '[]'));
-            const visible = messages.filter((m: ThreadMessage) => !hiddenIds.has(m.id));
+            const visible = items.filter((m: ThreadMessage) => !hiddenIds.has(m.id));
             setThread(visible);
             const last = visible[visible.length - 1];
             threadSinceRef.current = last?.sentAt ?? null;
@@ -568,14 +570,14 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             const [threadResult, { conversations: convs }] = await Promise.all([
                 since
                     ? messageApi.getThread(selectedPartnerId, { skipTopLoader: true, since })
-                    : Promise.resolve({ messages: [] as ThreadMessage[], partner: null }),
+                    : Promise.resolve({ items: [] as ThreadMessage[], nextCursor: null, hasNextPage: false, partner: null }),
                 messageApi.getConversations({
                     skipTopLoader: true,
                     q: debouncedSearchQuery || undefined,
                 }),
             ]);
             const hiddenIds2 = new Set(JSON.parse(localStorage.getItem('deleted-for-me') || '[]'));
-            const incoming = threadResult.messages.filter((m: ThreadMessage) => !hiddenIds2.has(m.id));
+            const incoming = threadResult.items.filter((m: ThreadMessage) => !hiddenIds2.has(m.id));
             if (incoming.length > 0) {
                 const lastIncoming = incoming[incoming.length - 1];
                 threadSinceRef.current = lastIncoming.sentAt;
@@ -608,8 +610,8 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         }
         let cancelled = false;
         void hostApi
-            .getApplications(composeJobPostingId)
-            .then(({ applications }) => {
+            .getApplications(composeJobPostingId, { limit: 100 })
+            .then(({ items: applications }) => {
             if (cancelled)
                 return;
             const app = applications.find((a) => a.locumProfile.userId === selectedPartnerId);

@@ -9,7 +9,7 @@ import { ensureProfileMarkedCompleteFromServer } from '@/lib/profileCompleteSync
 import { useAuth } from '@/providers/AuthProvider';
 import { hostProfileCompletionPct } from '@/lib/hostProfileCompletion';
 import { isCpsnsVerificationApproved } from '@/lib/cpsnsVerify';
-import { ApiHttpError, hostApi, isActiveJob, isDraftJob, normalizeHostJob, type Job, type ApplicationRecord, type CreateJobPayload, type DashboardStats} from '@/lib/api';
+import { ApiHttpError, fetchAllPaginated, hostApi, isActiveJob, isDraftJob, normalizeHostJob, type Job, type ApplicationRecord, type CreateJobPayload, type DashboardStats} from '@/lib/api';
 import { beforeClientNavigation } from '@/lib/topLoader';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import type { HostProfile } from '@/types';
@@ -1376,12 +1376,15 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
             background: '#FFFBEB',
             border: '1px solid #FDE68A',
             borderRadius: 8,
-            padding: '10px 20px',
+            padding: '10px 16px',
             fontFamily: 'Inter, sans-serif',
             fontSize: 13,
             color: '#92400E',
             fontWeight: 500,
-            whiteSpace: 'nowrap',
+            maxWidth: 'calc(100vw - 24px)',
+            boxSizing: 'border-box',
+            textAlign: 'center',
+            lineHeight: 1.4,
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
         }}>
           ⚠️  CPSNS is not  verified — this job will be saved as a Draft.
@@ -1446,10 +1449,13 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
         <div style={{
             flex: 1,
             overflowY: 'auto',
+            overflowX: 'hidden',
+            minWidth: 0,
             padding: '20px 24px',
             display: 'flex',
             flexDirection: 'column',
             gap: 12,
+            boxSizing: 'border-box',
         }}>
           
           {step === 1 ? (<div style={{
@@ -1599,7 +1605,7 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                 flexDirection: 'column',
                 gap: 14,
             }}>
-                <div style={{
+                <div className="host-job-schedule-grid" style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: 12,
@@ -1613,7 +1619,7 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                     <MmDdYyyyDateField value={endDateInput} onChange={setEndDateInput} inputStyle={fieldInp} minIso={jobEndMinIso}/>
                   </div>
                 </div>
-                <div style={{
+                <div className="host-job-schedule-grid" style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: 12,
@@ -1930,8 +1936,8 @@ export default function HostDashboard(props: {
             const errs: string[] = [];
             const [profileResult, jobsResult, deletedJobsResult, statsResult] = await Promise.allSettled([
                 hostApi.getProfile(),
-                hostApi.getJobs(),
-                hostApi.getJobs({ deleted: true }),
+                fetchAllPaginated((cursor) => hostApi.getJobs({ cursor, limit: 100 })),
+                fetchAllPaginated((cursor) => hostApi.getJobs({ deleted: true, cursor, limit: 100 })),
                 hostApi.getDashboardStats(),
             ]);
             if (profileResult.status === 'fulfilled') {
@@ -1948,7 +1954,7 @@ export default function HostDashboard(props: {
                 }
             }
             if (jobsResult.status === 'fulfilled') {
-                setJobs(jobsResult.value.jobs);
+                setJobs(jobsResult.value);
             }
             else {
                 const r = jobsResult.reason;
@@ -1961,7 +1967,7 @@ export default function HostDashboard(props: {
                 setJobs([]);
             }
             if (deletedJobsResult.status === 'fulfilled') {
-                setDeletedJobs(deletedJobsResult.value.jobs);
+                setDeletedJobs(deletedJobsResult.value);
             }
             else {
                 setDeletedJobs([]);
@@ -2066,10 +2072,12 @@ export default function HostDashboard(props: {
         setExpandedJobId(jobId);
         setLoadingAppsFor(jobId);
         try {
-            const result = await hostApi.getApplications(jobId);
+            const result = await fetchAllPaginated((cursor) =>
+                hostApi.getApplications(jobId, { cursor, limit: 100 }),
+            );
             setJobApplications((prev) => ({
                 ...prev,
-                [jobId]: result.applications,
+                [jobId]: result,
             }));
         }
         finally {
@@ -2106,12 +2114,15 @@ export default function HostDashboard(props: {
         Loading dashboard…
       </div>) : (<><div className="host-dash-page dash-page-shell" style={{
             maxWidth: 1180,
+            width: '100%',
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 24,
+            boxSizing: 'border-box',
         }}>
           
-            {jobPostConfirmation && (<div role="status" aria-live="polite" style={{
+            {jobPostConfirmation && (<div className="host-dash-confirmation-alert" role="status" aria-live="polite" style={{
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 14,
@@ -2331,60 +2342,40 @@ export default function HostDashboard(props: {
             </div>
 
               <div className="host-dash-stats-card" style={{
+            display: 'flex',
+            border: '1px solid #e2e5ee',
+            borderRadius: 8,
+            overflow: 'hidden',
             background: '#fff',
-            border: '1px solid rgba(217,217,217,0.8)',
-            borderRadius: 10,
-            padding: 24,
+            flexShrink: 0,
+            width: '100%',
+            minWidth: 0,
             boxSizing: 'border-box',
         }}>
-                <div className="host-dash-stats-inner" style={{ display: 'flex', alignItems: 'stretch' }}>
-                  {statsDisplay.map((stat, i) => (
-                    <div
-                      key={stat.label}
-                      className="host-dash-stat-item"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'stretch',
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
-                      {i > 0 && (
-                        <div
-                          className="host-dash-stats-divider"
-                          aria-hidden
-                          style={{
-                            width: 1,
-                            alignSelf: 'stretch',
-                            background: '#D9D9D9',
-                            marginLeft: 12,
-                            marginRight: 12,
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
-                      <p
-                        className="host-dash-stat-line"
-                        style={{
-                          margin: 0,
-                          flex: 1,
-                          minWidth: 0,
-                          fontFamily: 'Inter, sans-serif',
-                          fontWeight: 'var(--font-weight-bold)',
-                          fontSize: 'var(--font-heading)',
-                          lineHeight: '140%',
-                          color: '#4A4A4A',
-                        }}
-                      >
-                        <span className="host-dash-stat-label">{stat.label}</span>
-                        <span className="host-dash-stat-sep" aria-hidden>:</span>
-                        <span className="host-dash-stat-value" style={{ color: '#000' }}>
-                          {loadingData ? '–' : stat.value}
-                        </span>
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                {statsDisplay.map((stat, i) => (
+                  <div
+                    key={stat.label}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      padding: '18px 18px',
+                      borderRight: i < statsDisplay.length - 1 ? '1px solid #e2e5ee' : undefined,
+                    }}
+                  >
+                    <p style={{
+                      margin: 0,
+                      fontFamily: 'Inter, sans-serif',
+                      fontWeight: 'var(--font-weight-bold)',
+                      fontSize: 'var(--font-heading)',
+                      lineHeight: '140%',
+                      color: '#4A4A4A',
+                      wordBreak: 'break-word',
+                    }}>
+                      {stat.label} :{' '}
+                      <span style={{ color: '#000' }}>{loadingData ? '–' : stat.value}</span>
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -2526,7 +2517,9 @@ export default function HostDashboard(props: {
                 setJobs((prev) => [draftJob, ...prev.filter((j) => j.id !== draftJob.id)]);
                 setActiveTab('draft');
                 try {
-                    const { jobs: fromApi } = await hostApi.getJobs();
+                    const fromApi = await fetchAllPaginated((cursor) =>
+                        hostApi.getJobs({ cursor, limit: 100 }),
+                    );
                     setJobs(fromApi.map((j) => j.id === draftJob.id ? { ...j, status: 'DRAFT' } : j));
                 }
                 catch {

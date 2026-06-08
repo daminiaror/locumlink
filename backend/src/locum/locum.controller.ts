@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   Req,
   HttpCode,
   HttpStatus,
@@ -46,8 +47,8 @@ export class LocumController {
     return { count };
   }
   @Get('jobs')
-  browseJobs() {
-    return this.locumService.browseJobs();
+  browseJobs(@Query() query: Record<string, unknown>) {
+    return this.locumService.browseJobs(query);
   }
   @Post('jobs/:jobId/apply')
   applyToJob(
@@ -64,8 +65,10 @@ export class LocumController {
   getMyApplications(
     @Req()
     req: JwtRequest,
+    @Query()
+    query: Record<string, unknown>,
   ) {
-    return this.locumService.getMyApplications(req.user.id);
+    return this.locumService.getMyApplications(req.user.id, query);
   }
   @Get('stats')
   getDashboardStats(

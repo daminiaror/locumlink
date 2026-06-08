@@ -41,13 +41,17 @@ export class MessageController {
     req: JwtRequest,
     @Param('partnerId')
     partnerId: string,
-    @Query('since')
-    since?: string,
+    @Query()
+    query: Record<string, unknown>,
   ) {
-    const sinceDate = since ? new Date(since) : undefined;
+    const sinceRaw = query.since;
+    const since =
+      typeof sinceRaw === 'string' && sinceRaw
+        ? new Date(sinceRaw)
+        : undefined;
     const sinceValid =
-      sinceDate && !Number.isNaN(sinceDate.getTime()) ? sinceDate : undefined;
-    return this.messageService.getThread(req.user.id, partnerId, sinceValid);
+      since && !Number.isNaN(since.getTime()) ? since : undefined;
+    return this.messageService.getThread(req.user.id, partnerId, sinceValid, query);
   }
   @Post()
   @HttpCode(HttpStatus.OK)

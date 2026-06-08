@@ -266,11 +266,11 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
         try {
             const data = await notificationsApi.get({ skipTopLoader: true });
             const dismissed = dismissedNotifIdsRef.current;
-            for (const n of data.notifications) {
+            for (const n of data.items) {
                 if (n.read)
                     dismissed.delete(n.id);
             }
-            const active = data.notifications.filter((n) => !dismissed.has(n.id));
+            const active = data.items.filter((n) => !dismissed.has(n.id));
             setNotifications(active.map((n) => {
                 const resolved = resolveNotificationAction(n);
                 return {

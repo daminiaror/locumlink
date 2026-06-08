@@ -1319,7 +1319,7 @@ export default function HostProfilePage(props: {
                   <label style={lbl}>Speciality</label>
                   <div
                     ref={specialtyAnchorRef}
-                    style={{ position: 'relative' }}
+                    style={{ position: 'relative', width: '100%', minWidth: 0 }}
                   >
                     <button
                       id="specialty-dropdown-btn"

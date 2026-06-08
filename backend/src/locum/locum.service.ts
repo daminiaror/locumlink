@@ -18,6 +18,11 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
+  paginateJobPostings,
+  paginateApplications,
+  parsePaginationParams,
+} from '../common/pagination/index.js';
+import {
   adminCpsnsNumberOrEmpty,
   isCpsnsVerificationApproved,
   normalizeCpsns,
@@ -405,11 +410,15 @@ export class LocumService {
       where: { status: 'ACTIVE', isDeleted: false },
     });
   }
-  async browseJobs() {
-    const jobs = await this.prisma.jobPosting.findMany({
-      where: { status: 'ACTIVE', isDeleted: false },
-      orderBy: { createdAt: 'desc' },
-      include: {
+  async browseJobs(query: Record<string, unknown> = {}) {
+    const pagination = parsePaginationParams(query, 20);
+    pagination.direction = 'desc';
+
+    const page = await paginateJobPostings(
+      this.prisma,
+      { status: 'ACTIVE', isDeleted: false },
+      pagination,
+      {
         hostProfile: {
           select: {
             practiceName: true,
@@ -429,13 +438,16 @@ export class LocumService {
         },
         _count: { select: { applications: true } },
       },
-    });
+    );
+
     return {
-      jobs: jobs.map((j) => ({
+      items: page.items.map((j) => ({
         ...j,
         isDeleted: j.isDeleted,
         applicationsCount: j._count.applications,
       })),
+      nextCursor: page.nextCursor,
+      hasNextPage: page.hasNextPage,
     };
   }
   async applyToJob(userId: string, jobId: string, coverNote?: string) {
@@ -513,39 +525,63 @@ export class LocumService {
     } catch {}
     return { success: true, application };
   }
-  async getMyApplications(userId: string) {
+  async getMyApplications(userId: string, query: Record<string, unknown> = {}) {
     const locumProfile = await this.prisma.locumProfile.findUnique({
       where: { userId },
       select: { id: true },
     });
-    if (!locumProfile) return { applications: [] };
-    const applications = await this.prisma.application.findMany({
-      where: { locumProfileId: locumProfile.id },
-      orderBy: { appliedAt: 'desc' },
-      include: {
-        jobPosting: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            isDeleted: true,
-            startDate: true,
-            endDate: true,
-            startTime: true,
-            endTime: true,
-            hostProfile: {
-              select: {
-                userId: true,
-                practiceName: true,
-                city: true,
-                province: true,
+    if (!locumProfile) {
+      return { items: [], nextCursor: null, hasNextPage: false };
+    }
+
+    const pagination = parsePaginationParams(query, 20);
+    pagination.direction = 'desc';
+
+    const statusRaw =
+      typeof query.status === 'string' ? query.status.toUpperCase() : undefined;
+    const statusFilter =
+      statusRaw &&
+      ['APPLIED', 'SHORTLISTED', 'CONFIRMED', 'REJECTED', 'WITHDRAWN'].includes(
+        statusRaw,
+      )
+        ? (statusRaw as 'APPLIED' | 'SHORTLISTED' | 'CONFIRMED' | 'REJECTED' | 'WITHDRAWN')
+        : undefined;
+
+    const page = await paginateApplications(
+      this.prisma,
+      { locumProfileId: locumProfile.id, status: statusFilter },
+      pagination,
+      {
+        include: {
+          jobPosting: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              isDeleted: true,
+              startDate: true,
+              endDate: true,
+              startTime: true,
+              endTime: true,
+              hostProfile: {
+                select: {
+                  userId: true,
+                  practiceName: true,
+                  city: true,
+                  province: true,
+                },
               },
             },
           },
         },
       },
-    });
-    return { applications };
+    );
+
+    return {
+      items: page.items,
+      nextCursor: page.nextCursor,
+      hasNextPage: page.hasNextPage,
+    };
   }
   async getDashboardStats(userId: string) {
     const locumProfile = await this.prisma.locumProfile.findUnique({
