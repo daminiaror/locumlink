@@ -28,6 +28,8 @@ import {
 import BarWaveButton from '@/components/ui/BarWaveButton';
 import { dispatchProfileUpdated } from '@/lib/profileUpdatedEvent';
 import { beforeClientNavigation } from '@/lib/topLoader';
+import { useAnchoredDropdownMenu } from '@/hooks/useAnchoredDropdownMenu';
+import { AnchoredDropdownPortal } from '@/components/ui/AnchoredDropdownMenu';
 import { sortStringsLocale } from '@/lib/sortLocale';
 
 const HOST_SETUP_MODAL = {
@@ -49,10 +51,9 @@ const HOST_SETUP_MODAL = {
 const SPECIALITY_OPTIONS = sortStringsLocale([
   'Family Physician',
   'Internal medicine',
-  'Emergency',
   'ENT',
   'Emergency Medicine',
-  'Anaesthetics',
+  'Anesthesiology',
   'Paediatrics',
 ]);
 
@@ -202,11 +203,29 @@ export default function HostSetupPage(props: {
   const [cityResults, setCityResults] = useState<CanadianCityRow[]>([]);
   const [cityDropOpen, setCityDropOpen] = useState(false);
   const [cityActiveIdx, setCityActiveIdx] = useState(-1);
+  const cityAnchorRef = useRef<HTMLDivElement>(null);
+  const cityMenuRef = useRef<HTMLDivElement>(null);
+  const cityMenuBox = useAnchoredDropdownMenu(
+    cityDropOpen,
+    setCityDropOpen,
+    cityAnchorRef,
+    cityMenuRef,
+    220,
+  );
   const cityBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [provinceResults, setProvinceResults] =
     useState<ProvinceOption[]>(PROVINCE_OPTIONS);
   const [provinceDropOpen, setProvinceDropOpen] = useState(false);
   const [provinceActiveIdx, setProvinceActiveIdx] = useState(-1);
+  const provinceAnchorRef = useRef<HTMLDivElement>(null);
+  const provinceMenuRef = useRef<HTMLDivElement>(null);
+  const provinceMenuBox = useAnchoredDropdownMenu(
+    provinceDropOpen,
+    setProvinceDropOpen,
+    provinceAnchorRef,
+    provinceMenuRef,
+    220,
+  );
   const provinceBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaving, setAutoSaving] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -345,11 +364,7 @@ export default function HostSetupPage(props: {
       e.preventDefault();
       setCityActiveIdx((i) => Math.max(i - 1, 0));
     }
-    if (
-      e.key === 'Enter' &&
-      cityActiveIdx >= 0 &&
-      cityResults[cityActiveIdx]
-    ) {
+    if (e.key === 'Enter' && cityActiveIdx >= 0 && cityResults[cityActiveIdx]) {
       e.preventDefault();
       handleCitySelect(cityResults[cityActiveIdx]);
     }
@@ -381,9 +396,7 @@ export default function HostSetupPage(props: {
     if (!provinceDropOpen) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setProvinceActiveIdx((i) =>
-        Math.min(i + 1, provinceResults.length - 1),
-      );
+      setProvinceActiveIdx((i) => Math.min(i + 1, provinceResults.length - 1));
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -440,6 +453,7 @@ export default function HostSetupPage(props: {
 
   return (
     <div
+      className="setup-page-shell"
       style={{
         height: '100vh',
         width: '100vw',
@@ -487,6 +501,7 @@ export default function HostSetupPage(props: {
           }}
         >
           <div
+            className="setup-exit-modal"
             style={{
               background: '#fff',
               borderRadius: 12,
@@ -1080,6 +1095,7 @@ export default function HostSetupPage(props: {
                         }}
                       >
                         <div
+                          ref={cityAnchorRef}
                           style={{
                             flex: 1,
                             minWidth: 0,
@@ -1122,88 +1138,77 @@ export default function HostSetupPage(props: {
                               );
                             }}
                           />
-                          {cityDropOpen && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                top: 'calc(100% + 4px)',
-                                left: 0,
-                                right: 0,
-                                zIndex: 40,
-                                background: '#fff',
-                                border: '1px solid #E4E8F0',
-                                borderRadius: 10,
-                                boxShadow: '0 8px 24px rgba(15,42,122,0.13)',
-                                maxHeight: 220,
-                                overflowY: 'auto',
-                              }}
-                            >
-                              {cityResults.length === 0 ? (
+                          <AnchoredDropdownPortal
+                            open={cityDropOpen}
+                            menuBox={cityMenuBox}
+                            menuRef={cityMenuRef}
+                          >
+                            {cityResults.length === 0 ? (
+                              <div
+                                style={{
+                                  padding: '14px',
+                                  fontSize: 13,
+                                  color: 'rgba(11,15,31,0.45)',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                No city found
+                              </div>
+                            ) : (
+                              cityResults.map((row, i) => (
                                 <div
+                                  key={`${row.name}-${row.province}`}
+                                  role="option"
+                                  aria-selected={i === cityActiveIdx}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleCitySelect(row);
+                                  }}
                                   style={{
-                                    padding: '14px',
-                                    fontSize: 13,
-                                    color: 'rgba(11,15,31,0.45)',
-                                    textAlign: 'center',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '10px 14px',
+                                    cursor: 'pointer',
+                                    background:
+                                      i === cityActiveIdx
+                                        ? 'rgba(15,42,122,0.05)'
+                                        : 'transparent',
+                                    borderBottom:
+                                      '0.5px solid rgba(0,0,0,0.05)',
                                   }}
                                 >
-                                  No city found
-                                </div>
-                              ) : (
-                                cityResults.map((row, i) => (
-                                  <div
-                                    key={`${row.name}-${row.province}`}
-                                    role="option"
-                                    aria-selected={i === cityActiveIdx}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      handleCitySelect(row);
-                                    }}
+                                  <span
                                     style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      padding: '10px 14px',
-                                      cursor: 'pointer',
-                                      background:
-                                        i === cityActiveIdx
-                                          ? 'rgba(15,42,122,0.05)'
-                                          : 'transparent',
-                                      borderBottom:
-                                        '0.5px solid rgba(0,0,0,0.05)',
+                                      fontSize: 14,
+                                      fontWeight: 500,
+                                      color: '#0B0F1F',
                                     }}
                                   >
-                                    <span
-                                      style={{
-                                        fontSize: 14,
-                                        fontWeight: 500,
-                                        color: '#0B0F1F',
-                                      }}
-                                    >
-                                      {highlightCityName(row.name, form.city)}
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        background: 'rgba(59,198,198,0.12)',
-                                        color: '#0F6E56',
-                                        padding: '2px 9px',
-                                        borderRadius: 20,
-                                        flexShrink: 0,
-                                        marginLeft: 8,
-                                      }}
-                                    >
-                                      {CANADIAN_PROVINCE_NAMES[row.province] ??
-                                        row.province}
-                                    </span>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          )}
+                                    {highlightCityName(row.name, form.city)}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      background: 'rgba(59,198,198,0.12)',
+                                      color: '#0F6E56',
+                                      padding: '2px 9px',
+                                      borderRadius: 20,
+                                      flexShrink: 0,
+                                      marginLeft: 8,
+                                    }}
+                                  >
+                                    {CANADIAN_PROVINCE_NAMES[row.province] ??
+                                      row.province}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </AnchoredDropdownPortal>
                         </div>
                         <div
+                          ref={provinceAnchorRef}
                           style={{
                             flex: 1,
                             minWidth: 0,
@@ -1241,88 +1246,76 @@ export default function HostSetupPage(props: {
                             placeholder="Province"
                             autoComplete="off"
                           />
-                          {provinceDropOpen && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                top: 'calc(100% + 4px)',
-                                left: 0,
-                                right: 0,
-                                zIndex: 40,
-                                background: '#fff',
-                                border: '1px solid #E4E8F0',
-                                borderRadius: 10,
-                                boxShadow: '0 8px 24px rgba(15,42,122,0.13)',
-                                maxHeight: 220,
-                                overflowY: 'auto',
-                              }}
-                            >
-                              {provinceResults.length === 0 ? (
+                          <AnchoredDropdownPortal
+                            open={provinceDropOpen}
+                            menuBox={provinceMenuBox}
+                            menuRef={provinceMenuRef}
+                          >
+                            {provinceResults.length === 0 ? (
+                              <div
+                                style={{
+                                  padding: '14px',
+                                  fontSize: 13,
+                                  color: 'rgba(11,15,31,0.45)',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                No province found
+                              </div>
+                            ) : (
+                              provinceResults.map((province, i) => (
                                 <div
+                                  key={province.code}
+                                  role="option"
+                                  aria-selected={i === provinceActiveIdx}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleProvinceSelect(province);
+                                  }}
                                   style={{
-                                    padding: '14px',
-                                    fontSize: 13,
-                                    color: 'rgba(11,15,31,0.45)',
-                                    textAlign: 'center',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '10px 14px',
+                                    cursor: 'pointer',
+                                    background:
+                                      i === provinceActiveIdx
+                                        ? 'rgba(15,42,122,0.05)'
+                                        : 'transparent',
+                                    borderBottom:
+                                      '0.5px solid rgba(0,0,0,0.05)',
                                   }}
                                 >
-                                  No province found
-                                </div>
-                              ) : (
-                                provinceResults.map((province, i) => (
-                                  <div
-                                    key={province.code}
-                                    role="option"
-                                    aria-selected={i === provinceActiveIdx}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      handleProvinceSelect(province);
-                                    }}
+                                  <span
                                     style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      padding: '10px 14px',
-                                      cursor: 'pointer',
-                                      background:
-                                        i === provinceActiveIdx
-                                          ? 'rgba(15,42,122,0.05)'
-                                          : 'transparent',
-                                      borderBottom:
-                                        '0.5px solid rgba(0,0,0,0.05)',
+                                      fontSize: 14,
+                                      fontWeight: 500,
+                                      color: '#0B0F1F',
                                     }}
                                   >
-                                    <span
-                                      style={{
-                                        fontSize: 14,
-                                        fontWeight: 500,
-                                        color: '#0B0F1F',
-                                      }}
-                                    >
-                                      {highlightCityName(
-                                        province.name,
-                                        form.province,
-                                      )}
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        background: 'rgba(59,198,198,0.12)',
-                                        color: '#0F6E56',
-                                        padding: '2px 9px',
-                                        borderRadius: 20,
-                                        flexShrink: 0,
-                                        marginLeft: 8,
-                                      }}
-                                    >
-                                      {province.code}
-                                    </span>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          )}
+                                    {highlightCityName(
+                                      province.name,
+                                      form.province,
+                                    )}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      background: 'rgba(59,198,198,0.12)',
+                                      color: '#0F6E56',
+                                      padding: '2px 9px',
+                                      borderRadius: 20,
+                                      flexShrink: 0,
+                                      marginLeft: 8,
+                                    }}
+                                  >
+                                    {province.code}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </AnchoredDropdownPortal>
                         </div>
                       </div>
 
@@ -1386,7 +1379,11 @@ export default function HostSetupPage(props: {
             }}
           >
             {step === 1 && (
-              <NavButtons onNext={() => setStep(2)} disabled={!step1Valid} nextGradient />
+              <NavButtons
+                onNext={() => setStep(2)}
+                disabled={!step1Valid}
+                nextGradient
+              />
             )}
             {step === 2 && (
               <NavButtons
@@ -1474,7 +1471,9 @@ function NavButtons({
   };
 
   return (
-    <div style={{ display: 'flex', gap: 12, width: '100%', alignItems: 'stretch' }}>
+    <div
+      style={{ display: 'flex', gap: 12, width: '100%', alignItems: 'stretch' }}
+    >
       {onBack ? (
         <button type="button" onClick={onBack} style={backStyle}>
           Back

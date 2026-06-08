@@ -55,6 +55,20 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { stats, adminEmail } = useAdminStats();
   const pendingCount = stats?.pendingVerifications ?? 0;
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMobileNavOpen(false);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [mobileNavOpen]);
 
   const nav: NavItem[] = [
     {
@@ -181,6 +195,19 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
     <div className="admin-portal">
       <header className="admin-topbar">
         <div className="admin-topbar-brand">
+          <button
+            type="button"
+            className="dash-hamburger admin-hamburger"
+            onClick={() => setMobileNavOpen((v) => !v)}
+            aria-label="Toggle navigation menu"
+            aria-expanded={mobileNavOpen}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
           <Logo size="md" />
           <div className="admin-topbar-divider" />
           <span className="admin-topbar-title">Admin Portal</span>
@@ -279,7 +306,15 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
       </header>
 
       <div className="admin-shell">
-        <aside className="sidebar">
+        {mobileNavOpen && (
+          <button
+            type="button"
+            className="admin-sidebar-overlay"
+            aria-label="Close navigation menu"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
+        <aside className={mobileNavOpen ? 'sidebar sidebar--open' : 'sidebar'}>
           <nav className="sidebar-nav">
             {nav.map((item) => {
               const active = isActive(item.href);
@@ -288,6 +323,7 @@ function AdminLayoutInner({ children }: { children: ReactNode }) {
                   key={item.id}
                   href={item.href}
                   className={`nav-item${active ? ' active' : ''}`}
+                  onClick={() => setMobileNavOpen(false)}
                 >
                   <span className="nav-item-content">
                     {item.icon}

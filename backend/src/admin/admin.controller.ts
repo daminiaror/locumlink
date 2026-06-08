@@ -164,25 +164,6 @@ export class AdminController {
     return { ok: true };
   }
 
-  @Get('analytics/summary')
-  async analyticsSummary() {
-    return this.admin.analyticsSummary();
-  }
-
-  @Get('analytics/export')
-  @Header('Content-Type', 'text/csv; charset=utf-8')
-  async exportAnalytics(
-    @CurrentAdmin() admin: AdminJwtPayload,
-    @Res() res: Response,
-  ) {
-    const date = new Date().toISOString().slice(0, 10);
-    const csv = await this.admin.exportAnalyticsCsv(admin);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="locumlink-analytics-${date}.csv"`,
-    );
-    return res.status(200).send(`\uFEFF${csv}`);
-  }
 }
 
 function parseVerificationTab(

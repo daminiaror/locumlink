@@ -66,7 +66,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
     const opportunityCountLabel = browseOpportunityCount !== null
         ? browseOpportunityCount.toLocaleString('en-CA')
         : '—';
-    return (<div style={{
+    return (<div className="home-landing-root" style={{
             position: 'relative',
             height: '100vh',
             maxHeight: '100vh',
@@ -99,7 +99,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
         </div>
       </nav>
 
-      <main style={{
+      <main className="home-landing-main" style={{
             flex: '1 1 0',
             minHeight: 0,
             marginTop: 76,
@@ -134,7 +134,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             alignItems: 'center',
             gap: 0,
         }}>
-              <span style={{
+              <span className="home-landing-h1" style={{
             fontFamily: 'var(--font-display), Outfit, sans-serif',
             fontWeight: 700,
             fontSize: 44,
@@ -144,7 +144,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
         }}>
                 Find Verified Locums in as Fast as 48 Hours
               </span>
-              <span style={{
+              <span className="home-landing-h1" style={{
             fontFamily: 'var(--font-display), Outfit, sans-serif',
             fontWeight: 700,
             fontSize: 44,
@@ -156,7 +156,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
               </span>
             </div>
 
-            <p style={{
+            <p className="home-landing-subhead" style={{
             fontFamily: 'Inter, sans-serif',
             fontWeight: 400,
             fontSize: 26,
@@ -166,7 +166,7 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
             maxWidth: '100%',
             margin: 0,
         }}>
-              Built for Nova Scotia physicians. Post a request and connect directly with qualified locums — without agency fees or endless back-and-forth.
+              Built for Nova Scotia physicians. Post a request and connect directly with qualified locums - without agency fees or endless back-and-forth.
             </p>
             <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 }}>
               {['✓ Verified physicians','✓ Direct clinic-to-doctor matching','✓ No agency fees','✓ Built for Nova Scotia'].map((badge) => (<span key={badge} style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 14px', borderRadius: 999, background: '#EEF2FF', color: '#1B31D2', fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: 14 }}>{badge}</span>))}

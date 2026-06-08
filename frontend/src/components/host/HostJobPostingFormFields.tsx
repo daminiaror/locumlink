@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     JOB_DESCRIPTION_PRESET_OPTIONS,
@@ -13,6 +13,7 @@ import {
     parseMmDdYyyyToIso,
     todayIsoDateLocal,
 } from '@/lib/hostJobPostingForm';
+import { useAnchoredDropdownMenu } from '@/hooks/useAnchoredDropdownMenu';
 
 function CalendarIcon() {
     return (<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
@@ -42,6 +43,7 @@ function ChevronDownButton({ ariaLabel, expanded, onClick, top }: {
             justifyContent: 'center',
             padding: 0,
             color: '#0B0F1F',
+            touchAction: 'manipulation',
         }}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
         <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -57,6 +59,7 @@ const presetMenuStyle: React.CSSProperties = {
     boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
     zIndex: 100020,
     overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
 };
 
 const presetItemStyle: React.CSSProperties = {
@@ -71,7 +74,18 @@ const presetItemStyle: React.CSSProperties = {
     color: '#0B0F1F',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
+    touchAction: 'manipulation',
 };
+
+function usePresetDropdownMenu(
+    open: boolean,
+    setOpen: (open: boolean) => void,
+    wrapRef: React.RefObject<HTMLDivElement | null>,
+    menuRef: React.RefObject<HTMLDivElement | null>,
+    preferredMaxHeight: number,
+) {
+    return useAnchoredDropdownMenu(open, setOpen, wrapRef, menuRef, preferredMaxHeight);
+}
 
 export function MmDdYyyyDateField({ value, onChange, inputStyle, minIso = todayIsoDateLocal(), }: {
     value: string;
@@ -156,60 +170,21 @@ export function HostJobTitleField({ value, onChange, inputStyle, labelStyle, }: 
     const wrapRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    const [menuBox, setMenuBox] = useState<{
-        left: number;
-        top: number;
-        width: number;
-    } | null>(null);
+    const menuBox = usePresetDropdownMenu(open, setOpen, wrapRef, menuRef, 260);
     const base = inputStyle ?? hostJobFieldInp;
     const lbl = labelStyle ?? hostJobFieldLbl;
-    const syncMenuBox = useCallback(() => {
-        const el = wrapRef.current;
-        if (!el)
-            return;
-        const r = el.getBoundingClientRect();
-        setMenuBox({ left: r.left, top: r.bottom + 4, width: r.width });
-    }, []);
-    useLayoutEffect(() => {
-        if (!open) {
-            setMenuBox(null);
-            return;
-        }
-        syncMenuBox();
-    }, [open, syncMenuBox]);
-    useEffect(() => {
-        if (!open)
-            return;
-        function onDocMouseDown(e: MouseEvent) {
-            const t = e.target as Node;
-            if (wrapRef.current?.contains(t) || menuRef.current?.contains(t))
-                return;
-            setOpen(false);
-        }
-        function onReposition() {
-            syncMenuBox();
-        }
-        document.addEventListener('mousedown', onDocMouseDown);
-        window.addEventListener('resize', onReposition);
-        window.addEventListener('scroll', onReposition, true);
-        return () => {
-            document.removeEventListener('mousedown', onDocMouseDown);
-            window.removeEventListener('resize', onReposition);
-            window.removeEventListener('scroll', onReposition, true);
-        };
-    }, [open, syncMenuBox]);
     return (<div ref={wrapRef} style={{ position: 'relative' }}>
       <label style={lbl}>Job Title *</label>
       <div style={{ position: 'relative' }}>
         <input style={{ ...base, paddingRight: 40 }} value={value} onChange={(e) => onChange(e.target.value)} placeholder="Choose a suggested title or type a custom one"/>
         <ChevronDownButton ariaLabel="Open suggested job titles" expanded={open} onClick={() => setOpen((v) => !v)}/>
       </div>
-      {open && menuBox ? createPortal(<div ref={menuRef} style={{
+      {open && menuBox ? createPortal(<div ref={menuRef} data-anchored-dropdown className="anchored-dropdown-menu host-job-preset-dropdown" style={{
                 ...presetMenuStyle,
                 left: menuBox.left,
                 top: menuBox.top,
                 width: menuBox.width,
-                maxHeight: 260,
+                maxHeight: menuBox.maxHeight,
             }}>
           {JOB_TITLE_PRESET_OPTIONS.map((t) => (<button key={t} type="button" onClick={() => {
                 onChange(t);
@@ -234,48 +209,9 @@ export function HostJobDescriptionField({ value, onChange, inputStyle, labelStyl
     const wrapRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
-    const [menuBox, setMenuBox] = useState<{
-        left: number;
-        top: number;
-        width: number;
-    } | null>(null);
+    const menuBox = usePresetDropdownMenu(open, setOpen, wrapRef, menuRef, 280);
     const base = inputStyle ?? hostJobFieldInp;
     const lbl = labelStyle ?? hostJobFieldLbl;
-    const syncMenuBox = useCallback(() => {
-        const el = wrapRef.current;
-        if (!el)
-            return;
-        const r = el.getBoundingClientRect();
-        setMenuBox({ left: r.left, top: r.bottom + 4, width: r.width });
-    }, []);
-    useLayoutEffect(() => {
-        if (!open) {
-            setMenuBox(null);
-            return;
-        }
-        syncMenuBox();
-    }, [open, syncMenuBox]);
-    useEffect(() => {
-        if (!open)
-            return;
-        function onDocMouseDown(e: MouseEvent) {
-            const t = e.target as Node;
-            if (wrapRef.current?.contains(t) || menuRef.current?.contains(t))
-                return;
-            setOpen(false);
-        }
-        function onReposition() {
-            syncMenuBox();
-        }
-        document.addEventListener('mousedown', onDocMouseDown);
-        window.addEventListener('resize', onReposition);
-        window.addEventListener('scroll', onReposition, true);
-        return () => {
-            document.removeEventListener('mousedown', onDocMouseDown);
-            window.removeEventListener('resize', onReposition);
-            window.removeEventListener('scroll', onReposition, true);
-        };
-    }, [open, syncMenuBox]);
     return (<div ref={wrapRef} style={{ position: 'relative' }}>
       <label style={lbl}>Job Description</label>
       <div style={{ position: 'relative' }}>
@@ -287,12 +223,12 @@ export function HostJobDescriptionField({ value, onChange, inputStyle, labelStyl
             } as React.CSSProperties} value={value} onChange={(e) => onChange(e.target.value)} placeholder="Describe the role…"/>
         <ChevronDownButton ariaLabel="Open description templates" expanded={open} onClick={() => setOpen((v) => !v)} top={10}/>
       </div>
-      {open && menuBox ? createPortal(<div ref={menuRef} style={{
+      {open && menuBox ? createPortal(<div ref={menuRef} data-anchored-dropdown className="anchored-dropdown-menu host-job-preset-dropdown" style={{
                 ...presetMenuStyle,
                 left: menuBox.left,
                 top: menuBox.top,
                 width: menuBox.width,
-                maxHeight: 280,
+                maxHeight: menuBox.maxHeight,
             }}>
           {JOB_DESCRIPTION_PRESET_OPTIONS.map((label) => (<button key={label} type="button" onClick={() => {
                 onChange(label);

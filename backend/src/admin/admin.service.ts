@@ -27,12 +27,6 @@ import {
   isEligibleForCredentialQueueLocum,
   mergeCredentialSubmittedAtPatch,
 } from '../cpsns/cpsns-verified.js';
-import {
-  analyticsSummaryToCsv,
-  buildAnalyticsSummary,
-  type AnalyticsSummary,
-} from './admin-analytics.util.js';
-
 const VERIFICATION_PENDING_FILTER: VerificationStatus[] = [
   VerificationStatus.UNVERIFIED,
   VerificationStatus.PENDING_REVIEW,
@@ -218,22 +212,6 @@ export class AdminService {
       fillRate,
       avgTimesToPlacementHours,
     };
-  }
-
-  async analyticsSummary(): Promise<AnalyticsSummary> {
-    return buildAnalyticsSummary(this.prisma);
-  }
-
-  async exportAnalyticsCsv(admin: AdminJwtPayload): Promise<string> {
-    const summary = await buildAnalyticsSummary(this.prisma);
-    this.audit.log({
-      adminActorId: admin.sub,
-      action: AuditAction.EXPORT,
-      entity: 'AnalyticsReport',
-      endpoint: '/api/admin/analytics/export',
-      actorRole: 'admin',
-    });
-    return analyticsSummaryToCsv(summary);
   }
 
   async listUsers(params: { q?: string; page: number; pageSize: number }) {

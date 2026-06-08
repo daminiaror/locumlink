@@ -29,8 +29,9 @@ export default function AuthCallbackCompletePage() {
         };
     }, [completeOAuthSignIn, router]);
     return (<AuthSplitLayout variant="signup">
-      <h2 style={{
-            width: 376,
+      <h2 className="auth-callback-heading" style={{
+            width: '100%',
+            maxWidth: 376,
             fontSize: 28,
             fontWeight: 700,
             fontFamily: 'Inter, sans-serif',
@@ -40,8 +41,9 @@ export default function AuthCallbackCompletePage() {
         }}>
         Completing sign in
       </h2>
-      <p style={{
-            width: 376,
+      <p className="auth-callback-text" style={{
+            width: '100%',
+            maxWidth: 376,
             fontFamily: 'Inter, sans-serif',
             fontSize: 16,
             lineHeight: '140%',

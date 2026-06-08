@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import AuthSplitLayout from '@/components/AuthSplitLayout';
 import Logo from '@/components/Logo';
 import { adminApiBase } from '@/lib/adminApi';
-import Image from 'next/image';
+import GoogleIcon from '@/components/icons/GoogleIcon';
 
 function AdminLoginInner() {
   const sp = useSearchParams();
@@ -75,21 +75,14 @@ function AdminLoginInner() {
           type="button"
           onClick={handleGoogleLogin}
           disabled={busy}
-          style={{
-            height: 46, borderRadius: 12,
-            border: '1px solid rgba(15, 42, 122, 0.18)',
-            background: '#fff',
-            cursor: busy ? 'wait' : 'pointer',
-            opacity: busy ? 0.75 : 1,
-            fontFamily: 'inherit', fontSize: 15,
-            fontWeight: 700, color: '#0F2A7A',
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'center', gap: 10,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-          }}
+          className="auth-google-signin-btn"
         >
-          <Image src="/google.png" alt="Google" width={22} height={22} />
-          {busy ? 'Redirecting…' : 'Continue with Google'}
+          <span className="auth-oauth-btn__icon">
+            <GoogleIcon size={22} />
+          </span>
+          <span className="auth-google-signin-btn__label">
+            {busy ? 'Redirecting…' : 'Continue with Google'}
+          </span>
         </button>
       </div>
     </AuthSplitLayout>

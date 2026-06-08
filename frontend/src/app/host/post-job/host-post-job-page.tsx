@@ -114,7 +114,7 @@ export default function HostPostJobPage(props: {
         }
     }
     return (<DashLayout navItems={NAV} activeHref="/host/dashboard" topbarFirstName={profile?.contactFirstName} topbarLastName={profile?.contactLastName}>
-      <div style={{ maxWidth: 560 }}>
+      <div className="host-post-job-form" style={{ maxWidth: 560 }}>
         <h1 style={{
             fontSize: 22,
             fontWeight: 700,

@@ -263,7 +263,7 @@ function DeleteModal({ onDeleteForEveryone, onDeleteForMe, onCancel, }: {
             background: 'rgba(0,0,0,0.35)',
             zIndex: 500,
         }}/>
-      <div style={{
+      <div className="messages-delete-modal" style={{
             position: 'fixed',
             top: '50%',
             left: '50%',

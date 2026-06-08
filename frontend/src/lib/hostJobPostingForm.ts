@@ -97,6 +97,9 @@ export const hostJobFieldLbl: React.CSSProperties = {
     marginBottom: 6,
 };
 
+export type { FixedDropdownBox } from '@/lib/anchoredDropdown';
+export { computeFixedDropdownBox } from '@/lib/anchoredDropdown';
+
 export function emptyResponsibilitySelection(): Record<string, Set<string>> {
     return Object.fromEntries(RESPONSIBILITY_SECTIONS.map((s) => [s.key, new Set<string>()]));
 }

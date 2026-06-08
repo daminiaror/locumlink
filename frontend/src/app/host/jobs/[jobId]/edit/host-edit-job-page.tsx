@@ -520,6 +520,7 @@ export default function HostEditJobPage(props: {
         }}
       />
       <div
+        className="host-job-post-panel"
         style={{
           position: 'fixed',
           top: 0,
@@ -536,6 +537,7 @@ export default function HostEditJobPage(props: {
       >
         {/* Drag handle */}
         <div
+          className="host-job-post-panel-resize-handle"
           onMouseDown={(e) => {
             e.preventDefault();
             const startX = e.clientX;

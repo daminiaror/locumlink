@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { onPwaRefresh } from '@/lib/pwaEvents';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/providers/AuthProvider';
@@ -135,6 +135,7 @@ function applyNotifPrefs(items: NotificationItem[], prefs: Record<string, boolea
 }
 export default function DashLayout({ navItems, activeHref, topbarRight, topbarFirstName, topbarLastName, topbarAvatarText, children, }: Props) {
     const router = useRouter();
+    const pathname = usePathname();
     const { logout, userId } = useAuth();
     const sidebarNavItems = navItems.filter((n) => !isAccountNavItem(n));
     const accountNavItems = navItems.filter(isAccountNavItem);
@@ -146,6 +147,22 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     const NAV_GAP = 18;
     const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+    useEffect(() => {
+        setMobileNavOpen(false);
+    }, [pathname]);
+
+    useEffect(() => {
+        if (!mobileNavOpen)
+            return;
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape')
+                setMobileNavOpen(false);
+        }
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [mobileNavOpen]);
+
     const avatarMenuRef = useRef<HTMLDivElement>(null);
     const avatarFileInputRef = useRef<HTMLInputElement>(null);
     const [avatarPhotoUrl, setAvatarPhotoUrl] = useState<string | null>(null);
@@ -444,10 +461,12 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
         }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
+            type="button"
             className="dash-hamburger"
             onClick={() => setMobileNavOpen(v => !v)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#0F2A7A' }}
-            aria-label="Toggle menu">
+            aria-label="Toggle navigation menu"
+            aria-expanded={mobileNavOpen}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <Link href="/home" style={{ textDecoration: 'none' }}>
@@ -495,7 +514,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
             </button>
 
             
-            {bellOpen && (<div style={{
+            {bellOpen && (<div className="dash-notifications-dropdown" style={{
                 position: 'absolute',
                 top: 36,
                 right: 0,
@@ -964,7 +983,12 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
       
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {mobileNavOpen && (
-          <div onClick={() => setMobileNavOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 39 }} />
+          <button
+            type="button"
+            className="dash-sidebar-overlay"
+            aria-label="Close navigation menu"
+            onClick={() => setMobileNavOpen(false)}
+          />
         )}
         <aside className={mobileNavOpen ? 'dash-sidebar dash-sidebar--open' : 'dash-sidebar'} style={{
             position: 'relative',
@@ -1024,7 +1048,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                             : isResources
                                 ? 'nav-resources'
                                 : undefined;
-            return (<Link key={href} href={href} style={{ textDecoration: 'none' }}>
+            return (<Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => setMobileNavOpen(false)}>
                     <div id={navId} style={{
                     boxSizing: 'border-box',
                     display: 'flex',

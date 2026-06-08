@@ -642,7 +642,7 @@ export default function HostApplicantsPage(props: {
         selected &&
         statusToUi(selected.status) === 'shortlisted' &&
         typeof document !== 'undefined'
-        ? createPortal(<div style={{
+        ? createPortal(<div className="host-quick-message-panel" style={{
                 position: 'fixed',
                 left: quickPanelPos.left,
                 top: quickPanelPos.top,
@@ -683,7 +683,7 @@ export default function HostApplicantsPage(props: {
               <span style={{ fontSize: 13, fontWeight: 700, color: '#0B0F1F' }}>
                 Quick message
               </span>
-              <span style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', whiteSpace: 'nowrap' }}>
+              <span className="host-quick-message-drag-hint" style={{ fontSize: 11, fontWeight: 500, color: '#9CA3AF', whiteSpace: 'nowrap' }}>
                 Drag to move
               </span>
             </div>
@@ -964,7 +964,7 @@ export default function HostApplicantsPage(props: {
                 background: 'rgba(28, 50, 130, 0.45)',
                 zIndex: 220,
             }}/>
-          <div style={{
+          <div className="host-applicant-detail-panel" style={{
                 position: 'fixed',
                 top: 0,
                 right: 0,
@@ -978,6 +978,7 @@ export default function HostApplicantsPage(props: {
                 fontFamily: 'Inter, sans-serif',
             }}>
             <div
+              className="host-applicant-detail-resize-handle"
               title="Drag to resize"
               onMouseDown={onDetailPanelResizeMouseDown}
               style={{

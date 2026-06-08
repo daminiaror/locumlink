@@ -407,7 +407,7 @@ export class LocumService {
   }
   async browseJobs() {
     const jobs = await this.prisma.jobPosting.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', isDeleted: false },
       orderBy: { createdAt: 'desc' },
       include: {
         hostProfile: {
@@ -656,7 +656,9 @@ export class LocumService {
         });
       }
     });
-    // H-003: Notify host that locum declined the confirmed placement
+    // H-003 only (Application Update). Do not also send H-009 here — even when the
+    // shift starts within 24h. H-009 is for last-minute cancellation of an ongoing
+    // commitment, not for declining a host-confirmed placement before acceptance.
     try {
       const jobWithHost = await this.prisma.jobPosting.findUnique({
         where: { id: app.jobPostingId },

@@ -387,8 +387,10 @@ export default function LocumBrowsePage(props: {
   }, []);
   const filteredJobs = useMemo(() => {
     const nowMs = Date.now();
-    let result = jobs.filter((j) =>
-      jobMatchesPostedTimeFilter(j, postedTimeFilter, nowMs),
+    let result = jobs.filter(
+      (j) =>
+        !isJobRemovedByHost(j) &&
+        jobMatchesPostedTimeFilter(j, postedTimeFilter, nowMs),
     );
     if (locationSearch.trim()) {
       const q = locationSearch.trim().toLowerCase();
@@ -642,10 +644,10 @@ export default function LocumBrowsePage(props: {
             </div>
 
             <div
+              className="browse-search-wrap"
               style={{
                 position: 'relative',
                 display: 'inline-block',
-                minWidth: 220,
               }}
             >
               <input
@@ -679,7 +681,6 @@ export default function LocumBrowsePage(props: {
                   fontFamily: 'inherit',
                   outline: 'none',
                   color: '#0f1523',
-                  minWidth: 220,
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = '#3B4FD8';
@@ -1385,7 +1386,7 @@ export default function LocumBrowsePage(props: {
                       <div style={{ marginBottom: 14 }}>
                         <div
                           style={{
-                            fontSize: 'var(--font-small)',
+                            fontSize: 'var(--font-body)',
                             fontWeight: 'var(--font-weight-bold)',
                             color: '#374151',
                             marginBottom: 4,

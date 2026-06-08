@@ -20,7 +20,7 @@ import { ProfileStatusGlyph } from '@/components/ProfileStatusGlyph';
 import { getHostProfileStatusCard } from '@/lib/hostAccountNotice';
 import VerificationStatusPill from '@/components/VerificationStatusPill';
 import { getHostVerificationStatusBadge } from '@/lib/profileVerificationBadge';
-import { MmDdYyyyDateField } from '@/components/host/HostJobPostingFormFields';
+import { HostJobDescriptionField, HostJobTitleField, MmDdYyyyDateField } from '@/components/host/HostJobPostingFormFields';
 import {
     maxIsoDate,
     isPostingEndDatePassed,
@@ -56,22 +56,6 @@ const CREDENTIAL_OPTIONS = sortStringsLocale([
     'BLS (ACLS preferred)',
     'DEA License',
     'PALS Certified',
-]);
-const JOB_TITLE_PRESET_OPTIONS = sortStringsLocale([
-    'Family Physician – Walk-in Clinic',
-    'Family Physician – Collaborative Practice',
-    'Family Physician – Longitudinal Practice',
-    'Family Physician – Long-Term Care (LTC)',
-    'Family Physician – Virtual Care',
-    'Family Physician – Mixed Practice',
-]);
-const JOB_DESCRIPTION_PRESET_OPTIONS = sortStringsLocale([
-    'Walk-in Clinic Coverage',
-    'Collaborative Practice',
-    'Longitudinal Practice',
-    'Long-Term Care (LTC)',
-    'Mixed Practice',
-    'Virtual Care',
 ]);
 type ResponsibilitySectionDef = {
     readonly key: string;
@@ -479,7 +463,7 @@ function ReOpenModal({ job, onConfirm, onCancel, }: {
             background: 'rgba(28,50,130,0.4)',
             zIndex: 300,
         }}/>
-      <div style={{
+      <div className="host-dash-modal" style={{
             position: 'fixed',
             top: '50%',
             left: '50%',
@@ -1143,96 +1127,6 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
             endTime,
         });
     }, [startDateInput, endDateInput, startTime, endTime]);
-    const jobTitleWrapRef = useRef<HTMLDivElement>(null);
-    const jobTitleMenuRef = useRef<HTMLDivElement>(null);
-    const [jobTitleListOpen, setJobTitleListOpen] = useState(false);
-    const [jobTitleMenuBox, setJobTitleMenuBox] = useState<{
-        left: number;
-        top: number;
-        width: number;
-    } | null>(null);
-    const syncJobTitleMenuBox = useCallback(() => {
-        const el = jobTitleWrapRef.current;
-        if (!el)
-            return;
-        const r = el.getBoundingClientRect();
-        setJobTitleMenuBox({ left: r.left, top: r.bottom + 4, width: r.width });
-    }, []);
-    useLayoutEffect(() => {
-        if (!jobTitleListOpen) {
-            setJobTitleMenuBox(null);
-            return;
-        }
-        syncJobTitleMenuBox();
-    }, [jobTitleListOpen, postPanelWidth, syncJobTitleMenuBox]);
-    useEffect(() => {
-        if (!jobTitleListOpen)
-            return;
-        function onDocMouseDown(e: MouseEvent) {
-            const t = e.target as Node;
-            if (jobTitleWrapRef.current?.contains(t))
-                return;
-            if (jobTitleMenuRef.current?.contains(t))
-                return;
-            setJobTitleListOpen(false);
-        }
-        function onReposition() {
-            syncJobTitleMenuBox();
-        }
-        document.addEventListener('mousedown', onDocMouseDown);
-        window.addEventListener('resize', onReposition);
-        window.addEventListener('scroll', onReposition, true);
-        return () => {
-            document.removeEventListener('mousedown', onDocMouseDown);
-            window.removeEventListener('resize', onReposition);
-            window.removeEventListener('scroll', onReposition, true);
-        };
-    }, [jobTitleListOpen, syncJobTitleMenuBox]);
-    const jobDescWrapRef = useRef<HTMLDivElement>(null);
-    const jobDescMenuRef = useRef<HTMLDivElement>(null);
-    const [jobDescListOpen, setJobDescListOpen] = useState(false);
-    const [jobDescMenuBox, setJobDescMenuBox] = useState<{
-        left: number;
-        top: number;
-        width: number;
-    } | null>(null);
-    const syncJobDescMenuBox = useCallback(() => {
-        const el = jobDescWrapRef.current;
-        if (!el)
-            return;
-        const r = el.getBoundingClientRect();
-        setJobDescMenuBox({ left: r.left, top: r.bottom + 4, width: r.width });
-    }, []);
-    useLayoutEffect(() => {
-        if (!jobDescListOpen) {
-            setJobDescMenuBox(null);
-            return;
-        }
-        syncJobDescMenuBox();
-    }, [jobDescListOpen, postPanelWidth, syncJobDescMenuBox]);
-    useEffect(() => {
-        if (!jobDescListOpen)
-            return;
-        function onDocMouseDown(e: MouseEvent) {
-            const t = e.target as Node;
-            if (jobDescWrapRef.current?.contains(t))
-                return;
-            if (jobDescMenuRef.current?.contains(t))
-                return;
-            setJobDescListOpen(false);
-        }
-        function onReposition() {
-            syncJobDescMenuBox();
-        }
-        document.addEventListener('mousedown', onDocMouseDown);
-        window.addEventListener('resize', onReposition);
-        window.addEventListener('scroll', onReposition, true);
-        return () => {
-            document.removeEventListener('mousedown', onDocMouseDown);
-            window.removeEventListener('resize', onReposition);
-            window.removeEventListener('scroll', onReposition, true);
-        };
-    }, [jobDescListOpen, syncJobDescMenuBox]);
     useEffect(() => {
         const trimmed = jobTitle.trim();
         const auto = autoResponsibilitiesForJobTitle(trimmed);
@@ -1499,7 +1393,7 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
             zIndex: 200,
             cursor: savingDraft ? 'wait' : 'pointer',
         }}/>
-      <div style={{
+      <div className="host-job-post-panel" style={{
             position: 'fixed',
             top: 0,
             right: 0,
@@ -1512,7 +1406,7 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
             fontFamily: 'Inter, sans-serif',
             boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
         }}>
-        <div title="Drag to resize" onMouseDown={onPostPanelResizeMouseDown} style={{
+        <div className="host-job-post-panel-resize-handle" title="Drag to resize" onMouseDown={onPostPanelResizeMouseDown} style={{
             position: 'absolute',
             left: 0,
             top: 0,
@@ -1597,137 +1491,18 @@ function JobPostingOverlay({ onClose, onSuccess, onDraftSaved, verified = false,
                 flexDirection: 'column',
                 gap: 14,
             }}>
-                <div ref={jobTitleWrapRef} style={{ position: 'relative' }}>
-                  <label style={lbl}>Job Title *</label>
-                  <div style={{ position: 'relative' }}>
-                    <input style={{
-                ...fieldInp,
-                paddingRight: 40,
-            }} value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Choose a suggested title or type a custom one"/>
-                    <button type="button" aria-expanded={jobTitleListOpen} aria-label="Open suggested job titles" onClick={() => setJobTitleListOpen((v) => !v)} style={{
-                position: 'absolute',
-                right: 2,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: 36,
-                height: 34,
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                color: '#0B0F1F',
-            }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                  {jobTitleListOpen && jobTitleMenuBox ? createPortal(<div ref={jobTitleMenuRef} style={{
-                position: 'fixed',
-                left: jobTitleMenuBox.left,
-                top: jobTitleMenuBox.top,
-                width: jobTitleMenuBox.width,
-                background: '#fff',
-                border: '1px solid #D0D5DD',
-                borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                zIndex: 100020,
-                maxHeight: 260,
-                overflowY: 'auto',
-            }}>
-                    {JOB_TITLE_PRESET_OPTIONS.map((t) => (<button key={t} type="button" onClick={() => {
-                setJobTitle(t);
-                setJobTitleListOpen(false);
-            }} style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '10px 12px',
-                border: 'none',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
-                color: '#0B0F1F',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-            }} onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#F5F6FF';
-            }} onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#fff';
-            }}>
-                        {t}
-                      </button>))}
-                  </div>, document.body) : null}
-                </div>
-                <div ref={jobDescWrapRef} style={{ position: 'relative' }}>
-                  <label style={lbl}>Job Description</label>
-                  <div style={{ position: 'relative' }}>
-                    <textarea style={{
-                ...fieldInp,
-                height: 90,
-                resize: 'none',
-                paddingRight: 40,
-            } as React.CSSProperties} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Describe the role…"/>
-                    <button type="button" aria-expanded={jobDescListOpen} aria-label="Open description templates" onClick={() => setJobDescListOpen((v) => !v)} style={{
-                position: 'absolute',
-                right: 2,
-                top: 10,
-                width: 36,
-                height: 34,
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                color: '#0B0F1F',
-            }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                  {jobDescListOpen && jobDescMenuBox ? createPortal(<div ref={jobDescMenuRef} style={{
-                position: 'fixed',
-                left: jobDescMenuBox.left,
-                top: jobDescMenuBox.top,
-                width: jobDescMenuBox.width,
-                background: '#fff',
-                border: '1px solid #D0D5DD',
-                borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                zIndex: 100020,
-                maxHeight: 280,
-                overflowY: 'auto',
-            }}>
-                    {JOB_DESCRIPTION_PRESET_OPTIONS.map((label) => (<button key={label} type="button" onClick={() => {
-                setJobDescription(label);
-                setJobDescListOpen(false);
-            }} style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '10px 12px',
-                border: 'none',
-                background: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
-                color: '#0B0F1F',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-            }} onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#F5F6FF';
-            }} onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#fff';
-            }}>
-                        {label}
-                      </button>))}
-                  </div>, document.body) : null}
-                </div>
+                <HostJobTitleField
+                  value={jobTitle}
+                  onChange={setJobTitle}
+                  inputStyle={fieldInp}
+                  labelStyle={lbl}
+                />
+                <HostJobDescriptionField
+                  value={jobDescription}
+                  onChange={setJobDescription}
+                  inputStyle={fieldInp}
+                  labelStyle={lbl}
+                />
                 <div>
                   <label style={lbl}>Key Responsibilities</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

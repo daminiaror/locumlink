@@ -672,7 +672,10 @@ export class NotificationsService {
     });
   }
 
-  /** H-009: last-minute cancellation (<24h) — host alert */
+  /**
+   * H-009: last-minute cancellation (<24h) — host alert.
+   * Not used on PATCH .../respond decline (that path is H-003 only).
+   */
   async notifyHostShiftCancelled(params: {
     recipientId: string;
     recipientEmail: string;

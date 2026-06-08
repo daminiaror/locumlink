@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import AuthSplitLayout from '@/components/AuthSplitLayout';
+import GoogleIcon from '@/components/icons/GoogleIcon';
+import MicrosoftIcon from '@/components/icons/MicrosoftIcon';
 import { useAuth } from '@/providers/AuthProvider';
 import { getEmail, saveLastPath } from '@/lib/auth';
 import type { Role } from '@/lib/auth';
@@ -101,6 +103,7 @@ function AuthPageInner() {
     const roleLabel = (r: Role) => (r === 'clinic' ? 'Host' : 'Locum');
 
     return (
+        <>
         <AuthSplitLayout variant="signup">
             <h2 style={{
                 width: '100%', fontSize: 28, fontWeight: 700,
@@ -115,7 +118,7 @@ function AuthPageInner() {
                     width: '100%', fontFamily: 'Inter, sans-serif', fontWeight: 400,
                     fontSize: 20, lineHeight: '140%', color: BRAND.textSecondary, margin: 0,
                 }}>
-                    {mode === 'create' ? 'I\u2019m a' : 'I\u2019m an'}
+                    {mode === 'create' ? 'I\u2019m a' : 'I\u2019m a'}
                 </p>
 
                 <div
@@ -152,7 +155,7 @@ function AuthPageInner() {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 32, width: '100%', boxSizing: 'border-box' }}>
+            <div className="auth-signup-form-stack">
 
                 {lockWarning && (
                     <div style={{ fontSize: 12, color: '#B45309', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 6, padding: '8px 12px' }}>
@@ -160,26 +163,30 @@ function AuthPageInner() {
                     </div>
                 )}
 
-                <div style={{ display: 'flex', gap: 16, width: '100%' }}>
-                    {[
-                        { src: '/google.png', alt: 'Google', title: 'Google', provider: 'google' as const },
-                        { src: '/ms_outlook.png', alt: 'Microsoft Outlook', title: 'Microsoft Outlook', provider: 'azure' as const },
-                    ].map(({ src, alt, title, provider }) => (
+                <div className="auth-oauth-row">
+                    {([
+                        {
+                            title: 'Google',
+                            provider: 'google' as const,
+                            icon: <GoogleIcon size={24} />,
+                        },
+                        {
+                            title: 'Microsoft Outlook',
+                            provider: 'azure' as const,
+                            icon: <MicrosoftIcon size={24} />,
+                        },
+                    ] as const).map(({ title, provider, icon }) => (
                         <button key={title} type="button"
                             title={`Continue with ${title}`}
                             disabled={busyAction !== null}
                             onClick={() => handleOAuth(provider)}
                             suppressHydrationWarning
+                            className="auth-oauth-btn"
                             style={{
-                                flex: 1, padding: '10px',
                                 border: `1px solid ${busyAction === provider ? BRAND.primary : BRAND.border}`,
-                                borderRadius: 6, background: '#fff',
-                                cursor: busyAction !== null ? 'not-allowed' : 'pointer',
                                 opacity: busyAction === provider ? 0.6 : 1,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                transition: 'border-color .15s, opacity .15s',
                             }}>
-                            <Image src={src} alt={alt} width={28} height={28} />
+                            <span className="auth-oauth-btn__icon">{icon}</span>
                         </button>
                     ))}
                 </div>
@@ -241,12 +248,21 @@ function AuthPageInner() {
                 )}
             </p>
         </AuthSplitLayout>
+        <Link href="/home" className="home-admin-login-btn">Home</Link>
+        </>
     );
 }
 
 export default function AuthPage() {
     return (
-        <Suspense fallback={null}>
+        <Suspense fallback={
+            <>
+                <AuthSplitLayout variant="signup">
+                    <div style={{ padding: 24, textAlign: 'center', color: '#6B7280' }}>Loading…</div>
+                </AuthSplitLayout>
+                <Link href="/home" className="home-admin-login-btn">Home</Link>
+            </>
+        }>
             <AuthPageInner />
         </Suspense>
     );

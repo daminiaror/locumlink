@@ -101,7 +101,31 @@ const ALLOWED_UPLOAD_MIME_TYPES = new Set([
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
-const BROWSER_API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
+/** Browser: same-origin `/api/*` (Next rewrites). Server: direct Nest URL. */
+function clientApiBase(): string {
+    if (typeof window !== 'undefined')
+        return '';
+    return (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+}
+
+function apiFetchUrl(path: string): string {
+    const base = clientApiBase();
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return base ? `${base}${normalized}` : normalized;
+}
+
+async function readJsonResponse<T>(res: Response, label: string): Promise<T> {
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+        const preview = (await res.text()).trim().slice(0, 120);
+        throw new Error(
+            `${label} returned HTML instead of JSON (HTTP ${res.status}). `
+            + 'Ensure the Nest API is running on port 3000 and Next rewrites use API_INTERNAL_URL=http://127.0.0.1:3000. '
+            + `Response started with: ${preview || '(empty)'}`,
+        );
+    }
+    return res.json() as Promise<T>;
+}
 export async function uploadFile(file: File, folder?: string): Promise<UploadResult> {
     if (file.size > MAX_UPLOAD_BYTES) {
         throw new Error('File must be 10 MB or smaller.');
@@ -114,8 +138,7 @@ export async function uploadFile(file: File, folder?: string): Promise<UploadRes
     if (folder)
         formData.append('folder', folder);
     const token = getToken();
-    const uploadBase = BROWSER_API_BASE || NEST_BASE;
-    const res = await trackedFetch(`${uploadBase}/api/upload`, {
+    const res = await trackedFetch(apiFetchUrl('/api/upload'), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -180,14 +203,19 @@ export const authApi = {
         accessToken: string;
         refreshToken: string;
     }> => {
-        const authBase = BROWSER_API_BASE || NEST_BASE;
-        const res = await trackedFetch(`${authBase}/api/auth/dev-otp-login`, {
+        const res = await trackedFetch(apiFetchUrl('/api/auth/dev-otp-login'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, role }),
         });
         if (!res.ok) {
             const text = await res.text();
+            if (text.trimStart().startsWith('<')) {
+                throw new Error(
+                    `Dev login hit an HTML page (HTTP ${res.status}), not the API. `
+                    + 'Start the Nest backend on port 3000 and set API_INTERNAL_URL=http://127.0.0.1:3000 in frontend/.env.local, then rebuild the frontend.',
+                );
+            }
             try {
                 const j = JSON.parse(text) as { message?: string | string[] };
                 const msg = j.message;
@@ -202,10 +230,10 @@ export const authApi = {
             }
             throw new Error(text || `dev-otp-login failed: ${res.status}`);
         }
-        return res.json() as Promise<{
-            accessToken: string;
-            refreshToken: string;
-        }>;
+        return readJsonResponse<{ accessToken: string; refreshToken: string }>(
+            res,
+            'Dev login',
+        );
     },
     syncFromSupabase: async (role: Role): Promise<{
         accessToken: string;
@@ -341,7 +369,7 @@ export const landingApi = {
     getRecentHostAvatars: async (): Promise<{
         avatars: string[];
     }> => {
-        const res = await trackedFetch('/api/public/recent-host-avatars', {
+        const res = await trackedFetch(apiFetchUrl('/api/public/recent-host-avatars'), {
             cache: 'no-store',
             headers: nestHeaders(false),
         });
@@ -388,7 +416,7 @@ export const locumApi = {
     getBrowseOpportunitiesCount: async (): Promise<{
         count: number;
     }> => {
-        const res = await trackedFetch('/api/locum/jobs/browse-count', {
+        const res = await trackedFetch(`${NEST_BASE}/api/locum/jobs/browse-count`, {
             cache: 'no-store',
             headers: nestHeaders(false),
         });

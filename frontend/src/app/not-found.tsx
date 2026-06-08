@@ -1,6 +1,6 @@
 import Link from 'next/link';
 export default function NotFound() {
-    return (<main style={{
+    return (<main className="not-found-page" style={{
             minHeight: '100vh',
             display: 'flex',
             alignItems: 'center',

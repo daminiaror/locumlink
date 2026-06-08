@@ -16,7 +16,12 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+    // Internal Nest URL for server-side proxy only (not exposed to the browser).
+    const apiBase = (
+      process.env.API_INTERNAL_URL ??
+      process.env.NEST_INTERNAL_URL ??
+      'http://127.0.0.1:3000'
+    ).replace(/\/$/, '');
     return [
       { source: '/favicon.ico', destination: '/icon-192.png' },
       { source: '/api/admin-auth/:path*', destination: `${apiBase}/api/admin-auth/:path*` },
@@ -30,15 +35,12 @@ const nextConfig: NextConfig = {
         source: '/api/admin/users/:id/profile',
         destination: `${apiBase}/api/admin/users/:id/profile`,
       },
-      { source: '/api/admin/analytics/summary', destination: `${apiBase}/api/admin/analytics/summary` },
-      { source: '/api/admin/analytics/export', destination: `${apiBase}/api/admin/analytics/export` },
       { source: '/api/auth/:path*',       destination: `${apiBase}/api/auth/:path*` },
+      { source: '/api/public/:path*',     destination: `${apiBase}/api/public/:path*` },
+      { source: '/api/host/stats',        destination: `${apiBase}/api/host/stats` },
       { source: '/api/host/:path*',       destination: `${apiBase}/api/host/:path*` },
-      { source: '/api/locum/profile', destination: `${apiBase}/api/locum/profile` },
-      { source: '/api/locum/jobs', destination: `${apiBase}/api/locum/jobs` },
-      { source: '/api/locum/jobs/:jobId/apply', destination: `${apiBase}/api/locum/jobs/:jobId/apply` },
-      { source: '/api/locum/applications', destination: `${apiBase}/api/locum/applications` },
-      { source: '/api/locum/applications/:applicationId/respond', destination: `${apiBase}/api/locum/applications/:applicationId/respond` },
+      { source: '/api/locum/stats',       destination: `${apiBase}/api/locum/stats` },
+      { source: '/api/locum/:path*',      destination: `${apiBase}/api/locum/:path*` },
       { source: '/api/messages/:path*',   destination: `${apiBase}/api/messages/:path*` },
       { source: '/api/upload/:path*',     destination: `${apiBase}/api/upload/:path*` },
       { source: '/api/notifications/:path*', destination: `${apiBase}/api/notifications/:path*` },
