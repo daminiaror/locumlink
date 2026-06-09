@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState, useEffect, KeyboardEvent } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthSplitLayout from '@/components/AuthSplitLayout';
 import { useAuth } from '@/providers/AuthProvider';
@@ -139,7 +140,8 @@ export default function VerifyPage(props: {
     const email = (mounted ? getEmail() : null) ?? 'your email';
     const masked = email.replace(/(.{2}).+(@.+)/, '$1…$2');
     const otpComplete = digits.every((digit) => digit.length === 1);
-    return (<AuthSplitLayout variant="verify">
+    return (<>
+    <AuthSplitLayout variant="verify">
       <h2 style={{
             fontSize: 20,
             fontWeight: 700,
@@ -252,5 +254,7 @@ export default function VerifyPage(props: {
           Edit Email
         </button>
       </div>
-    </AuthSplitLayout>);
+    </AuthSplitLayout>
+    <Link href="/home" className="home-admin-login-btn">Home</Link>
+    </>);
 }

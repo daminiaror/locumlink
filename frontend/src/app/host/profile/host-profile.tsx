@@ -179,6 +179,7 @@ const AMENITY_OPTIONS = sortStringsLocale([
   'Social Worker',
   'Dietitian',
  'Pharmacist',
+'Administrative Support',
 'EMR Training Available',
 'Blood Collection Centre Nearby',
 'Hospital Nearby',
@@ -815,6 +816,7 @@ export default function HostProfilePage(props: {
                   }}
                 >
                   <div
+                    className="profile-status-banner-title"
                     style={{
                       fontFamily: 'Inter, sans-serif',
                       fontWeight: 600,
@@ -848,13 +850,13 @@ export default function HostProfilePage(props: {
                       } as const;
                       if (!isUnderVerification && !isVerified) {
                         return (
-                          <div style={subtitleStyle}>{completionSubtitle}</div>
+                          <div className="profile-status-banner-subtitle" style={subtitleStyle}>{completionSubtitle}</div>
                         );
                       }
                       const badge = getHostVerificationStatusBadge(profile);
                       return (
                         <>
-                          <div style={subtitleStyle}>
+                          <div className="profile-status-banner-subtitle" style={subtitleStyle}>
                             {progressPct}% completed
                           </div>
                           {badge ? <VerificationStatusPill {...badge} /> : null}
@@ -1120,7 +1122,7 @@ export default function HostProfilePage(props: {
                     </svg>
                   )}
                 </div>
-                <span style={cardHeaderTitle}>Basic Information</span>
+                <span className="profile-section-title" style={cardHeaderTitle}>Basic Information</span>
               </div>
 
               <div
@@ -1625,7 +1627,7 @@ export default function HostProfilePage(props: {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span style={cardHeaderTitle}>Clinic Information</span>
+                <span className="profile-section-title" style={cardHeaderTitle}>Clinic Information</span>
               </div>
 
               <div
@@ -1848,7 +1850,7 @@ export default function HostProfilePage(props: {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <span style={cardHeaderTitle}>Practice Details</span>
+                <span className="profile-section-title" style={cardHeaderTitle}>Practice Details</span>
               </div>
 
               <div
@@ -2205,7 +2207,7 @@ export default function HostProfilePage(props: {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <div style={cardHeaderTitle}>Services Offered</div>
+                <div className="profile-section-title" style={cardHeaderTitle}>Services Offered</div>
               </div>
 
               <div
@@ -2216,7 +2218,7 @@ export default function HostProfilePage(props: {
                   width: '100%',
                 }}
               >
-                <div style={subsectionHeading}>Amenities</div>
+                <div className="profile-subsection-title" style={subsectionHeading}>Amenities</div>
 
                 <div
                   style={{
@@ -2405,6 +2407,7 @@ export default function HostProfilePage(props: {
             )}
 
             <button
+              className="profile-primary-btn"
               onClick={handleSave}
               disabled={saving}
               style={{

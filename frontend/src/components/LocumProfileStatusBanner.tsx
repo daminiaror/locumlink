@@ -120,7 +120,7 @@ export default function LocumProfileStatusBanner({
               marginTop: 4,
             }}
           >
-            <span style={{ fontSize: 'var(--font-small)', color: '#5a6478' }}>
+            <span className="profile-status-banner-meta" style={{ fontSize: 'var(--font-small)', color: '#5a6478' }}>
               {completionPct}% Completed
             </span>
             {statusBadge ? <VerificationStatusPill {...statusBadge} /> : null}

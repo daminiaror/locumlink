@@ -184,6 +184,20 @@ export default function LocumProfilePage(props: {
   const [yearsOfExperience, setYearsOfExperience] = useState<number | ''>('');
   const [summary, setSummary] = useState('');
   const [specialityTags, setSpecialityTags] = useState<string[]>([]);
+  const [specialityDropdownOpen, setSpecialityDropdownOpen] = useState(false);
+  const specialityAnchorRef = useRef<HTMLDivElement>(null);
+  const specialityMenuRef = useRef<HTMLDivElement>(null);
+  const specialityMenuBox = useAnchoredDropdownMenu(
+    specialityDropdownOpen,
+    setSpecialityDropdownOpen,
+    specialityAnchorRef,
+    specialityMenuRef,
+    280,
+  );
+  const availableSpecialities = useMemo(
+    () => SPECIALITY_OPTIONS.filter((o) => !specialityTags.includes(o)),
+    [specialityTags],
+  );
 
   /* ── step 2 – contact details ───────────────────────────────────────── */
   const [phone, setPhone] = useState('');
@@ -493,7 +507,42 @@ export default function LocumProfilePage(props: {
       topbarFirstName={firstName}
       topbarLastName={lastName}
     >
-      <style>{PROFILE_FORM_CAPITALIZE_CSS}</style>
+      <style>{`
+        ${PROFILE_FORM_CAPITALIZE_CSS}
+        .locum-speciality-select-mobile {
+          display: none;
+        }
+        @media (max-width: 768px) {
+          .locum-speciality-select-desktop {
+            display: none !important;
+          }
+          .locum-speciality-select-mobile {
+            display: block !important;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+          .locum-speciality-mobile-trigger {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            text-align: left !important;
+          }
+          .locum-speciality-mobile-trigger-label {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+          }
+          .locum-speciality-mobile-option {
+            white-space: normal !important;
+            word-break: break-word !important;
+            text-align: left !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+        }
+      `}</style>
       <div
         className={`${PROFILE_FORM_CAPITALIZE_CLASS} locum-profile-page`}
       >
@@ -645,6 +694,7 @@ export default function LocumProfilePage(props: {
 
           {/* progress label + bar */}
           <div
+            className="profile-progress-meta"
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -860,46 +910,162 @@ export default function LocumProfilePage(props: {
                   minWidth: 0,
                 }}
               >
-                <select
-                  className="locum-speciality-select"
+                <div
+                  className="locum-speciality-select-desktop"
+                  style={{ position: 'relative', width: '100%' }}
+                >
+                  <select
+                    className="locum-speciality-select"
+                    style={{
+                      ...inp,
+                      minHeight: 37,
+                      height: 37,
+                      paddingRight: 32,
+                      appearance: 'none',
+                      width: '100%',
+                    }}
+                    value=""
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v && !specialityTags.includes(v))
+                        setSpecialityTags((t) => [...t, v]);
+                      e.target.selectedIndex = 0;
+                    }}
+                  >
+                    <option value="">Pick Speciality</option>
+                    {availableSpecialities.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      fontSize: 10,
+                      color: '#000',
+                    }}
+                  >
+                    ▼
+                  </span>
+                </div>
+
+                <div
+                  ref={specialityAnchorRef}
+                  className="locum-speciality-select-mobile"
                   style={{
-                    ...inp,
-                    minHeight: 37,
-                    height: 37,
-                    paddingRight: 32,
-                    appearance: 'none',
-                  }}
-                  value=""
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v && !specialityTags.includes(v))
-                      setSpecialityTags((t) => [...t, v]);
-                    e.target.selectedIndex = 0;
+                    position: 'relative',
+                    width: '100%',
+                    minWidth: 0,
                   }}
                 >
-                  <option value="">Pick Speciality</option>
-                  {SPECIALITY_OPTIONS.filter(
-                    (o) => !specialityTags.includes(o),
-                  ).map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-                <span
-                  style={{
-                    position: 'absolute',
-                    right: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    pointerEvents: 'none',
-                    fontSize: 10,
-                    color: '#000',
-                  }}
-                >
-                  ▼
-                </span>
+                  <button
+                    type="button"
+                    className="locum-speciality-mobile-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded={specialityDropdownOpen}
+                    disabled={availableSpecialities.length === 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (availableSpecialities.length === 0) return;
+                      setSpecialityDropdownOpen((v) => !v);
+                    }}
+                    style={{
+                      ...inp,
+                      minHeight: 37,
+                      height: 37,
+                      paddingRight: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      cursor:
+                        availableSpecialities.length === 0
+                          ? 'not-allowed'
+                          : 'pointer',
+                      color:
+                        availableSpecialities.length === 0
+                          ? '#9CA3AF'
+                          : 'rgba(11, 15, 31, 0.4)',
+                    }}
+                  >
+                    <span className="locum-speciality-mobile-trigger-label">
+                      {availableSpecialities.length === 0
+                        ? 'All Specialities Selected'
+                        : 'Pick Speciality'}
+                    </span>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 18 18"
+                      fill="none"
+                      style={{ flexShrink: 0, color: '#6B7280' }}
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M4.5 6.75L9 11.25l4.5-4.5"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <AnchoredDropdownPortal
+                    open={specialityDropdownOpen}
+                    menuBox={specialityMenuBox}
+                    menuRef={specialityMenuRef}
+                    style={{
+                      border: '1px solid #D0D5DD',
+                      borderRadius: 8,
+                      padding: 8,
+                    }}
+                  >
+                    <div
+                      role="listbox"
+                      aria-label="Speciality"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      {availableSpecialities.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          role="option"
+                          className="locum-speciality-mobile-option"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSpecialityTags((t) => [...t, opt]);
+                            setSpecialityDropdownOpen(false);
+                          }}
+                          style={{
+                            all: 'unset',
+                            cursor: 'pointer',
+                            padding: '10px 10px',
+                            borderRadius: 6,
+                            border: '1px solid #E5E7EB',
+                            background: '#fff',
+                            color: '#0B0F1F',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            fontFamily: 'Inter, sans-serif',
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </AnchoredDropdownPortal>
+                </div>
               </div>
             </div>
             <div aria-hidden />
@@ -1367,7 +1533,7 @@ export default function LocumProfilePage(props: {
                   )}
                 </div>
               </div>
-              <p style={documentFormatHint}>
+              <p className="profile-form-hint" style={documentFormatHint}>
                 Accepted formats: PDF, DOC, DOCX, PNG.
               </p>
               <input
@@ -1504,7 +1670,7 @@ export default function LocumProfilePage(props: {
                   )}
                 </div>
               </div>
-              <p style={documentFormatHint}>
+              <p className="profile-form-hint" style={documentFormatHint}>
                 Accepted formats: PDF, DOC, DOCX, PNG.
               </p>
               <input
@@ -1643,7 +1809,7 @@ export default function LocumProfilePage(props: {
               )}
             </div>
           </div>
-          <p style={documentFormatHint}>
+          <p className="profile-form-hint" style={documentFormatHint}>
             Accepted formats: PDF, DOC, DOCX, PNG.
           </p>
           <input
@@ -1688,6 +1854,7 @@ export default function LocumProfilePage(props: {
         )}
 
         <button
+          className="profile-primary-btn"
           onClick={handleSave}
           disabled={saving}
           style={{

@@ -856,7 +856,7 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
             setDeleting(false);
         }
     }
-    return (<div style={{
+    return (<div className="host-dash-job-card" style={{
             border: isSoftDeleted
                 ? '1px dashed #D1D5DB'
                 : showExpiredActiveCard
@@ -872,7 +872,7 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
             boxSizing: 'border-box',
             opacity: showExpiredActiveCard || isSoftDeleted ? 0.92 : 1,
         }}>
-      <div style={{
+      <div className="host-dash-job-card-header" style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
@@ -941,7 +941,7 @@ function JobCard({ job, expandedJobId, applications, loadingAppsFor, onToggleApp
         </div>
 
         
-        <div style={{
+        <div className="host-dash-job-card-actions" style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-end',
@@ -2401,8 +2401,8 @@ export default function HostDashboard(props: {
               </div>
 
               
-              <div style={{
-            marginTop: 16,
+              <div className="host-dash-job-list" style={{
+            marginTop: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 12,
