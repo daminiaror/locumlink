@@ -7,6 +7,8 @@ loadEnv({ path: new URL('../backend/.env', import.meta.url) });
 const DEFAULT_ADMINS = [
   { email: 'admin@locumlink.ca', name: 'Locum Link Admin' },
   { email: 'info@aebeolleconsulting.com', name: 'Aebeolle Admin' },
+  { email: 'aroradamini873@gmail.com', name: 'Testing Admin' },
+  { email: 'fayanife@gmail.com', name: 'Admin' },
 ];
 
 function parseAdminsFromEnv() {
