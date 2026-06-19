@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+        ],
+      },
+      {
         source: '/sw.js',
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
@@ -16,7 +25,6 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    // Internal Nest URL for server-side proxy only (not exposed to the browser).
     const apiBase = (
       process.env.API_INTERNAL_URL ??
       process.env.NEST_INTERNAL_URL ??
@@ -26,23 +34,11 @@ const nextConfig: NextConfig = {
       { source: '/favicon.ico', destination: '/icon-192.png' },
       { source: '/api/admin-auth/:path*', destination: `${apiBase}/api/admin-auth/:path*` },
       { source: '/api/admin/stats', destination: `${apiBase}/api/admin/stats` },
-      {
-        source: '/api/admin/analytics/summary',
-        destination: `${apiBase}/api/admin/analytics/summary`,
-      },
-      {
-        source: '/api/admin/analytics/export',
-        destination: `${apiBase}/api/admin/analytics/export`,
-      },
+      { source: '/api/admin/analytics/summary', destination: `${apiBase}/api/admin/analytics/summary` },
+      { source: '/api/admin/analytics/export', destination: `${apiBase}/api/admin/analytics/export` },
       { source: '/api/admin/notifications', destination: `${apiBase}/api/admin/notifications` },
-      {
-        source: '/api/admin/notifications/:id/read',
-        destination: `${apiBase}/api/admin/notifications/:id/read`,
-      },
-      {
-        source: '/api/admin/users/:id/profile',
-        destination: `${apiBase}/api/admin/users/:id/profile`,
-      },
+      { source: '/api/admin/notifications/:id/read', destination: `${apiBase}/api/admin/notifications/:id/read` },
+      { source: '/api/admin/users/:id/profile', destination: `${apiBase}/api/admin/users/:id/profile` },
       { source: '/api/auth/:path*',       destination: `${apiBase}/api/auth/:path*` },
       { source: '/api/public/:path*',     destination: `${apiBase}/api/public/:path*` },
       { source: '/api/host/stats',        destination: `${apiBase}/api/host/stats` },
@@ -71,10 +67,7 @@ export default withPWA({
   customWorkerDir: 'worker',
   disable: process.env.NODE_ENV === 'development',
   fallbacks: { document: '/offline' },
-  workboxOptions: {
-    // Admin auth must always hit the network — never substitute /offline or a stale shell.
-    navigateFallbackDenylist: [/^\/admin/, /^\/api/, /^\/_next/],
-  },
+  navigateFallbackDenylist: [/^\/admin/, /^\/api/, /^\/_next/],
   runtimeCaching: [
     {
       urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),

@@ -506,3 +506,21 @@ model PushSubscription {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("push_subscriptions")
 }
+
+model ErrorLog {
+  id          String   @id @default(cuid())
+  userId      String?  @map("user_id")
+  route       String?
+  method      String?
+  statusCode  Int?     @map("status_code")
+  message     String
+  stack       String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  alerted     Boolean  @default(false)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([statusCode])
+  @@map("error_logs")
+}

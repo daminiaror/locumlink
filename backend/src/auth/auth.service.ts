@@ -386,6 +386,15 @@ export class AuthService {
           `ZeptoMail failed (${result.error}); local dev OTP for ${normalizedEmail}: ${otp}`,
         );
       }
+      this.prisma.errorLog.create({
+        data: {
+          route: 'auth/sendOtp',
+          method: 'POST',
+          statusCode: 400,
+          message: `OTP email failed for ${normalizedEmail}: ${result.error}`,
+          metadata: { email: normalizedEmail, provider: 'zeptomail', error: result.error },
+        },
+      }).catch(() => {});
       throw new BadRequestException(
         `Could not send verification email. ${result.error}`,
       );

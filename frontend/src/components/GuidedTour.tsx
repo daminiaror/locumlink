@@ -153,6 +153,7 @@ export default function GuidedTour() {
         function pollForElements() {
             if (cancelled || launchedRef.current) return;
 
+            if (!tourConfig) return;
             const resolved = resolveTourSteps(tourConfig.steps);
             if (resolved.length > 0) {
                 launchTour(resolved);

@@ -17,6 +17,9 @@ import { validate } from './config/env.validation.js';
 import { AdminAuthModule } from './admin-auth/admin-auth.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { SchedulerModule } from './scheduler/scheduler.module.js';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ErrorLogInterceptor } from './common/error-log.interceptor.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -41,11 +44,20 @@ import { SchedulerModule } from './scheduler/scheduler.module.js';
     AdminAuthModule,
     AdminModule,
     SchedulerModule,
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ErrorLogInterceptor,
     },
   ],
 })

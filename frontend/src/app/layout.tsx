@@ -10,6 +10,7 @@ import TopLoadingBar from '@/components/ui/TopLoadingBar';
 import RouteTransitionLoader from '@/components/ui/RouteTransitionLoader';
 import PageLoader from '@/components/ui/PageLoader';
 import { Suspense } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const inter = Inter({
     subsets: ['latin'],
@@ -58,7 +59,7 @@ export default function RootLayout({ children, }: {
                     <AuthSync />
                     <PathTracker />
                     <GuidedTourGate />
-                    <Providers>{children}</Providers>
+                    <ErrorBoundary><Providers>{children}</Providers></ErrorBoundary>
                 </div>
 <GoogleAnalytics gaId="G-JLBQZSQFW3" />
             </body>
