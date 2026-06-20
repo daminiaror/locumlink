@@ -1,4 +1,5 @@
-import type { PostingStatus, Prisma } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
+import { Prisma, type PostingStatus } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { browseShiftStartActiveSql } from '../../host/job-schedule.util.js';
 import { buildCursorQuery, decodeCursor, toPaginatedResult } from './cursor.util.js';
@@ -20,7 +21,14 @@ async function paginateJobPostingsWithShiftFilter(
 ): Promise<PaginatedResult<Prisma.JobPostingGetPayload<{ include: Prisma.JobPostingInclude }>>> {
   const { cursor, limit, direction } = pagination;
   const shiftActive = browseShiftStartActiveSql();
-  const cursorId = cursor ? decodeCursor(cursor) : null;
+  let cursorId: string | null = null;
+  if (cursor) {
+    try {
+      cursorId = decodeCursor(cursor);
+    } catch {
+      throw new BadRequestException('Invalid cursor');
+    }
+  }
 
   const statusClause = filters.status
     ? Prisma.sql`AND status = ${filters.status}::"PostingStatus"`
@@ -39,7 +47,7 @@ async function paginateJobPostingsWithShiftFilter(
         ? Prisma.sql`AND id > ${cursorId}`
         : Prisma.empty;
   const orderClause =
-    direction === 'desc' ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+    direction === 'desc' ? Prisma.raw('DESC') : Prisma.raw('ASC');
 
   const idRows = await prisma.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM job_postings

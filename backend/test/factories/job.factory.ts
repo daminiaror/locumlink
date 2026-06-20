@@ -13,8 +13,10 @@ export function futureCalendarDate(daysFromNow: number): string {
 export type CreateJobOptions = {
   status?: PostingStatus;
   title?: string;
-  startDate?: Date;
-  endDate?: Date;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 export async function createJobPosting(
@@ -22,8 +24,14 @@ export async function createJobPosting(
   options: CreateJobOptions = {},
 ): Promise<JobPosting> {
   const db = getTestDb();
-  const start = options.startDate ?? new Date(`${futureCalendarDate(30)}T00:00:00.000Z`);
-  const end = options.endDate ?? new Date(`${futureCalendarDate(37)}T00:00:00.000Z`);
+  const start =
+    options.startDate !== undefined
+      ? options.startDate
+      : new Date(`${futureCalendarDate(30)}T00:00:00.000Z`);
+  const end =
+    options.endDate !== undefined
+      ? options.endDate
+      : new Date(`${futureCalendarDate(37)}T00:00:00.000Z`);
 
   return db.jobPosting.create({
     data: {
@@ -37,6 +45,8 @@ export async function createJobPosting(
       fullHalfDay: 'FULL_DAY',
       startDate: start,
       endDate: end,
+      startTime: options.startTime ?? null,
+      endTime: options.endTime ?? null,
       keyResponsibilities: [],
       requiredCredentials: [],
     },
