@@ -144,10 +144,16 @@ export class AdminService {
         _count: { id: true },
       }),
       this.prisma.hostProfile.count({
-        where: { cpsnsVerificationStatus: VerificationStatus.VERIFIED },
+        where: {
+          cpsnsVerificationStatus: VerificationStatus.VERIFIED,
+          user: { role: Role.HOST },
+        },
       }),
       this.prisma.locumProfile.count({
-        where: { cpsnsVerificationStatus: VerificationStatus.VERIFIED },
+        where: {
+          cpsnsVerificationStatus: VerificationStatus.VERIFIED,
+          user: { role: Role.LOCUM },
+        },
       }),
       this.prisma.locumProfile.count({
         where: { cpsnsVerificationStatus: { in: VERIFICATION_PENDING_FILTER } },

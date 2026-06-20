@@ -1,10 +1,9 @@
-import { IsEmail, IsIn, IsOptional } from 'class-validator';
+import { IsEmail, IsIn } from 'class-validator';
 
 export class SendOtpDto {
   @IsEmail()
   email: string;
 
-  @IsOptional()
   @IsIn(['locum', 'clinic'])
-  role?: 'locum' | 'clinic';
+  role: 'locum' | 'clinic';
 }

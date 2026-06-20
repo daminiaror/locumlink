@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -71,13 +72,29 @@ export class AuthService {
     private readonly email: EmailService,
   ) {}
 
+  private async assertNoAdminUserEmailBlock(
+    email: string,
+    intendedRole: Role,
+  ): Promise<void> {
+    if (intendedRole === Role.ADMIN) return;
+    const adminRow = await this.prisma.user.findUnique({
+      where: { email_role: { email, role: Role.ADMIN } },
+    });
+    if (adminRow) {
+      throw new ForbiddenException(
+        'This email is reserved for an admin account and cannot be used for host or locum signup.',
+      );
+    }
+  }
+
   async register(
     dto: RegisterDto,
     meta: { ip?: string; userAgent?: string },
   ): Promise<AuthTokens> {
     const email = dto.email.toLowerCase();
+    await this.assertNoAdminUserEmailBlock(email, dto.role);
     const existing = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email_role: { email, role: dto.role } },
     });
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
@@ -99,7 +116,6 @@ export class AuthService {
           where: { id: existing.id },
           data: {
             passwordHash,
-            role: dto.role,
             status: UserStatus.PENDING,
             deactivatedAt: null,
             consentGivenAt: dto.consentGiven === true ? new Date() : null,
@@ -126,7 +142,7 @@ export class AuthService {
         });
         return this.issueTokens(user);
       }
-      throw new ConflictException('Email already registered');
+      throw new ConflictException('Email already registered for this role');
     }
 
     const user = await this.prisma.user.create({
@@ -184,7 +200,11 @@ export class AuthService {
     dto: LoginDto,
     meta: { ip?: string; userAgent?: string },
   ): Promise<AuthTokens> {
-    let user = await this.validateCredentials(dto.email, dto.password);
+    let user = await this.validateCredentials(
+      dto.email,
+      dto.password,
+      dto.role,
+    );
     const reactivated =
       user.status === UserStatus.DEACTIVATED &&
       isWithinDeactivationRetention(user.deactivatedAt);
@@ -210,9 +230,14 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  async validateCredentials(email: string, password: string): Promise<User> {
+  async validateCredentials(
+    email: string,
+    password: string,
+    role: Role,
+  ): Promise<User> {
+    await this.assertNoAdminUserEmailBlock(email.toLowerCase(), role);
     const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email_role: { email: email.toLowerCase(), role } },
     });
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -304,14 +329,19 @@ export class AuthService {
     }
   }
 
-  async sendOtp(email: string | undefined): Promise<void> {
+  async sendOtp(email: string | undefined, role: Role): Promise<void> {
     const normalizedEmail = email?.trim().toLowerCase();
     if (!normalizedEmail) {
       throw new BadRequestException('Email is required');
     }
+    await this.assertNoAdminUserEmailBlock(normalizedEmail, role);
 
     const recent = await this.prisma.otp.findFirst({
-      where: { email: normalizedEmail, purpose: USER_OTP_PURPOSE },
+      where: {
+        email: normalizedEmail,
+        role,
+        purpose: USER_OTP_PURPOSE,
+      },
       orderBy: { createdAt: 'desc' },
     });
     if (
@@ -332,11 +362,16 @@ export class AuthService {
 
     await this.prisma.$transaction([
       this.prisma.otp.deleteMany({
-        where: { email: normalizedEmail, purpose: USER_OTP_PURPOSE },
+        where: {
+          email: normalizedEmail,
+          role,
+          purpose: USER_OTP_PURPOSE,
+        },
       }),
       this.prisma.otp.create({
         data: {
           email: normalizedEmail,
+          role,
           otp,
           expiresAt,
           purpose: USER_OTP_PURPOSE,
@@ -418,6 +453,7 @@ export class AuthService {
     const record = await this.prisma.otp.findFirst({
       where: {
         email: normalizedEmail,
+        role: roleHint,
         otp: code,
         purpose: USER_OTP_PURPOSE,
       },
@@ -428,7 +464,11 @@ export class AuthService {
     }
 
     await this.prisma.otp.deleteMany({
-      where: { email: normalizedEmail, purpose: USER_OTP_PURPOSE },
+      where: {
+        email: normalizedEmail,
+        role: roleHint,
+        purpose: USER_OTP_PURPOSE,
+      },
     });
 
     const user = await this.findOrCreateUserForSupabase(
@@ -442,7 +482,11 @@ export class AuthService {
     email: string,
     roleHint: Role,
   ): Promise<User> {
-    const existing = await this.prisma.user.findUnique({ where: { email } });
+    await this.assertNoAdminUserEmailBlock(email, roleHint);
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email_role: { email, role: roleHint } },
+    });
     if (existing) {
       if (existing.status === UserStatus.SUSPENDED) {
         throw new ForbiddenException(
@@ -451,56 +495,28 @@ export class AuthService {
       }
       if (existing.status === UserStatus.DEACTIVATED) {
         if (isWithinDeactivationRetention(existing.deactivatedAt)) {
-          const data: Partial<
-            Pick<
-              User,
-              | 'role'
-              | 'status'
-              | 'emailVerified'
-              | 'emailVerifiedAt'
-              | 'lastLoginAt'
-              | 'deactivatedAt'
-            >
-          > = {
-            status: UserStatus.ACTIVE,
-            deactivatedAt: null,
-            emailVerified: true,
-            emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
-            lastLoginAt: new Date(),
-          };
-          if (existing.role !== roleHint && existing.role !== Role.ADMIN) {
-            data.role = roleHint;
-          }
           return this.prisma.user.update({
             where: { id: existing.id },
-            data,
+            data: {
+              status: UserStatus.ACTIVE,
+              deactivatedAt: null,
+              emailVerified: true,
+              emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
+              lastLoginAt: new Date(),
+            },
           });
         }
         await this.resetUserToFreshStart(existing.id);
       }
-      const data: Partial<
-        Pick<
-          User,
-          | 'role'
-          | 'status'
-          | 'emailVerified'
-          | 'emailVerifiedAt'
-          | 'lastLoginAt'
-          | 'deactivatedAt'
-        >
-      > = {
-        status: UserStatus.ACTIVE,
-        deactivatedAt: null,
-        emailVerified: true,
-        emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
-        lastLoginAt: new Date(),
-      };
-      if (existing.role !== roleHint && existing.role !== Role.ADMIN) {
-        data.role = roleHint;
-      }
       return this.prisma.user.update({
         where: { id: existing.id },
-        data,
+        data: {
+          status: UserStatus.ACTIVE,
+          deactivatedAt: null,
+          emailVerified: true,
+          emailVerifiedAt: existing.emailVerifiedAt ?? new Date(),
+          lastLoginAt: new Date(),
+        },
       });
     }
     const passwordHash = await bcrypt.hash(randomUUID(), BCRYPT_ROUNDS);

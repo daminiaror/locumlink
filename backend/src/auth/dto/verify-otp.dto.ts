@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { IsEmail, IsIn, IsString, Length } from 'class-validator';
 
 export class VerifyOtpDto {
   @IsEmail()
@@ -8,7 +8,6 @@ export class VerifyOtpDto {
   @Length(6, 6)
   otp: string;
 
-  @IsOptional()
   @IsIn(['locum', 'clinic'])
-  role?: 'locum' | 'clinic';
+  role: 'locum' | 'clinic';
 }

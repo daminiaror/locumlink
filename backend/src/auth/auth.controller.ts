@@ -85,7 +85,9 @@ export class AuthController {
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @HttpCode(HttpStatus.OK)
   async sendOtp(@Body() dto: SendOtpDto): Promise<{ success: true }> {
-    await this.authService.sendOtp(dto.email);
+    const prismaRole: PrismaRole =
+      dto.role === 'clinic' ? PrismaRole.HOST : PrismaRole.LOCUM;
+    await this.authService.sendOtp(dto.email, prismaRole);
     return { success: true };
   }
 

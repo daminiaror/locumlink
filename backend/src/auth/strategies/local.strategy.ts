@@ -1,14 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { User } from '@prisma/client';
+import { Role, User } from '@prisma/client';
+import { Request } from 'express';
 import { Strategy } from 'passport-local';
 import { AuthService } from '../auth.service.js';
+
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private readonly authService: AuthService) {
-    super({ usernameField: 'email' });
+    super({ usernameField: 'email', passReqToCallback: true });
   }
-  async validate(email: string, password: string): Promise<User> {
-    return this.authService.validateCredentials(email, password);
+
+  async validate(
+    req: Request,
+    email: string,
+    password: string,
+  ): Promise<User> {
+    const role = req.body?.role as Role | undefined;
+    if (!role || !Object.values(Role).includes(role)) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return this.authService.validateCredentials(email, password, role);
   }
 }

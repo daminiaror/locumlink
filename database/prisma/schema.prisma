@@ -101,7 +101,7 @@ enum AuditAction {
 
 model User {
   id                 String     @id @default(cuid())
-  email              String     @unique
+  email              String
   passwordHash       String
   role               Role
   status             UserStatus @default(PENDING)
@@ -135,6 +135,7 @@ model User {
   notifications      NotificationEvent[]
   pushSubscriptions  PushSubscription[]
 
+  @@unique([email, role])
   @@map("users")
 }
 
@@ -452,14 +453,14 @@ model EmailLog {
 model Otp {
   id        String   @id @default(cuid())
   email     String
+  role      Role?
   otp       String
   expiresAt DateTime
   createdAt DateTime @default(now())
   purpose   String?
   adminId   String?  @map("admin_id")
 
-  @@index([email])
-  @@index([email, purpose])
+  @@index([email, role, purpose])
   @@index([adminId, purpose])
   @@map("otps")
 }

@@ -27,11 +27,17 @@ export async function GET(req: Request) {
     db.user.count(),
     db.user.count({ where: { role: 'HOST' } }),
     db.hostProfile.count({
-      where: { cpsnsVerificationStatus: 'VERIFIED' },
+      where: {
+        cpsnsVerificationStatus: 'VERIFIED',
+        user: { role: 'HOST' },
+      },
     }),
     db.user.count({ where: { role: 'LOCUM' } }),
     db.locumProfile.count({
-      where: { cpsnsVerificationStatus: 'VERIFIED' },
+      where: {
+        cpsnsVerificationStatus: 'VERIFIED',
+        user: { role: 'LOCUM' },
+      },
     }),
     db.locumProfile.count({
       where: {

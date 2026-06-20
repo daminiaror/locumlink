@@ -46,7 +46,7 @@ describe('Journey 4 — Auth and access control', () => {
 
     const res = await ctx.agent
       .post('/api/auth/login')
-      .send({ email: locum.user.email, password: locum.password })
+      .send({ email: locum.user.email, password: locum.password, role: 'LOCUM' })
       .expect(200);
 
     expect(res.body).toEqual(
@@ -62,7 +62,7 @@ describe('Journey 4 — Auth and access control', () => {
 
     await ctx.agent
       .post('/api/auth/login')
-      .send({ email: locum.user.email, password: 'WrongPass1!' })
+      .send({ email: locum.user.email, password: 'WrongPass1!', role: 'LOCUM' })
       .expect(401);
   });
 
@@ -81,7 +81,7 @@ describe('Journey 4 — Auth and access control', () => {
 
     const res = await ctx.agent
       .post('/api/auth/login')
-      .send({ email: admin.user.email, password: admin.password })
+      .send({ email: admin.user.email, password: admin.password, role: 'ADMIN' })
       .expect(200);
 
     expect(res.body.accessToken).toEqual(expect.any(String));
