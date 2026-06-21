@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { Prisma, type PostingStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PostingStatus } from '@prisma/client';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { browseShiftStartActiveSql } from '../../host/job-schedule.util.js';
 import { buildCursorQuery, decodeCursor, toPaginatedResult } from './cursor.util.js';

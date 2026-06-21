@@ -16,7 +16,9 @@ export function sanitizeErrorMessage(
     fallback = GENERIC_USER_ERROR,
 ): string {
     const msg = (message ?? '').trim();
-    if (!msg || isTechnicalErrorMessage(msg))
+    if (!msg)
+        return '';
+    if (isTechnicalErrorMessage(msg))
         return fallback;
     return msg;
 }
