@@ -6,6 +6,7 @@ import AuthSplitLayout from '@/components/AuthSplitLayout';
 import { useAuth } from '@/providers/AuthProvider';
 import { getEmail, saveLastPath } from '@/lib/auth';
 import type { Role } from '@/lib/auth';
+import { sanitizeErrorMessage, toUserFacingError } from '@/lib/userFacingError';
 
 type Mode = 'create' | 'signin';
 
@@ -47,13 +48,13 @@ export default function AuthPage() {
     const roleLocked = params.get('locked') === 'true';
     const [lockWarning, setLockWarning] = useState<string | null>(null);
     const [email, setEmail] = useState('');
-    const [error, setError] = useState(() => params.get('error') ?? '');
+    const [error, setError] = useState(() => sanitizeErrorMessage(params.get('error')));
     const [busyAction, setBusyAction] = useState<null | 'email' | 'google' | 'azure'>(null);
 
     useEffect(() => {
         if (params.get('mode') === 'signin') setMode('signin');
         if (params.get('role') === 'clinic') setRole('clinic');
-        setError(params.get('error') ?? '');
+        setError(sanitizeErrorMessage(params.get('error')));
     }, [params]);
 
     useEffect(() => {
@@ -76,7 +77,7 @@ export default function AuthPage() {
             await sendOtp(email, role);
             router.replace(`/auth/verify?role=${encodeURIComponent(role)}`);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+            setError(toUserFacingError(err));
         } finally {
             setBusyAction(null);
         }
@@ -92,7 +93,7 @@ export default function AuthPage() {
             }
             await signInWithOAuth(provider, role);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Could not start social sign-in. Please try again.');
+            setError(toUserFacingError(err, 'Could not start social sign-in. Please try again.'));
             setBusyAction(null);
         }
     }

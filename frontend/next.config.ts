@@ -38,6 +38,8 @@ const nextConfig: NextConfig = {
       { source: '/api/admin/analytics/export', destination: `${apiBase}/api/admin/analytics/export` },
       { source: '/api/admin/notifications', destination: `${apiBase}/api/admin/notifications` },
       { source: '/api/admin/notifications/:id/read', destination: `${apiBase}/api/admin/notifications/:id/read` },
+      { source: '/api/admin/verifications', destination: `${apiBase}/api/admin/verifications` },
+      { source: '/api/admin/verifications/:path*', destination: `${apiBase}/api/admin/verifications/:path*` },
       { source: '/api/admin/users/:id/profile', destination: `${apiBase}/api/admin/users/:id/profile` },
       { source: '/api/auth/:path*',       destination: `${apiBase}/api/auth/:path*` },
       { source: '/api/public/:path*',     destination: `${apiBase}/api/public/:path*` },

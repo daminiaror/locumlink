@@ -8,7 +8,7 @@ export type FixedDropdownBox = {
 const DROPDOWN_VIEWPORT_PAD = 8;
 const DROPDOWN_GAP = 4;
 
-/** Keep anchored menus inside the viewport (mobile-safe; desktop unchanged when space allows). */
+/** Keep anchored menus inside the viewport (works at all widths including tablet 769–1024px). */
 export function computeFixedDropdownBox(
     anchor: DOMRect,
     preferredMaxHeight: number,

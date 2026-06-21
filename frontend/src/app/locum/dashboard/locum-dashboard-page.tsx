@@ -20,6 +20,15 @@ import {
 } from '@/lib/localDateTime';
 import { relativeHoursOrDaysAgo } from '@/lib/relativeTime';
 import { beforeClientNavigation } from '@/lib/topLoader';
+import { CountBadge } from '@/components/CountBadge';
+
+const LOCUM_TABS = [
+    { id: 'recent' as const, label: 'Recent Applications' },
+    { id: 'upcoming' as const, label: 'Upcoming Shifts' },
+    { id: 'ongoing' as const, label: 'Ongoing Shifts' },
+    { id: 'completed' as const, label: 'Completed Shifts' },
+];
+
 const NAV = [
     {
         label: 'Browse Opportunities',
@@ -131,7 +140,7 @@ export default function LocumDashboard(props: {
     useNextPageClientProps(props);
     const router = useRouter();
     const { isLoading: authLoading, userId } = useAuth();
-    const [tab, setTab] = useState<'recent' | 'upcoming' | 'completed'>('recent');
+    const [tab, setTab] = useState<'recent' | 'upcoming' | 'ongoing' | 'completed'>('recent');
     const [profile, setProfile] = useState<LocumProfile | null>(null);
     const [profileError, setProfileError] = useState<string | null>(null);
     const [applications, setApplications] = useState<MyApplication[]>([]);
@@ -214,39 +223,68 @@ export default function LocumDashboard(props: {
     const cpsnsVerified = isCpsnsVerificationApproved(profile?.cpsnsVerificationStatus);
     const todayStart =
         startOfLocalCalendarDay(localCalendarDateToIso()) ?? new Date();
-    const tabApps = applications.filter((app) => {
+    const isRecentApplication = (app: MyApplication) => app.status === 'APPLIED'
+        || app.status === 'SHORTLISTED'
+        || app.status === 'CONFIRMED'
+        || app.locumResponse === 'ACCEPTED'
+        || app.locumResponse === 'REJECTED';
+    const isUpcomingApplication = (app: MyApplication) => {
+        const startDate = localDateFromCalendarInput(
+            app.jobPosting.startDate ?? null,
+        );
+        return app.status === 'CONFIRMED'
+            && !!app.locumAcceptedAt
+            && startDate
+            && startDate.getTime() > todayStart.getTime();
+    };
+    const isOngoingApplication = (app: MyApplication) => {
         const startDate = localDateFromCalendarInput(
             app.jobPosting.startDate ?? null,
         );
         const endDate = localDateFromCalendarInput(
             app.jobPosting.endDate ?? null,
         );
+        return app.status === 'CONFIRMED'
+            && !!app.locumAcceptedAt
+            && startDate
+            && endDate
+            && startDate.getTime() <= todayStart.getTime()
+            && endDate.getTime() >= todayStart.getTime();
+    };
+    const isCompletedApplication = (app: MyApplication) => {
+        const endDate = localDateFromCalendarInput(
+            app.jobPosting.endDate ?? null,
+        );
+        return app.status === 'CONFIRMED'
+            && !!app.locumAcceptedAt
+            && endDate
+            && endDate.getTime() < todayStart.getTime();
+    };
+    const tabApps = applications.filter((app) => {
         if (tab === 'recent')
-            return app.status === 'APPLIED' || app.status === 'SHORTLISTED' || app.status === 'CONFIRMED' || app.locumResponse === 'ACCEPTED' || app.locumResponse === 'REJECTED';
+            return isRecentApplication(app);
         if (tab === 'upcoming')
-            return app.status === 'CONFIRMED' &&
-                !!app.locumAcceptedAt &&
-                startDate &&
-                startDate.getTime() > todayStart.getTime();
+            return isUpcomingApplication(app);
+        if (tab === 'ongoing')
+            return isOngoingApplication(app);
         if (tab === 'completed')
-            return app.status === 'CONFIRMED' &&
-                !!app.locumAcceptedAt &&
-                endDate &&
-                endDate.getTime() < todayStart.getTime();
+            return isCompletedApplication(app);
         return false;
     });
     const locumAcceptedApplication = (a: MyApplication) => a.locumResponse === 'ACCEPTED' || !!a.locumAcceptedAt;
     const acceptedFromApps = applications.filter(locumAcceptedApplication).length;
-    const completedFromApps = applications.filter((a) => {
-        if (!locumAcceptedApplication(a))
-            return false;
-        const endDate = localDateFromCalendarInput(
-            a.jobPosting.endDate ?? null,
-        );
-        return !!endDate && endDate.getTime() < todayStart.getTime();
-    }).length;
+    const completedFromApps = applications.filter(isCompletedApplication).length;
+    const recentCount = applications.filter(isRecentApplication).length;
+    const upcomingCount = applications.filter(isUpcomingApplication).length;
+    const ongoingCount = applications.filter(isOngoingApplication).length;
     const acceptedCount = shiftStats?.totalAcceptedShifts ?? acceptedFromApps;
     const completedCount = shiftStats?.completedShifts ?? completedFromApps;
+    const locumTabCounts: Record<(typeof LOCUM_TABS)[number]['id'], number> = {
+        recent: recentCount,
+        upcoming: upcomingCount,
+        ongoing: ongoingCount,
+        completed: completedCount,
+    };
     async function respondToPlacement(appId: string, response: 'accept' | 'decline') {
         setRespondError(null);
         setRespondingAppId(appId);
@@ -344,23 +382,24 @@ export default function LocumDashboard(props: {
             marginBottom: 16,
             flexShrink: 0,
         }}>
-        {(['recent', 'upcoming', 'completed'] as const).map((t) => (<button key={t} onClick={() => setTab(t)} style={{
+        {LOCUM_TABS.map((t) => (<button key={t.id} onClick={() => setTab(t.id)} style={{
                 padding: '8px 14px',
                 border: 'none',
                 background: 'transparent',
                 fontSize: 12,
-                fontWeight: tab === t ? 600 : 400,
-                color: tab === t ? '#0f1523' : '#8892a4',
-                borderBottom: tab === t ? '2px solid #0f1523' : '2px solid transparent',
+                fontWeight: tab === t.id ? 600 : 400,
+                color: tab === t.id ? '#0f1523' : '#8892a4',
+                borderBottom: tab === t.id ? '2px solid #0f1523' : '2px solid transparent',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 textTransform: 'uppercase',
             }}>
-            {t === 'recent'
-                ? 'Recent Applications'
-                : t === 'upcoming'
-                    ? 'Upcoming Shifts'
-                    : 'Completed Shifts'}
+            <span className="locum-dash-tab-label">
+              {t.label}
+              {!loading && (
+                <CountBadge count={locumTabCounts[t.id]} variant="tab" />
+              )}
+            </span>
           </button>))}
       </div>
 
@@ -405,7 +444,9 @@ export default function LocumDashboard(props: {
                 ? 'No applications yet'
                 : tab === 'upcoming'
                     ? 'No Upcoming Shifts'
-                    : 'No Completed Shifts'}
+                    : tab === 'ongoing'
+                        ? 'No Ongoing Shifts'
+                        : 'No Completed Shifts'}
           </div>
           {tab === 'recent' ? (
           <div style={{ fontSize: 12, color: '#8892a4', marginBottom: 20 }}>

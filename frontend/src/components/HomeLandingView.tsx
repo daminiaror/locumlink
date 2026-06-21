@@ -19,6 +19,29 @@ function footerAvatarSources(hostUrls: string[]): string[] {
     if (uniqueHosts.length === 0) return [...LANDING_AVATAR_FALLBACKS];
     return [...uniqueHosts, ...LANDING_AVATAR_FALLBACKS].slice(0, 3);
 }
+
+function HomeLandingLegalLinks() {
+    return (
+        <>
+            <a
+                href="/documents/terms-of-use.docx"
+                className="home-landing-doc-link"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Terms of use
+            </a>
+            <a
+                href="/documents/privacy-policy.docx"
+                className="home-landing-doc-link"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Privacy Policy
+            </a>
+        </>
+    );
+}
 export type HomeLandingViewProps = {
     interactive?: boolean;
     rootStyle?: React.CSSProperties;
@@ -311,13 +334,28 @@ export function HomeLandingView({ interactive = true, rootStyle, initialActiveJo
                 {t}
               </span>))}
           </div>
+          {interactive ? (
+            <div className="home-landing-footer-bar">
+              <div className="home-landing-doc-links home-landing-doc-links--inline">
+                <HomeLandingLegalLinks />
+              </div>
+              <Link href="/admin/login" className="home-admin-login-btn home-admin-login-btn--inline">
+                Admin login
+              </Link>
+            </div>
+          ) : null}
         </footer>
       </main>
 
       {interactive ? (
-        <Link href="/admin/login" className="home-admin-login-btn">
-          Admin login
-        </Link>
+        <>
+          <div className="home-landing-doc-links home-landing-doc-links--fixed">
+            <HomeLandingLegalLinks />
+          </div>
+          <Link href="/admin/login" className="home-admin-login-btn home-admin-login-btn--fixed">
+            Admin login
+          </Link>
+        </>
       ) : null}
     </div>);
 }

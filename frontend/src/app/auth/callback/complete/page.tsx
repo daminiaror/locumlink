@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthSplitLayout from '@/components/AuthSplitLayout';
 import { useAuth } from '@/providers/AuthProvider';
+import { toUserFacingError } from '@/lib/userFacingError';
 
 export default function AuthCallbackCompletePage() {
     const router = useRouter();
@@ -18,9 +19,7 @@ export default function AuthCallbackCompletePage() {
             }
             catch (err: unknown) {
                 if (!cancelled) {
-                    setError(err instanceof Error
-                        ? err.message
-                        : 'Could not complete sign-in. Please try again.');
+                    setError(toUserFacingError(err, 'Could not complete sign-in. Please try again.'));
                 }
             }
         })();

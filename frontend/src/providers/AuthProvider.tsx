@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode, } from 'reac
 import { getAppOrigin } from '@/lib/appOrigin';
 import { authApi } from '@/lib/api';
 import { getSupabase } from '@/lib/supabaseClient';
+import { toUserFacingError } from '@/lib/userFacingError';
 import { saveToken, saveRole, saveEmail, getRole, getToken, clearAuth, syncCookies, markProfileComplete, isProfileComplete, syncProfileCompleteCookies, popLastPath, clearLastPath, type Role, } from '@/lib/auth';
 import { checkProfileExistsOnServer, ensureProfileMarkedCompleteFromServer, } from '@/lib/profileCompleteSync';
 interface AuthCtx {
@@ -130,10 +131,7 @@ export function AuthProvider({ children }: {
             );
         }
         catch (err) {
-            const detail = err instanceof Error ? err.message : 'Verification failed';
-            if (/ECONNREFUSED|connect|fetch failed|Failed to fetch/i.test(detail))
-                throw new Error('Could not reach the app API. From repo root run: npm run dev (and npm run db:up if Postgres is down).');
-            throw err instanceof Error ? err : new Error(detail);
+            throw new Error(toUserFacingError(err, 'Could not verify the code. Please try again.'));
         }
         setUserId(null);
         saveToken(tokens.accessToken);

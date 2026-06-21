@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AuthSplitLayout from '@/components/AuthSplitLayout';
 import { useAuth } from '@/providers/AuthProvider';
 import { getEmail, getRole, saveRole, type Role } from '@/lib/auth';
+import { toUserFacingError } from '@/lib/userFacingError';
 import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 const OTP_LEN = 6;
 const RESEND_COOLDOWN_SEC = 30;
@@ -92,7 +93,7 @@ export default function VerifyPage(props: {
             router.replace(redirectTo);
         }
         catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Could not verify the code. Please try again.');
+            setError(toUserFacingError(err, 'Could not verify the code. Please try again.'));
         }
         finally {
             setBusy(false);
@@ -114,14 +115,14 @@ export default function VerifyPage(props: {
             await sendOtp(email, role);
         }
         catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Could not resend the code.';
-            const match = msg.match(/(\d+)\s*second/i);
+            const raw = err instanceof Error ? err.message : '';
+            const match = raw.match(/(\d+)\s*second/i);
             if (match) {
                 setResendCooldown(parseInt(match[1], 10));
             }
             else {
                 setResendCooldown(0);
-                setError(msg);
+                setError(toUserFacingError(err, 'Could not resend the code. Please try again.'));
             }
         }
         finally {

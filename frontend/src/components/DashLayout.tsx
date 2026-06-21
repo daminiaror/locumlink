@@ -9,17 +9,20 @@ import Logo from '@/components/Logo';
 import { useAuth } from '@/providers/AuthProvider';
 import { computeAvatarInitials, initialsFromSupabaseUser, } from '@/lib/avatarInitials';
 import { clearProfileCompleteCookies, getRole, getToken } from '@/lib/auth';
-import { authApi, hostApi, locumApi, notificationsApi, uploadFile, type NotificationItem, } from '@/lib/api';
+import { authApi, hostApi, locumApi, messageApi, notificationsApi, uploadFile, type NotificationItem, } from '@/lib/api';
 import { notifCategory } from '@/lib/relativeTime';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useTrackLastPath } from '../hooks/useTrackLastPath';
 import { subscribeProfileUpdated } from '@/lib/profileUpdatedEvent';
+import { subscribeMessagesUpdated } from '@/lib/messagesUpdatedEvent';
 import { beforeClientNavigation } from '@/lib/topLoader';
 import { isExternalNotificationHref, resolveNotificationAction, resolveNotificationTitle } from '@/lib/notificationActions';
+import { CountBadge } from '@/components/CountBadge';
 interface NavItem {
     label: string;
     href: string;
     icon: ReactNode;
+    badgeCount?: number;
 }
 interface Props {
     navItems: NavItem[];
@@ -178,6 +181,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [notifTotal, setNotifTotal] = useState(0);
+    const [messageUnreadTotal, setMessageUnreadTotal] = useState(0);
     const bellRef = useRef<HTMLDivElement>(null);
     /** IDs dismissed locally after open; kept until server reports read (avoids poll flash-back). */
     const dismissedNotifIdsRef = useRef<Set<string>>(new Set());
@@ -284,9 +288,21 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
         catch {
         }
     }, []);
+    const fetchMessageUnread = useCallback(async () => {
+        if (!getToken())
+            return;
+        try {
+            const { conversations } = await messageApi.getConversations({ skipTopLoader: true });
+            const total = conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+            setMessageUnreadTotal(total);
+        }
+        catch {
+        }
+    }, []);
     useEffect(() => {
         void fetchNotifications();
-    }, [fetchNotifications]);
+        void fetchMessageUnread();
+    }, [fetchNotifications, fetchMessageUnread, userId]);
     const prevNotifTotal = useRef(0);
     useEffect(() => {
         if (notifTotal > prevNotifTotal.current && prevNotifTotal.current !== 0) {
@@ -328,13 +344,24 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     }, [userId]);
     useVisibilityPolling(() => {
         void fetchNotifications();
+        void fetchMessageUnread();
     }, 12_000, Boolean(getToken()));
     useEffect(() => {
         if (!getToken()) return;
         return onPwaRefresh(() => {
             void fetchNotifications();
+            void fetchMessageUnread();
         });
-    }, [fetchNotifications]);
+    }, [fetchNotifications, fetchMessageUnread]);
+    useEffect(() => {
+        return subscribeMessagesUpdated(() => {
+            void fetchMessageUnread();
+        });
+    }, [fetchMessageUnread]);
+    useEffect(() => {
+        if (pathname?.includes('/messages'))
+            void fetchMessageUnread();
+    }, [pathname, fetchMessageUnread]);
     useEffect(() => {
         if (!getToken())
             return;
@@ -439,6 +466,14 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
     const avatarText = initialsFromContactNames !== 'N'
         ? initialsFromContactNames
         : (authAvatarInitials ?? 'N');
+    const sidebarNavItemsWithBadges = sidebarNavItems.map((item) => {
+        const isMessagesNav = item.href === '/locum/messages'
+            || item.href === '/host/messages'
+            || item.label === 'Messages';
+        return isMessagesNav
+            ? { ...item, badgeCount: messageUnreadTotal }
+            : item;
+    });
     return (<div style={{
             display: 'flex',
             flexDirection: 'column',
@@ -1021,7 +1056,7 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
 
           <nav style={{ flex: 1, paddingTop: NAV_INNER_TOP }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {sidebarNavItems.map(({ label, href, icon }) => {
+              {sidebarNavItemsWithBadges.map(({ label, href, icon, badgeCount }) => {
             const active = activeHref === href;
             const isBrowseOpportunities = href === '/locum/browse' || label === 'Browse Opportunities';
             const isLocumDashboard = href === '/locum/dashboard' || label === 'My Applications';
@@ -1078,16 +1113,21 @@ export default function DashLayout({ navItems, activeHref, topbarRight, topbarFi
                         {sidebarIconName ? <NavIcon name={sidebarIconName}/> : icon}
                       </span>
                       <span style={{
+                    flex: 1,
+                    minWidth: 0,
                     fontFamily: 'Gilroy-Medium, Inter, sans-serif',
                     fontSize: 'var(--font-heading)',
                     lineHeight: '20px',
                     textTransform: 'capitalize',
                     whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                     color: active ? SIDEBAR_ACTIVE : 'rgba(255,255,255,0.85)',
                     fontWeight: active ? 600 : 400,
                 }}>
                         {label}
                       </span>
+                      <CountBadge count={badgeCount ?? 0} variant="sidebar" />
                     </div>
                   </Link>);
         })}

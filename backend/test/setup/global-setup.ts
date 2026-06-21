@@ -30,7 +30,16 @@ export default async function globalSetup(): Promise<void> {
   adminUrl.pathname = '/postgres';
 
   const admin = new Client({ connectionString: adminUrl.toString() });
-  await admin.connect();
+  try {
+    await admin.connect();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Cannot connect to test Postgres at ${adminUrl.hostname}:${adminUrl.port || '5432'} (${msg}).\n` +
+        'Start Docker Desktop and run: docker compose up -d postgres\n' +
+        'Or copy backend/.env.test.example to backend/.env.test and point at a local l2_test database.',
+    );
+  }
   try {
     const exists = await admin.query(
       'SELECT 1 FROM pg_database WHERE datname = $1',

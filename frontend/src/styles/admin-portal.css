@@ -1596,13 +1596,164 @@
   }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .admin-portal .admin-hamburger {
     display: none !important;
   }
 
   .admin-portal .admin-sidebar-overlay {
     display: none !important;
+  }
+}
+
+/* ── Tablet (769px–1024px): drawer sidebar + overflow safety ── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .admin-portal {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  .admin-portal .admin-shell {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    flex-direction: row;
+    position: relative;
+  }
+
+  .admin-portal .admin-hamburger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    color: #0f2a7a;
+    margin: 0;
+  }
+
+  .admin-portal .admin-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+  }
+
+  .admin-portal .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(256px, 42vw);
+    max-height: none;
+    height: 100dvh;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 24px rgba(15, 42, 122, 0.18);
+    box-sizing: border-box;
+  }
+
+  .admin-portal .sidebar.sidebar--open {
+    transform: translateX(0);
+  }
+
+  .admin-portal .main-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    padding: 20px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .admin-portal .admin-topbar {
+    padding: 0 16px;
+    gap: 10px;
+  }
+
+  .admin-portal .admin-topbar-brand {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .admin-portal .admin-topbar-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: min(200px, 40vw);
+  }
+
+  .admin-portal .header-with-actions,
+  .admin-portal .header-actions,
+  .admin-portal .filter-grid,
+  .admin-portal .metric-header {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .admin-portal .header-with-actions {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .admin-portal .header-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-portal .table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-portal .grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-portal .grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-portal .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-portal .card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-portal .admin-bell-dropdown {
+    max-width: calc(100vw - 32px) !important;
+    max-height: 320px !important;
+    overflow-y: auto !important;
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  .admin-portal input,
+  .admin-portal select,
+  .admin-portal textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-portal .modal,
+  .admin-portal .admin-notif-modal {
+    max-width: min(560px, calc(100vw - 32px)) !important;
+    box-sizing: border-box !important;
   }
 }
 

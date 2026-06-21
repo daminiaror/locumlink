@@ -15,6 +15,7 @@ import { useNextPageClientProps } from '@/lib/use-next-page-client-props';
 import type { HostProfile } from '@/types';
 import { sortByLabel, sortStringsLocale } from '@/lib/sortLocale';
 import { NameWithVerifiedShield } from '@/components/NameWithVerifiedShield';
+import { CountBadge } from '@/components/CountBadge';
 import { EmptyIllustration, PlusIcon, ReopenJobIcon, TrashIcon, UserEditIcon, } from './host-dashboard-icons';
 import { ProfileStatusGlyph } from '@/components/ProfileStatusGlyph';
 import { getHostProfileStatusCard } from '@/lib/hostAccountNotice';
@@ -2015,6 +2016,13 @@ export default function HostDashboard(props: {
                 : activeTab === 'recent'
                     ? recentJobs
                     : draftJobs;
+    const hostTabCounts: Record<(typeof TABS)[number]['id'], number> = {
+        active: activePosts.length,
+        ongoing: ongoingJobs.length,
+        recent: recentJobs.length,
+        draft: draftJobs.length,
+        deleted: deletedJobs.length,
+    };
     const totalLocumShiftsPosted = dashStats?.totalJobsPosted ?? jobs.filter((j) => jobStatus(j) !== 'DRAFT').length;
     const statsDisplay = [
         {
@@ -2356,6 +2364,9 @@ export default function HostDashboard(props: {
                 >
                         <span className="host-dash-tab-label">
                           {tab.label}
+                          {!loadingData && (
+                            <CountBadge count={hostTabCounts[tab.id]} variant="tab" />
+                          )}
                         </span>
                       </button>);
         })}

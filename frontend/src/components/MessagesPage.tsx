@@ -9,6 +9,7 @@ import DashLayout, { NavIcon } from '@/components/DashLayout';
 import { fetchAllPaginated, hostApi, locumApi, messageApi, uploadFile, type ApplicationRecord, type Conversation, type ConversationPartner, type MyApplication, type ThreadMessage, type ThreadPartner, } from '@/lib/api';
 import { getEmail, getToken } from '@/lib/auth';
 import { subscribeProfileUpdated } from '@/lib/profileUpdatedEvent';
+import { dispatchMessagesUpdated } from '@/lib/messagesUpdatedEvent';
 import { beforeClientNavigation } from '@/lib/topLoader';
 import { useAuth } from '@/providers/AuthProvider';
 import { NameWithVerifiedShield } from '@/components/NameWithVerifiedShield';
@@ -467,6 +468,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             });
             setConversations(data);
             syncPartnerFromConversations(data, selectedPartnerId);
+            dispatchMessagesUpdated();
             if (!urlPartnerId && !selectedPartnerId && data.length > 0 && window.innerWidth > 768 && !userClearedRef.current) {
                 const first = data[0];
                 setSelectedPartnerId(first.partnerId);
@@ -490,6 +492,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             threadSinceRef.current = last?.sentAt ?? null;
             setPartner(p);
             setConversations((prev) => prev.map((c) => c.partnerId === partnerId ? { ...c, unreadCount: 0 } : c));
+            dispatchMessagesUpdated();
         }
         catch {
         }
@@ -590,6 +593,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
             }
             setConversations(convs.map((c) => c.partnerId === selectedPartnerId ? { ...c, unreadCount: 0 } : c));
             syncPartnerFromConversations(convs, selectedPartnerId);
+            dispatchMessagesUpdated();
         }
         catch {
         }
