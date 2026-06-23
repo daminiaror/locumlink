@@ -29,7 +29,7 @@ function HomeLandingLegalLinks() {
                 target="_blank"
                 rel="noopener noreferrer"
             >
-                Terms of use
+                Terms of Use
             </a>
             <a
                 href="/documents/privacy-policy.pdf"

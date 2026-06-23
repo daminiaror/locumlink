@@ -1,22 +1,18 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthSplitLayout from '@/components/AuthSplitLayout';
 import { useAuth } from '@/providers/AuthProvider';
 import { toUserFacingError } from '@/lib/userFacingError';
-import { saveRole } from '@/lib/auth';
 
-function AuthCallbackCompleteInner() {
+export default function AuthCallbackCompletePage() {
     const router = useRouter();
     const { completeOAuthSignIn } = useAuth();
-    const params = useSearchParams();
     const [error, setError] = useState('');
     useEffect(() => {
         let cancelled = false;
         void (async () => {
             try {
-                const roleFromUrl = params.get('role') as 'clinic' | 'locum' | null;
-                if (roleFromUrl) saveRole(roleFromUrl);
                 const { redirectTo } = await completeOAuthSignIn();
                 if (!cancelled)
                     router.replace(redirectTo);
@@ -56,16 +52,4 @@ function AuthCallbackCompleteInner() {
         {error || 'Please wait while we finish setting up your session.'}
       </p>
     </AuthSplitLayout>);
-}
-
-export default function AuthCallbackCompletePage() {
-    return (
-        <Suspense fallback={
-            <AuthSplitLayout variant="signup">
-                <div style={{ padding: 24, textAlign: 'center', color: '#6B7280' }}>Loading…</div>
-            </AuthSplitLayout>
-        }>
-            <AuthCallbackCompleteInner />
-        </Suspense>
-    );
 }

@@ -28,8 +28,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  const role = requestUrl.searchParams.get('role') ?? 'locum';
-  const completeUrl = new URL('/auth/callback/complete', origin);
-  completeUrl.searchParams.set('role', role);
-  return NextResponse.redirect(completeUrl);
+  return NextResponse.redirect(new URL('/auth/callback/complete', origin));
 }
