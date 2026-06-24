@@ -14,6 +14,7 @@ import {
   parsePaginationParams,
 } from '../common/pagination/index.js';
 import {
+  Prisma,
   PostingStatus,
   Role,
   UserStatus,
@@ -613,8 +614,30 @@ export class HostService {
       },
     );
 
+    const jobIds = page.items.map((j) => j.id);
+    const latestAppliedByJobId = new Map<string, Date>();
+    if (jobIds.length > 0) {
+      const latestRows = await this.prisma.$queryRaw<
+        Array<{ jobPostingId: string; latest_applied: Date }>
+      >`
+        SELECT "jobPostingId", MAX("appliedAt") AS latest_applied
+        FROM applications
+        WHERE "jobPostingId" IN (${Prisma.join(jobIds)})
+        GROUP BY "jobPostingId"
+      `;
+      for (const row of latestRows) {
+        latestAppliedByJobId.set(row.jobPostingId, row.latest_applied);
+      }
+    }
+
+    const sortedItems = [...page.items].sort((a, b) => {
+      const aSort = latestAppliedByJobId.get(a.id) ?? a.createdAt;
+      const bSort = latestAppliedByJobId.get(b.id) ?? b.createdAt;
+      return bSort.getTime() - aSort.getTime();
+    });
+
     return {
-      items: page.items.map((j) => {
+      items: sortedItems.map((j) => {
         const { _count, shifts: _shifts, applications: acceptedApps, ...rest } =
           j;
         return {

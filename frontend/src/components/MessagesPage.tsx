@@ -418,6 +418,16 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         status: ApplicationRecord['status'];
     } | null>(null);
     const [confirmLocumBusy, setConfirmLocumBusy] = useState(false);
+    const [showConfirmJobOverlay, setShowConfirmJobOverlay] = useState(false);
+    const [confirmJobOptions, setConfirmJobOptions] = useState<
+        Array<{ appId: string; jobId: string; jobTitle: string; appliedAt: string }>
+    >([]);
+    const [selectedConfirmJob, setSelectedConfirmJob] = useState<{
+        appId: string;
+        jobId: string;
+        jobTitle: string;
+    } | null>(null);
+    const [confirmStep, setConfirmStep] = useState<'select' | 'confirm'>('select');
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
     const threadScrollRef = useRef<HTMLDivElement>(null);
     const stickToBottomRef = useRef(true);
@@ -690,18 +700,58 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         if (next.length)
             setPendingFiles((prev) => [...prev, ...next]);
     }
-    async function handleConfirmLocumFromThread() {
-        if (role !== 'host' || !composeJobPostingId || !threadHostApplication || confirmLocumBusy)
-            return;
-        if (threadHostApplication.status === 'CONFIRMED' ||
-            threadHostApplication.status === 'REJECTED' ||
-            threadHostApplication.status === 'WITHDRAWN')
+    async function handleConfirmButtonClick() {
+        if (role !== 'host' || !selectedPartnerId || confirmLocumBusy)
             return;
         setConfirmLocumBusy(true);
         try {
-            await hostApi.updateApplication(composeJobPostingId, threadHostApplication.id, 'CONFIRMED');
-            setThreadHostApplication((prev) => prev ? { ...prev, status: 'CONFIRMED' } : null);
+            const { items: allJobs } = await hostApi.getJobs({ limit: 100 });
+            const options: Array<{
+                appId: string;
+                jobId: string;
+                jobTitle: string;
+                appliedAt: string;
+            }> = [];
+            for (const job of allJobs) {
+                const { items: apps } = await hostApi.getApplications(job.id, { limit: 100 });
+                const locumApp = apps.find((a) => a.locumProfile.userId === selectedPartnerId &&
+                    (a.status === 'APPLIED' || a.status === 'SHORTLISTED'));
+                if (locumApp) {
+                    options.push({
+                        appId: locumApp.id,
+                        jobId: job.id,
+                        jobTitle: (job as { title?: string }).title ?? job.id,
+                        appliedAt: (locumApp as { appliedAt?: string }).appliedAt ?? '',
+                    });
+                }
+            }
+            if (options.length === 0) {
+                window.alert('No pending applications found for this locum.');
+                return;
+            }
+            const preSelected = options.find((o) => o.jobId === composeJobPostingId) ?? null;
+            setConfirmJobOptions(options);
+            setSelectedConfirmJob(preSelected);
+            setConfirmStep('select');
+            setShowConfirmJobOverlay(true);
+        }
+        catch (e: unknown) {
+            window.alert(e instanceof Error ? e.message : 'Could not load jobs.');
+        }
+        finally {
+            setConfirmLocumBusy(false);
+        }
+    }
+    async function handleConfirmLocumFromThread(jobId: string, appId: string) {
+        setConfirmLocumBusy(true);
+        try {
+            await hostApi.updateApplication(jobId, appId, 'CONFIRMED');
+            if (jobId === composeJobPostingId) {
+                setThreadHostApplication((prev) => prev ? { ...prev, status: 'CONFIRMED' } : null);
+            }
             void loadConversations({ skipTopLoader: true });
+            setShowConfirmJobOverlay(false);
+            setSelectedConfirmJob(null);
         }
         catch (e: unknown) {
             window.alert(e instanceof Error ? e.message : 'Could not confirm this applicant.');
@@ -1434,7 +1484,7 @@ function MessagesPageInner({ role }: MessagesPageProps) {
                     </div>) : null}
                   </div>
                   {(hostThreadNeedsConfirm || hostThreadAlreadyConfirmed) ? (<div style={{ flexShrink: 0, paddingTop: 2 }}>
-                      {hostThreadNeedsConfirm ? (<button type="button" onClick={() => void handleConfirmLocumFromThread()} disabled={confirmLocumBusy} style={{
+                      {hostThreadNeedsConfirm ? (<button type="button" onClick={() => void handleConfirmButtonClick()} disabled={confirmLocumBusy} style={{
                         padding: '8px 18px',
                         borderRadius: 8,
                         border: 'none',
@@ -1929,6 +1979,173 @@ function MessagesPageInner({ role }: MessagesPageProps) {
         setThread((prev) => prev.filter((m) => m.id !== deleteTarget.id));
         setDeleteTarget(null);
       }} onCancel={() => setDeleteTarget(null)}/>)}
+
+      {showConfirmJobOverlay && (<div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+        }}>
+          <div style={{
+                background: '#fff',
+                borderRadius: 16,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                width: '100%',
+                maxWidth: 420,
+                padding: 28,
+                fontFamily: 'inherit',
+            }}>
+            {confirmStep === 'select' && (<>
+                <h2 style={{
+                    fontSize: 17,
+                    fontWeight: 700,
+                    color: '#111827',
+                    margin: '0 0 6px',
+                }}>
+                  Select Job to Confirm
+                </h2>
+                <p style={{
+                    fontSize: 13,
+                    color: '#6B7280',
+                    margin: '0 0 18px',
+                }}>
+                  This locum has applied to multiple jobs. Select which job
+                  you want to confirm them for.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 22 }}>
+                  {confirmJobOptions.map((opt) => (<button key={opt.jobId} type="button" onClick={() => setSelectedConfirmJob(opt)} style={{
+                        textAlign: 'left',
+                        padding: '12px 16px',
+                        borderRadius: 10,
+                        border: `2px solid ${selectedConfirmJob?.jobId === opt.jobId
+                            ? '#14B8A6'
+                            : '#E5E7EB'}`,
+                        background: selectedConfirmJob?.jobId === opt.jobId
+                            ? '#F0FDFA'
+                            : '#fff',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s',
+                    }}>
+                      <div style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: '#111827',
+                            fontFamily: 'inherit',
+                        }}>
+                        {opt.jobTitle}
+                      </div>
+                      {opt.appliedAt ? (<div style={{
+                            fontSize: 12,
+                            color: '#9CA3AF',
+                            marginTop: 3,
+                            fontFamily: 'inherit',
+                        }}>
+                          Applied{' '}
+                          {new Date(opt.appliedAt).toLocaleDateString('en-CA', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                        })}
+                        </div>) : null}
+                    </button>))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => setShowConfirmJobOverlay(false)} style={{
+                        flex: 1,
+                        padding: '10px 0',
+                        borderRadius: 8,
+                        border: '1px solid #E5E7EB',
+                        background: '#fff',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#6B7280',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                    }}>
+                    Cancel
+                  </button>
+                  <button type="button" disabled={!selectedConfirmJob} onClick={() => setConfirmStep('confirm')} style={{
+                        flex: 1,
+                        padding: '10px 0',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: selectedConfirmJob
+                            ? 'linear-gradient(180deg,#2DD4BF 0%,#0D9488 100%)'
+                            : '#D1D5DB',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: '#fff',
+                        cursor: selectedConfirmJob ? 'pointer' : 'default',
+                        fontFamily: 'inherit',
+                    }}>
+                    Next
+                  </button>
+                </div>
+              </>)}
+
+            {confirmStep === 'confirm' && selectedConfirmJob && (<>
+                <h2 style={{
+                    fontSize: 17,
+                    fontWeight: 700,
+                    color: '#111827',
+                    margin: '0 0 10px',
+                }}>
+                  Are you sure?
+                </h2>
+                <p style={{
+                    fontSize: 14,
+                    color: '#374151',
+                    margin: '0 0 24px',
+                    lineHeight: 1.5,
+                }}>
+                  Confirm this locum doctor for{' '}
+                  <span style={{ fontWeight: 700, color: '#111827' }}>
+                    {selectedConfirmJob.jobTitle}
+                  </span>
+                  ?
+                </p>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => setConfirmStep('select')} style={{
+                        flex: 1,
+                        padding: '10px 0',
+                        borderRadius: 8,
+                        border: '1px solid #E5E7EB',
+                        background: '#fff',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#6B7280',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                    }}>
+                    Back
+                  </button>
+                  <button type="button" disabled={confirmLocumBusy} onClick={() => void handleConfirmLocumFromThread(selectedConfirmJob.jobId, selectedConfirmJob.appId)} style={{
+                        flex: 1,
+                        padding: '10px 0',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: confirmLocumBusy
+                            ? '#94D3AF'
+                            : 'linear-gradient(180deg,#22C55E 0%,#16A34A 100%)',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: '#fff',
+                        cursor: confirmLocumBusy ? 'default' : 'pointer',
+                        fontFamily: 'inherit',
+                    }}>
+                    {confirmLocumBusy ? 'Confirming…' : 'Confirm'}
+                  </button>
+                </div>
+              </>)}
+          </div>
+        </div>)}
     </DashLayout>);
 }
 export default function MessagesPage(props: MessagesPageProps) {
