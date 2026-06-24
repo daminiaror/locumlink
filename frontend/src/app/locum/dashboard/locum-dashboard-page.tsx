@@ -476,7 +476,7 @@ export default function LocumDashboard(props: {
                 const postingRemoved = Boolean(jp.isDeleted);
                 const st = applicationStatusPresentation(app);
                 const responding = respondingAppId === app.id;
-                const needsLocumResponse = app.status === 'CONFIRMED' && !app.locumAcceptedAt;
+                const needsLocumResponse = app.status === 'CONFIRMED' && !app.locumAcceptedAt && !postingRemoved;
                 const mutedText = postingRemoved ? '#9CA3AF' : '#5a6478';
                 const titleColor = postingRemoved ? '#9CA3AF' : '#0f1523';
                 return (<div key={app.id} style={{
@@ -503,6 +503,11 @@ export default function LocumDashboard(props: {
                   }}
                 >
                   Posting removed by host
+                </div>
+              ) : null}
+              {postingRemoved && app.status === 'CONFIRMED' && !app.locumAcceptedAt ? (
+                <div style={{ marginTop: 10, fontSize: 12, color: '#6B7280' }}>
+                  This posting was removed by the host. You can no longer accept or decline.
                 </div>
               ) : null}
               <div style={{

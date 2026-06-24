@@ -627,13 +627,15 @@ export class LocumService {
     if (!locumProfile) throw new ForbiddenException();
     const app = await this.prisma.application.findFirst({
       where: { id: applicationId, locumProfileId: locumProfile.id },
-      include: { jobPosting: { select: { id: true, status: true } } },
+      include: { jobPosting: { select: { id: true, status: true, isDeleted: true } } },
     });
     if (!app) throw new NotFoundException('Application not found');
     if (app.status !== 'CONFIRMED')
       throw new BadRequestException(
         'Only host-confirmed placements can be accepted or declined.',
       );
+    if (app.jobPosting.isDeleted)
+      throw new BadRequestException('This posting has been removed by the host.');
     if (response === 'accept') {
       if (app.locumAcceptedAt)
         throw new BadRequestException(
