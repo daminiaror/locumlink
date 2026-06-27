@@ -175,10 +175,19 @@ export function AuthProvider({ children }: {
         setRoleState(chosenRole);
         const supabase = getSupabase();
         const redirectTo = `${getAppOrigin()}/auth/callback?role=${chosenRole}`;
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: provider === 'azure' ? 'azure' : 'google',
-            options: { redirectTo },
-        });
+       const { error } = await supabase.auth.signInWithOAuth({
+    provider: provider === 'azure' ? 'azure' : 'google',
+    options: {
+        redirectTo,
+        ...(provider === 'azure' && {
+            scopes: 'openid profile email',
+            queryParams: {
+                prompt: 'select_account',
+            },
+        }),
+    },
+});
+ 
         if (error) throw new Error(error.message);
     }
     async function completeOAuthSignIn(): Promise<{ role: Role; redirectTo: string }> {

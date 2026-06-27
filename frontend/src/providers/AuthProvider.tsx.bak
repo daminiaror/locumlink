@@ -157,7 +157,7 @@ export function AuthProvider({ children }: {
         saveRole(chosenRole);
         setRoleState(chosenRole);
         const supabase = getSupabase();
-        const redirectTo = `${getAppOrigin()}/auth/callback`;
+        const redirectTo = `${getAppOrigin()}/auth/callback?role=${chosenRole}`;
         const { error } = await supabase.auth.signInWithOAuth({
             provider: provider === 'azure' ? 'azure' : 'google',
             options: { redirectTo },
