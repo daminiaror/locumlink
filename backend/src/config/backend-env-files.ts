@@ -32,6 +32,10 @@ export function backendDevelopmentEnvPaths(): string[] {
     resolve(parent, '.env'),
     resolve(parent, `.env.${nodeEnv}`),
     resolve(parent, '.env.local'),
+    // Frontend env (Supabase keys often live only here in local dev)
+    resolve(parent, 'frontend', '.env'),
+    resolve(parent, 'frontend', '.env.local'),
+    resolve(parent, 'frontend', `.env.${nodeEnv}`),
     // Backend-specific env overlays
     resolve(root, '.env'),
     resolve(root, `.env.${nodeEnv}`),

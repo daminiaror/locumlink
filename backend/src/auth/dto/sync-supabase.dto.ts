@@ -1,5 +1,7 @@
-import { IsIn } from 'class-validator';
+import { IsIn, IsNotEmpty, IsString } from 'class-validator';
 export class SyncSupabaseDto {
+  @IsString()
+  @IsNotEmpty()
   @IsIn(['locum', 'clinic'])
-  role: 'locum' | 'clinic';
+  role!: 'locum' | 'clinic';
 }

@@ -99,8 +99,8 @@ function handleUnauthorized(): void {
         window.location.href = '/auth';
     }
 }
-function nestHeaders(json: boolean): HeadersInit {
-    const token = getToken();
+function nestHeaders(json: boolean, tokenOverride?: string | null): HeadersInit {
+    const token = tokenOverride ?? getToken();
     const h: Record<string, string> = {};
     if (json)
         h['Content-Type'] = 'application/json';
@@ -295,23 +295,26 @@ export const authApi = {
             'Verify code',
         );
     },
-    syncFromSupabase: async (role: Role): Promise<{
+    syncFromSupabase: async (
+        role: Role,
+        supabaseAccessToken: string,
+    ): Promise<{
         accessToken: string;
         refreshToken: string;
     }> => {
-        const res = await trackedFetch(`${NEST_BASE}/api/auth/sync-supabase`, {
+        const res = await trackedFetch(apiFetchUrl('/api/auth/sync-supabase'), {
             method: 'POST',
-            headers: nestHeaders(true),
+            headers: nestHeaders(true, supabaseAccessToken),
             body: JSON.stringify({ role }),
         });
         if (!res.ok) {
             const text = await res.text();
             throw new Error(text || `sync-supabase failed: ${res.status}`);
         }
-        return res.json() as Promise<{
-            accessToken: string;
-            refreshToken: string;
-        }>;
+        return readJsonResponse<{ accessToken: string; refreshToken: string }>(
+            res,
+            'Sync session',
+        );
     },
     getMe: async (): Promise<AuthMeResponse> => {
         const res = await trackedFetch(`${NEST_BASE}/api/auth/me`, {

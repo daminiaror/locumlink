@@ -326,7 +326,25 @@ export class AuthService {
           );
           return this.issueTokens(user);
         }
-      } catch {}
+        const nodeEnv = this.config.get<string>('NODE_ENV') ?? 'development';
+        if (error && nodeEnv !== 'production') {
+          this.logger.warn(`sync-supabase: Supabase getUser failed: ${error.message}`);
+        }
+      } catch (err) {
+        const nodeEnv = this.config.get<string>('NODE_ENV') ?? 'development';
+        if (nodeEnv !== 'production') {
+          this.logger.warn(
+            `sync-supabase: Supabase client error: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    } else {
+      const nodeEnv = this.config.get<string>('NODE_ENV') ?? 'development';
+      if (nodeEnv !== 'production') {
+        this.logger.warn(
+          'sync-supabase: set SUPABASE_URL and SUPABASE_ANON_KEY (same project as frontend) on the backend.',
+        );
+      }
     }
 
     try {
