@@ -33,3 +33,4 @@ frontend/public/fallback-*.js
 *.bak
 **/.env*
 ecosystem.config.js
+backend/.env.test
