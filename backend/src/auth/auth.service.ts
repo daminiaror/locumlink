@@ -32,6 +32,7 @@ import {
   clearUserOtpVerifyAttempts,
   recordUserOtpVerifyFailure,
 } from './user-otp-rate-limit.js';
+import { getFixedOtpForStaging } from '../config/fixed-otp.util.js';
 
 const BCRYPT_ROUNDS = 12;
 const OTP_LENGTH = 6;
@@ -386,7 +387,10 @@ export class AuthService {
       );
     }
 
-    const otp = String(randomInt(10 ** (OTP_LENGTH - 1), 10 ** OTP_LENGTH - 1));
+    const fixedOtp = getFixedOtpForStaging(this.config, OTP_LENGTH);
+    const otp =
+      fixedOtp ??
+      String(randomInt(10 ** (OTP_LENGTH - 1), 10 ** OTP_LENGTH - 1));
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
     await this.prisma.$transaction([
@@ -407,6 +411,22 @@ export class AuthService {
         },
       }),
     ]);
+
+    if (fixedOtp) {
+      this.logger.log(
+        `Staging FIXED_OTP_CODE: OTP email skipped for ${normalizedEmail}`,
+      );
+      await this.prisma.emailLog.create({
+        data: {
+          recipient: normalizedEmail,
+          eventType: 'AUTH_OTP',
+          status: 'SKIPPED',
+          provider: 'staging_fixed_otp',
+          referenceType: 'Otp',
+        },
+      });
+      return;
+    }
 
     const subject = 'Your Locum Link verification code';
     const text = [
